@@ -117,3 +117,26 @@ Konflik (*merge conflict*) terjadi jika dua orang mengedit **baris file yang sam
    * `fix: ...` (memperbaiki bug)
    * `style: ...` (merapikan tampilan/css)
 3. **Selalu lakukan `git pull` sebelum mulai menulis kode** agar konflik bisa dihindari sejak awal.
+
+---
+
+## ⚠️ 6. Risiko Bug Teknis & Solusi Otomatisasi (Bugs Risk & Solutions)
+
+Untuk mencegah terjadinya bug komunikasi dan fungsionalitas di masa mendatang, seluruh developer wajib mengetahui risiko teknis berikut yang sudah diatasi dengan sistem otomatisasi:
+
+### A. UI Menggantung (Infinite Messaging Hang)
+* **Risiko**: Menggunakan `chrome.runtime.sendMessage` tanpa batas waktu tunggu (*timeout*) akan membuat UI ekstensi *stuck* loading selamanya jika background script tidak aktif.
+* **Solusi**: Semua pemanggilan pesan di [popup.tsx](file:///d:/tabkeep_keanu/popup.tsx) dan [TabPickerView.tsx](file:///d:/tabkeep_keanu/components/TabPickerView.tsx) dibungkus menggunakan wrapper Promise dengan **timeout fallback 500ms**.
+
+### B. Koneksi Invalidated Pasca Reload Ekstensi
+* **Risiko**: Saat ekstensi di-reload (karena modifikasi kode), halaman dashboard aktif kehilangan koneksi dengan background script, memicu error *“Extension context invalidated”*.
+* **Solusi**: Memasang *heartbeat check* berkala setiap **1500ms** di [dashboard.tsx](file:///d:/tabkeep_keanu/tabs/dashboard.tsx) yang secara otomatis akan **me-refresh halaman** jika mendeteksi koneksi terputus.
+
+### C. Penolakan Izin Membaca Clipboard
+* **Risiko**: Mengakses `navigator.clipboard.readText()` tanpa izin resmi dari manifest akan diblokir oleh Chrome.
+* **Solusi**: Pastikan izin `"clipboardRead"` terdaftar dalam array `permissions` di [package.json](file:///d:/tabkeep_keanu/package.json).
+
+### D. Konflik Seleksi Teks & Navigasi Saat Shift-Click
+* **Risiko**: Menahan tombol Shift saat menyeleksi list tab memicu highlight teks liar browser atau double-trigger event klik.
+* **Solusi**: Menerapkan kelas CSS `select-none` pada daftar tab, menonaktifkan pointer events pada checkbox asli (`pointer-events-none`), dan membatasi deteksi klik pada tag `<a>`.
+
