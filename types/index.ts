@@ -5,6 +5,7 @@ export interface SavedTab {
     title: string;
     url: string;
     favIconUrl: string;
+    screenshot?: string; // Base64 data URL
 }
 
 export interface Session {

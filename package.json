@@ -31,7 +31,11 @@
       "storage",
       "tabs",
       "contextMenus",
-      "unlimitedStorage"
+      "unlimitedStorage",
+      "clipboardRead"
+    ],
+    "host_permissions": [
+      "<all_urls>"
     ]
   }
 }
