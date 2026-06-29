@@ -5,21 +5,23 @@
   "description": "Tab Management Extension",
   "author": "User",
   "scripts": {
-    "dev": "plasmo dev --target=firefox-mv2",
-    "build": "plasmo build --target=firefox-mv2",
-    "package": "plasmo package --target=firefox-mv2"
+    "dev": "plasmo dev --target=chrome-mv3",
+    "build": "plasmo build --target=chrome-mv3",
+    "package": "plasmo package --target=chrome-mv3"
   },
   "dependencies": {
     "lucide-react": "^0.471.0",
     "plasmo": "0.89.4",
     "react": "18.2.0",
-    "react-dom": "18.2.0"
+    "react-dom": "18.2.0",
+    "sharp": "^0.35.2"
   },
   "devDependencies": {
     "@types/chrome": "0.0.258",
     "@types/node": "20.11.5",
     "@types/react": "18.2.48",
     "@types/react-dom": "18.2.18",
+    "autoprefixer": "^10.5.1",
     "postcss": "8.4.35",
     "tailwindcss": "3.4.1",
     "typescript": "5.3.3"
@@ -27,16 +29,9 @@
   "manifest": {
     "permissions": [
       "storage",
-      "menus",
       "tabs",
       "contextMenus",
       "unlimitedStorage"
-    ],
-    "browser_specific_settings": {
-      "gecko": {
-        "id": "tabkeep-dev@yourdomain.com",
-        "strict_min_version": "109.0"
-      }
-    }
+    ]
   }
 }

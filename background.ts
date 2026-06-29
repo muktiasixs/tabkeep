@@ -1,3 +1,5 @@
+import { persistSession } from "~lib/storage";
+
 export { }
 
 const DASHBOARD_URL = chrome.runtime.getURL("tabs/dashboard.html");
@@ -14,38 +16,28 @@ async function ensurePinned() {
     }
 }
 
-// 1. Buat Menu (Tanpa 'onclick' di dalam create)
+// Buat context menu saat extension diinstall
 chrome.runtime.onInstalled.addListener(() => {
     ensurePinned();
-
-    chrome.menus.create({
+    chrome.contextMenus.create({
         id: "send-to-tabkeep",
         title: "Send selected tabs to Tabkeep",
         contexts: ["tab"]
     });
 });
 
-// 2. Tangani Klik secara terpisah (Ini yang benar)
-chrome.menus.onClicked.addListener(async (info, tab) => {
+// Tangani klik context menu
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     if (info.menuItemId === "send-to-tabkeep") {
         const selectedTabs = await chrome.tabs.query({ highlighted: true, currentWindow: true });
         const tabsToSave = selectedTabs.filter(t => !t.url.includes("dashboard.html"));
 
         if (tabsToSave.length > 0) {
-            const { sessions = [] } = await chrome.storage.local.get("sessions");
-
-            const newSession = {
-                id: `session-${Date.now()}`,
-                name: `Session ${new Date().toLocaleTimeString()}`,
-                timestamp: new Date().toLocaleString(),
-                tabs: tabsToSave.map(t => ({
-                    title: t.title || "No Title",
-                    url: t.url || "",
-                    favIconUrl: t.favIconUrl || ""
-                }))
-            };
-
-            await chrome.storage.local.set({ sessions: [newSession, ...sessions] });
+            await persistSession(tabsToSave.map(t => ({
+                title: t.title || "No Title",
+                url: t.url || "",
+                favIconUrl: t.favIconUrl || ""
+            })));
             tabsToSave.forEach(t => chrome.tabs.remove(t.id));
         }
     }
