@@ -14,6 +14,7 @@ export interface Session {
     timestamp: string;
     tabs: SavedTab[];
     folderId: string | null; // null = Uncategorized
+    deletedAt?: string;
 }
 
 export interface Folder {

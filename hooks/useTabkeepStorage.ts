@@ -3,11 +3,12 @@
 
 import { useEffect, useState } from "react";
 import type { Session, Folder } from "~types";
-import { getSessions, getFolders } from "~lib/storage";
+import { getSessions, getFolders, getDeletedSessions } from "~lib/storage";
 
 export function useTabkeepStorage() {
     const [sessions, setSessions] = useState<Session[]>([]);
     const [folders, setFolders] = useState<Folder[]>([]);
+    const [deletedSessions, setDeletedSessions] = useState<Session[]>([]);
 
     useEffect(() => {
         // Load awal
@@ -15,6 +16,7 @@ export function useTabkeepStorage() {
             if (typeof chrome === "undefined" || !chrome.storage) return;
             setSessions(await getSessions());
             setFolders(await getFolders());
+            setDeletedSessions(await getDeletedSessions());
         };
         load();
 
@@ -30,11 +32,14 @@ export function useTabkeepStorage() {
             if (changes.folders) {
                 setFolders(changes.folders.newValue || []);
             }
+            if (changes.deletedSessions) {
+                setDeletedSessions(changes.deletedSessions.newValue || []);
+            }
         };
 
         chrome.storage.onChanged.addListener(handleChange);
         return () => chrome.storage.onChanged.removeListener(handleChange);
     }, []);
 
-    return { sessions, setSessions, folders, setFolders };
+    return { sessions, setSessions, folders, setFolders, deletedSessions, setDeletedSessions };
 }

@@ -20,6 +20,11 @@ export async function getFolders(): Promise<Folder[]> {
     return (data.folders || []) as Folder[];
 }
 
+export async function getDeletedSessions(): Promise<Session[]> {
+    const data = await chrome.storage.local.get("deletedSessions");
+    return (data.deletedSessions || []) as Session[];
+}
+
 // --- Setters ---
 
 export async function updateSessions(sessions: Session[]): Promise<void> {
@@ -28,6 +33,10 @@ export async function updateSessions(sessions: Session[]): Promise<void> {
 
 export async function updateFolders(folders: Folder[]): Promise<void> {
     await chrome.storage.local.set({ folders });
+}
+
+export async function updateDeletedSessions(deletedSessions: Session[]): Promise<void> {
+    await chrome.storage.local.set({ deletedSessions });
 }
 
 // --- Helpers ---
