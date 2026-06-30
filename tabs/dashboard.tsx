@@ -13,7 +13,7 @@ import { SidebarFolderItem } from "~components/SidebarFolderItem"
 import { RightSidebar } from "~components/RightSidebar"
 import { MainFolderAccordion } from "~components/MainFolderAccordion"
 import { PinnedLinks } from "~components/PinnedLinks"
-import type { Folder as FolderType, SavedTab, PinnedLink, Session } from "~types"
+import type { Folder as FolderType, SavedTab, PinnedLink, Session, SelectedTab } from "~types"
 
 export default function TabkeepDashboard() {
     const { sessions, setSessions, folders, setFolders, deletedSessions, setDeletedSessions, pinnedLinks, setPinnedLinks } = useTabkeepStorage();
@@ -26,6 +26,10 @@ export default function TabkeepDashboard() {
     const [hoveredTab, setHoveredTab] = useState<(SavedTab & { sessionTimestamp?: string; sessionId?: string }) | null>(null);
     const [isAllSessionsDragOver, setIsAllSessionsDragOver] = useState(false);
     const [isMainDragOver, setIsMainDragOver] = useState(false);
+    
+    // Selection state
+    const [selectedTabs, setSelectedTabs] = useState<SelectedTab[]>([]);
+    const [lastClickedTab, setLastClickedTab] = useState<{sessionId: string, tabIndex: number} | null>(null);
 
     const [theme, setTheme] = useState<"light" | "dark">(() => {
         if (typeof window !== "undefined") {
@@ -228,6 +232,154 @@ export default function TabkeepDashboard() {
         }
     };
 
+    const handleMoveMultiTabs = async (tabsToMove: SelectedTab[], targetSessionId: string) => {
+        if (tabsToMove.length === 0) return;
+        const targetSession = sessions.find(s => s.id === targetSessionId);
+        if (!targetSession) return;
+
+        let updatedSessions = [...sessions];
+        let updatedPins = [...pinnedLinks];
+        
+        // Group by session
+        const bySession: Record<string, number[]> = {};
+        for (const tab of tabsToMove) {
+            // Ignore if moving to same session
+            if (tab.sessionId === targetSessionId) continue;
+            
+            if (!bySession[tab.sessionId]) bySession[tab.sessionId] = [];
+            bySession[tab.sessionId].push(tab.tabIndex);
+        }
+
+        const extractedTabs: SavedTab[] = [];
+
+        for (const sessionId of Object.keys(bySession)) {
+            const session = updatedSessions.find(s => s.id === sessionId);
+            if (!session) continue;
+
+            const indices = bySession[sessionId].sort((a, b) => b - a);
+            const newTabs = [...session.tabs];
+
+            // Extract tabs backwards
+            for (const idx of indices) {
+                const tab = newTabs[idx];
+                extractedTabs.unshift(tab);
+                
+                // Update pin folder if needed
+                if (session.folderId !== targetSession.folderId) {
+                    updatedPins = updatedPins.map(p => p.url === tab.url ? { ...p, folderId: targetSession.folderId } : p);
+                }
+                
+                newTabs.splice(idx, 1);
+            }
+
+            updatedSessions = updatedSessions.map(s => {
+                if (s.id === sessionId) return { ...s, tabs: newTabs };
+                return s;
+            });
+        }
+        
+        if (extractedTabs.length === 0) return;
+
+        updatedSessions = updatedSessions.map(s => {
+            if (s.id === targetSessionId) return { ...s, tabs: [...s.tabs, ...extractedTabs] };
+            return s;
+        });
+
+        // Auto delete empty sessions
+        updatedSessions = updatedSessions.filter(s => s.tabs.length > 0);
+
+        setSessions(updatedSessions);
+        await updateSessions(updatedSessions);
+        
+        if (JSON.stringify(updatedPins) !== JSON.stringify(pinnedLinks)) {
+            setPinnedLinks(updatedPins);
+            await updatePinnedLinks(updatedPins);
+        }
+        
+        setSelectedTabs([]); // Clear selection after moving
+    };
+
+    const handleMoveMultiTabsToFolder = async (tabsToMove: SelectedTab[], folderId: string | null) => {
+        if (tabsToMove.length === 0) return;
+        
+        let updatedSessions = [...sessions];
+        let updatedPins = [...pinnedLinks];
+        
+        // Group by session
+        const bySession: Record<string, number[]> = {};
+        for (const tab of tabsToMove) {
+            if (!bySession[tab.sessionId]) bySession[tab.sessionId] = [];
+            bySession[tab.sessionId].push(tab.tabIndex);
+        }
+
+        const extractedTabs: SavedTab[] = [];
+
+        for (const sessionId of Object.keys(bySession)) {
+            const session = updatedSessions.find(s => s.id === sessionId);
+            if (!session) continue;
+
+            const indices = bySession[sessionId].sort((a, b) => b - a);
+            const newTabs = [...session.tabs];
+
+            // Extract tabs backwards
+            for (const idx of indices) {
+                const tab = newTabs[idx];
+                extractedTabs.unshift(tab);
+                
+                // Update pin folder if needed
+                updatedPins = updatedPins.map(p => p.url === tab.url ? { ...p, folderId } : p);
+                
+                newTabs.splice(idx, 1);
+            }
+
+            updatedSessions = updatedSessions.map(s => {
+                if (s.id === sessionId) return { ...s, tabs: newTabs };
+                return s;
+            });
+        }
+        
+        if (extractedTabs.length === 0) return;
+        
+        const newSession: Session = {
+            id: `session-${Date.now()}`,
+            name: `Extracted Tabs (${extractedTabs.length})`,
+            tabs: extractedTabs,
+            timestamp: new Date().toLocaleString(),
+            folderId
+        };
+
+        updatedSessions = [newSession, ...updatedSessions];
+        updatedSessions = updatedSessions.filter(s => s.tabs.length > 0);
+
+        setSessions(updatedSessions);
+        await updateSessions(updatedSessions);
+        
+        if (JSON.stringify(updatedPins) !== JSON.stringify(pinnedLinks)) {
+            setPinnedLinks(updatedPins);
+            await updatePinnedLinks(updatedPins);
+        }
+        
+        setSelectedTabs([]);
+    };
+
+    const handleMergeSessions = async (sourceSessionId: string, targetSessionId: string) => {
+        const sourceSession = sessions.find(s => s.id === sourceSessionId);
+        const targetSession = sessions.find(s => s.id === targetSessionId);
+        if (!sourceSession || !targetSession) return;
+
+        let updatedSessions = sessions.map(s => {
+            if (s.id === targetSessionId) {
+                return { ...s, tabs: [...sourceSession.tabs, ...s.tabs] };
+            }
+            return s;
+        });
+
+        updatedSessions = updatedSessions.filter(s => s.id !== sourceSessionId);
+
+        setSessions(updatedSessions);
+        await updateSessions(updatedSessions);
+    };
+
     const handleDeleteTab = async (sessionId: string, tabIndex: number) => {
         const session = sessions.find(s => s.id === sessionId);
         if (!session) return;
@@ -268,6 +420,151 @@ export default function TabkeepDashboard() {
 
         setSessions(updatedSessions);
         await updateSessions(updatedSessions);
+        
+        // Remove from selection if deleted
+        setSelectedTabs(prev => prev.filter(t => !(t.sessionId === sessionId && t.tabIndex === tabIndex)));
+    };
+
+    const handleToggleTabSelection = (sessionId: string, tabIndex: number, url: string, isShift: boolean) => {
+        const session = sessions.find(s => s.id === sessionId);
+        if (!session) return;
+        
+        setSelectedTabs(prev => {
+            const exists = prev.some(t => t.sessionId === sessionId && t.tabIndex === tabIndex);
+            
+            if (isShift && lastClickedTab && lastClickedTab.sessionId === sessionId) {
+                // Range selection within the same session
+                const start = Math.min(lastClickedTab.tabIndex, tabIndex);
+                const end = Math.max(lastClickedTab.tabIndex, tabIndex);
+                
+                // We'll figure out if we are checking or unchecking based on whether the clicked item currently exists
+                const targetCheckedState = !exists;
+                
+                let next = [...prev];
+                for (let i = start; i <= end; i++) {
+                    const tabUrl = session.tabs[i].url;
+                    const itemExists = next.some(t => t.sessionId === sessionId && t.tabIndex === i);
+                    
+                    if (targetCheckedState && !itemExists) {
+                        next.push({ sessionId, tabIndex: i, url: tabUrl });
+                    } else if (!targetCheckedState && itemExists) {
+                        next = next.filter(t => !(t.sessionId === sessionId && t.tabIndex === i));
+                    }
+                }
+                return next;
+            } else {
+                // Single select
+                if (exists) {
+                    return prev.filter(t => !(t.sessionId === sessionId && t.tabIndex === tabIndex));
+                } else {
+                    return [...prev, { sessionId, tabIndex, url }];
+                }
+            }
+        });
+        
+        setLastClickedTab({ sessionId, tabIndex });
+    };
+
+    const handleClearSelection = () => {
+        setSelectedTabs([]);
+        setLastClickedTab(null);
+    };
+
+    const handleDeleteSelected = async () => {
+        if (selectedTabs.length === 0) return;
+        
+        let updatedSessions = [...sessions];
+        let updatedPins = [...pinnedLinks];
+        let newDeleted: Session[] = [...deletedSessions];
+        
+        // Group by session to make removal easier (remove from back to front to avoid index shift)
+        const bySession: Record<string, number[]> = {};
+        for (const tab of selectedTabs) {
+            if (!bySession[tab.sessionId]) bySession[tab.sessionId] = [];
+            bySession[tab.sessionId].push(tab.tabIndex);
+        }
+        
+        for (const sessionId of Object.keys(bySession)) {
+            const session = updatedSessions.find(s => s.id === sessionId);
+            if (!session) continue;
+            
+            // Sort descending so index doesn't shift when splicing
+            const indices = bySession[sessionId].sort((a, b) => b - a);
+            const newTabs = [...session.tabs];
+            
+            for (const idx of indices) {
+                const tabToDelete = newTabs[idx];
+                
+                // Add to history
+                newDeleted.unshift({
+                    id: `session-del-${Date.now()}-${Math.random().toString(36).substr(2,9)}`,
+                    name: session.name || "Deleted Tab",
+                    tabs: [tabToDelete],
+                    timestamp: session.timestamp,
+                    folderId: session.folderId,
+                    deletedAt: new Date().toLocaleString(),
+                    originalSessionId: session.id
+                });
+                
+                // Remove pins
+                updatedPins = updatedPins.filter(p => p.url !== tabToDelete.url);
+                
+                // Splice
+                newTabs.splice(idx, 1);
+            }
+            
+            // Update session
+            updatedSessions = updatedSessions.map(s => {
+                if (s.id === sessionId) return { ...s, tabs: newTabs };
+                return s;
+            });
+        }
+        
+        // Auto delete empty sessions
+        updatedSessions = updatedSessions.filter(s => s.tabs.length > 0);
+        
+        setSessions(updatedSessions);
+        await updateSessions(updatedSessions);
+        
+        if (updatedPins.length !== pinnedLinks.length) {
+            setPinnedLinks(updatedPins);
+            await updatePinnedLinks(updatedPins);
+        }
+        
+        setDeletedSessions(newDeleted);
+        await updateDeletedSessions(newDeleted);
+        
+        setSelectedTabs([]);
+    };
+
+    const handleDropPinnedLink = async (link: PinnedLink, targetSessionId: string | null = null, folderId: string | null = null) => {
+        const newTab = {
+            title: link.title,
+            url: link.url,
+            favIconUrl: link.favIconUrl || ""
+        };
+
+        if (targetSessionId) {
+            let updatedSessions = sessions.map(s => {
+                if (s.id === targetSessionId) {
+                    return { ...s, tabs: [...s.tabs, newTab] };
+                }
+                return s;
+            });
+            setSessions(updatedSessions);
+            await updateSessions(updatedSessions);
+        } else {
+            const newSession: Session = {
+                id: `session-${Date.now()}`,
+                name: "Dropped Link",
+                tabs: [newTab],
+                timestamp: new Date().toLocaleString(),
+                folderId
+            };
+            const updatedSessions = [newSession, ...sessions];
+            setSessions(updatedSessions);
+            await updateSessions(updatedSessions);
+        }
     };
 
     const handleRestoreSession = async (id: string) => {
@@ -422,7 +719,7 @@ export default function TabkeepDashboard() {
                                     : "border-gray-200 dark:border-white/5 hover:border-gray-300 dark:hover:border-white/10"
                                 }`}
                             onDragOver={(e) => {
-                                if (e.dataTransfer.types.includes("application/tabkeep-session") || e.dataTransfer.types.includes("application/json")) {
+                                if (e.dataTransfer.types.includes("application/tabkeep-session") || e.dataTransfer.types.includes("application/json") || e.dataTransfer.types.includes("application/tabkeep-pinned-link")) {
                                     e.preventDefault();
                                     e.dataTransfer.dropEffect = "move";
                                     if (!isAllSessionsDragOver) setIsAllSessionsDragOver(true);
@@ -444,6 +741,12 @@ export default function TabkeepDashboard() {
                                         if (data.sourceSessionId && data.tabIndex !== undefined) {
                                             handleMoveTabToFolder(data.sourceSessionId, data.tabIndex, null);
                                         }
+                                    } catch (err) { }
+                                } else if (e.dataTransfer.types.includes("application/tabkeep-pinned-link")) {
+                                    e.preventDefault();
+                                    try {
+                                        const link = JSON.parse(e.dataTransfer.getData("application/tabkeep-pinned-link"));
+                                        if (link) handleDropPinnedLink(link, null, null);
                                     } catch (err) { }
                                 }
                             }}
@@ -500,6 +803,12 @@ export default function TabkeepDashboard() {
                                                     {pins.map((link) => (
                                                         <div
                                                             key={link.id}
+                                                            draggable
+                                                            onDragStart={(e) => {
+                                                                e.stopPropagation();
+                                                                e.dataTransfer.setData("application/tabkeep-pinned-link", JSON.stringify(link));
+                                                                e.dataTransfer.effectAllowed = "move";
+                                                            }}
                                                             onClick={() => chrome.tabs.create({ url: link.url, active: true })}
                                                             title={link.url}
                                                             className="flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-gray-100 dark:hover:bg-[#2a2a2a] group/tab transition-colors"
@@ -528,19 +837,21 @@ export default function TabkeepDashboard() {
 
                         {/* Folder list */}
                         {folders.map(folder => (
-                            <SidebarFolderItem
-                                key={folder.id}
-                                folder={folder}
-                                isActive={activeFolderId === folder.id}
-                                sessions={sessions.filter(s => s.folderId === folder.id)}
-                                pinnedLinks={pinnedLinks}
-                                onClick={() => setActiveFolderId(folder.id)}
-                                onRename={handleRenameFolder}
-                                onDelete={handleDeleteFolder}
-                                onMoveSessionToFolder={handleMoveFolder}
-                                onMoveTabToFolder={handleMoveTabToFolder}
-                                theme={theme}
-                            />
+                                <SidebarFolderItem
+                                    key={folder.id}
+                                    folder={folder}
+                                    isActive={activeFolderId === folder.id}
+                                    sessions={sessions.filter(s => s.folderId === folder.id)}
+                                    pinnedLinks={pinnedLinks}
+                                    onClick={() => setActiveFolderId(folder.id)}
+                                    onRename={handleRenameFolder}
+                                    onDelete={handleDeleteFolder}
+                                    onMoveSessionToFolder={handleMoveFolder}
+                                    onMoveTabToFolder={handleMoveTabToFolder}
+                                    onMoveMultiTabsToFolder={handleMoveMultiTabsToFolder}
+                                    onDropPinnedLinkToFolder={(link, folderId) => handleDropPinnedLink(link, null, folderId)}
+                                    theme={theme}
+                                />
                         ))}
 
                         {/* Input folder baru */}
@@ -590,10 +901,10 @@ export default function TabkeepDashboard() {
                 </aside>
 
                 {/* MAIN CONTENT */}
-                <main 
+                <main
                     className="flex-1 p-10 overflow-y-auto bg-[#f5f5f7] dark:bg-[#171717] custom-scrollbar transition-colors duration-200"
                     onDragOver={(e) => {
-                        if (activeFolderId === "all" && e.dataTransfer.types.includes("application/tabkeep-session")) {
+                        if (activeFolderId !== "trash" && (e.dataTransfer.types.includes("application/tabkeep-session") || e.dataTransfer.types.includes("application/tabkeep-pinned-link") || e.dataTransfer.types.includes("application/json"))) {
                             e.preventDefault();
                             e.dataTransfer.dropEffect = "move";
                             if (!isMainDragOver) setIsMainDragOver(true);
@@ -605,14 +916,29 @@ export default function TabkeepDashboard() {
                         }
                     }}
                     onDrop={(e) => {
-                        if (activeFolderId === "all") {
+                        if (activeFolderId !== "trash") {
                             setIsMainDragOver(false);
+                            const targetFolderId = activeFolderId === "all" ? null : activeFolderId;
                             if (e.dataTransfer.types.includes("application/tabkeep-session")) {
                                 e.preventDefault();
                                 try {
                                     const data = JSON.parse(e.dataTransfer.getData("application/tabkeep-session"));
-                                    if (data.sessionId) handleMoveFolder(data.sessionId, null);
-                                } catch (err) {}
+                                    if (data.sessionId) handleMoveFolder(data.sessionId, targetFolderId);
+                                } catch (err) { }
+                            } else if (e.dataTransfer.types.includes("application/tabkeep-pinned-link")) {
+                                e.preventDefault();
+                                try {
+                                    const link = JSON.parse(e.dataTransfer.getData("application/tabkeep-pinned-link"));
+                                    if (link) handleDropPinnedLink(link, null, targetFolderId);
+                                } catch (err) { }
+                            } else if (e.dataTransfer.types.includes("application/json")) {
+                                e.preventDefault();
+                                try {
+                                    const data = JSON.parse(e.dataTransfer.getData("application/json"));
+                                    if (data.sourceSessionId && data.tabIndex !== undefined) {
+                                        handleMoveTabToFolder(data.sourceSessionId, data.tabIndex, targetFolderId);
+                                    }
+                                } catch (err) { }
                             }
                         }
                     }}
@@ -685,10 +1011,15 @@ export default function TabkeepDashboard() {
                                                     onRenameSession={handleRenameSession}
                                                     onMoveFolder={handleMoveFolder}
                                                     onMoveTab={handleMoveTab}
+                                                    onMoveMultiTabs={handleMoveMultiTabs}
+                                                    onMergeSessions={handleMergeSessions}
                                                     onDeleteTab={handleDeleteTab}
                                                     onTabHover={setHoveredTab}
+                                                    selectedTabs={selectedTabs}
+                                                    onToggleTabSelection={handleToggleTabSelection}
                                                     onPinTab={handlePinLink}
                                                     onUnpinTab={handleUnpinLink}
+                                                    onDropPinnedLinkToSession={(link, sId) => handleDropPinnedLink(link, sId, null)}
                                                     theme={theme}
                                                 />
                                             ))}
@@ -703,13 +1034,23 @@ export default function TabkeepDashboard() {
                                                 allFolders={folders}
                                                 onDeleteSession={handleDeleteSession}
                                                 onRenameSession={handleRenameSession}
+                                                onRenameFolder={handleRenameFolder}
+                                                onDeleteFolder={handleDeleteFolder}
                                                 onMoveFolder={handleMoveFolder}
                                                 onMoveTab={handleMoveTab}
+                                                onMoveTabToFolder={handleMoveTabToFolder}
+                                                onMoveMultiTabs={handleMoveMultiTabs}
+                                                onMoveMultiTabsToFolder={handleMoveMultiTabsToFolder}
+                                                onMergeSessions={handleMergeSessions}
                                                 onDeleteTab={handleDeleteTab}
                                                 onTabHover={setHoveredTab}
+                                                selectedTabs={selectedTabs}
+                                                onToggleTabSelection={handleToggleTabSelection}
                                                 pinnedLinks={pinnedLinks}
                                                 onPinTab={handlePinLink}
                                                 onUnpinTab={handleUnpinLink}
+                                                onDropPinnedLinkToFolder={(link, folderId) => handleDropPinnedLink(link, null, folderId)}
+                                                onDropPinnedLinkToSession={(link, sId) => handleDropPinnedLink(link, sId, f.id)}
                                                 theme={theme}
                                             />
                                         ))}
@@ -726,10 +1067,15 @@ export default function TabkeepDashboard() {
                                                 onRenameSession={handleRenameSession}
                                                 onMoveFolder={handleMoveFolder}
                                                 onMoveTab={handleMoveTab}
+                                                onMoveMultiTabs={handleMoveMultiTabs}
+                                                onMergeSessions={handleMergeSessions}
                                                 onDeleteTab={handleDeleteTab}
                                                 onTabHover={setHoveredTab}
+                                                selectedTabs={selectedTabs}
+                                                onToggleTabSelection={handleToggleTabSelection}
                                                 onPinTab={handlePinLink}
                                                 onUnpinTab={handleUnpinLink}
+                                                onDropPinnedLinkToSession={(link, sId) => handleDropPinnedLink(link, sId, activeFolderId)}
                                                 theme={theme}
                                             />
                                         ))}
@@ -762,6 +1108,29 @@ export default function TabkeepDashboard() {
 
                 {/* RIGHT SIDEBAR */}
                 <RightSidebar hoveredTab={hoveredTab} allSessions={sessions} theme={theme} />
+                
+                {/* FLOATING ACTION BAR FOR MULTI-SELECTION */}
+                {selectedTabs.length > 0 && (
+                    <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-6 py-3 rounded-full shadow-2xl flex items-center gap-6 animate-in slide-in-from-bottom-10 fade-in duration-300 z-50">
+                        <span className="text-sm font-bold">{selectedTabs.length} tab{selectedTabs.length > 1 ? 's' : ''} selected</span>
+                        <div className="w-px h-4 bg-gray-700 dark:bg-gray-300"></div>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={handleDeleteSelected}
+                                className="flex items-center gap-1.5 text-xs font-bold bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-full transition-colors"
+                            >
+                                <Trash2 size={12} />
+                                Delete
+                            </button>
+                            <button
+                                onClick={handleClearSelection}
+                                className="text-xs font-bold text-gray-400 dark:text-gray-500 hover:text-white dark:hover:text-gray-900 px-3 py-1.5 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

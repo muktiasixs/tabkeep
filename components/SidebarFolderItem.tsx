@@ -12,10 +12,12 @@ interface Props {
     onDelete: (id: string) => void;
     onMoveSessionToFolder?: (sessionId: string, folderId: string | null) => void;
     onMoveTabToFolder?: (sourceSessionId: string, tabIndex: number, folderId: string | null) => void;
+    onMoveMultiTabsToFolder?: (tabsToMove: any[], folderId: string | null) => void;
+    onDropPinnedLinkToFolder?: (link: any, folderId: string) => void;
     theme?: string;
 }
 
-export function SidebarFolderItem({ folder, isActive, sessions, pinnedLinks, onClick, onRename, onDelete, onMoveSessionToFolder, onMoveTabToFolder, theme }: Props) {
+export function SidebarFolderItem({ folder, isActive, sessions, pinnedLinks, onClick, onRename, onDelete, onMoveSessionToFolder, onMoveTabToFolder, onMoveMultiTabsToFolder, onDropPinnedLinkToFolder, theme }: Props) {
     const [isOpen, setIsOpen] = useState(true);
     const [editing, setEditing] = useState(false);
     const [editValue, setEditValue] = useState(folder.name);
@@ -46,8 +48,9 @@ export function SidebarFolderItem({ folder, isActive, sessions, pinnedLinks, onC
     };
 
     const handleDragOver = (e: React.DragEvent) => {
-        if (e.dataTransfer.types.includes("application/tabkeep-session") || e.dataTransfer.types.includes("application/json")) {
+        if (e.dataTransfer.types.includes("application/tabkeep-session") || e.dataTransfer.types.includes("application/json") || e.dataTransfer.types.includes("application/tabkeep-pinned-link") || e.dataTransfer.types.includes("application/tabkeep-multi-tabs")) {
             e.preventDefault();
+            e.stopPropagation();
             e.dataTransfer.dropEffect = "move";
             if (!isDragOver) setIsDragOver(true);
         }
@@ -61,6 +64,7 @@ export function SidebarFolderItem({ folder, isActive, sessions, pinnedLinks, onC
         setIsDragOver(false);
         if (e.dataTransfer.types.includes("application/tabkeep-session")) {
             e.preventDefault();
+            e.stopPropagation();
             try {
                 const data = JSON.parse(e.dataTransfer.getData("application/tabkeep-session"));
                 if (data.sessionId && onMoveSessionToFolder) {
@@ -69,21 +73,40 @@ export function SidebarFolderItem({ folder, isActive, sessions, pinnedLinks, onC
             } catch (err) { }
         } else if (e.dataTransfer.types.includes("application/json")) {
             e.preventDefault();
+            e.stopPropagation();
             try {
                 const data = JSON.parse(e.dataTransfer.getData("application/json"));
                 if (data.sourceSessionId && data.tabIndex !== undefined && onMoveTabToFolder) {
                     onMoveTabToFolder(data.sourceSessionId, data.tabIndex, folder.id);
                 }
             } catch (err) { }
+        } else if (e.dataTransfer.types.includes("application/tabkeep-pinned-link")) {
+            e.preventDefault();
+            e.stopPropagation();
+            try {
+                const link = JSON.parse(e.dataTransfer.getData("application/tabkeep-pinned-link"));
+                if (link && onDropPinnedLinkToFolder) {
+                    onDropPinnedLinkToFolder(link, folder.id);
+                }
+            } catch (err) { }
+        } else if (e.dataTransfer.types.includes("application/tabkeep-multi-tabs")) {
+            e.preventDefault();
+            e.stopPropagation();
+            try {
+                const tabsToMove = JSON.parse(e.dataTransfer.getData("application/tabkeep-multi-tabs"));
+                if (tabsToMove && tabsToMove.length > 0 && onMoveMultiTabsToFolder) {
+                    onMoveMultiTabsToFolder(tabsToMove, folder.id);
+                }
+            } catch (err) {}
         }
     };
 
     return (
         <div
             className={`mb-2 rounded-md transition-all border overflow-hidden ${isDragOver ? "bg-blue-100 dark:bg-blue-500/10 border-blue-500 outline-dashed outline-2 outline-blue-500" :
-                    isActive
-                        ? "bg-blue-50/30 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/30"
-                        : "border-gray-200 dark:border-white/5 hover:border-gray-300 dark:hover:border-white/10"
+                isActive
+                    ? "bg-blue-50/30 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/30"
+                    : "border-gray-200 dark:border-white/5 hover:border-gray-300 dark:hover:border-white/10"
                 }`}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
@@ -93,8 +116,8 @@ export function SidebarFolderItem({ folder, isActive, sessions, pinnedLinks, onC
             <div
                 onClick={onClick}
                 className={`group flex items-center gap-2 py-1.5 px-2 cursor-pointer transition-all ${isActive
-                        ? "text-blue-600 dark:text-blue-400 font-semibold"
-                        : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                    ? "text-blue-600 dark:text-blue-400 font-semibold"
+                    : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
                     } ${isOpen ? "border-b border-gray-200 dark:border-white/5 bg-transparent dark:bg-black/10" : ""}`}
             >
                 {/* Chevron toggle */}
@@ -184,6 +207,12 @@ export function SidebarFolderItem({ folder, isActive, sessions, pinnedLinks, onC
                                     {pins.map((link) => (
                                         <div
                                             key={link.id}
+                                            draggable
+                                            onDragStart={(e) => {
+                                                e.stopPropagation();
+                                                e.dataTransfer.setData("application/tabkeep-pinned-link", JSON.stringify(link));
+                                                e.dataTransfer.effectAllowed = "move";
+                                            }}
                                             onClick={(e) => handleOpenTab(e, link.url)}
                                             title={link.title}
                                             className="flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-gray-100 dark:hover:bg-[#2a2a2a] group/tab transition-colors"

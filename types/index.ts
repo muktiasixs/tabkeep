@@ -8,6 +8,12 @@ export interface SavedTab {
     screenshot?: string; // Base64 data URL
 }
 
+export interface SelectedTab {
+    sessionId: string;
+    tabIndex: number;
+    url: string;
+}
+
 export interface Session {
     id: string;
     name: string;
