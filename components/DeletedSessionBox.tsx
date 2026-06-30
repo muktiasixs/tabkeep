@@ -44,7 +44,7 @@ export function DeletedSessionBox({ session, onRestore, onPermanentDelete, theme
                 <div className="text-right flex items-center gap-3">
                     <button
                         onClick={handleRestore}
-                        title="Pulihkan session ke Uncategorized"
+                        title={session.folderId ? "Pulihkan session ke folder asalnya" : "Pulihkan session ke Uncategorized"}
                         className="flex items-center gap-1 text-[11px] text-blue-600 dark:text-blue-500 font-bold hover:text-blue-500 dark:hover:text-blue-400 transition-colors px-2 py-1 rounded bg-blue-50 dark:bg-blue-500/10"
                     >
                         <RotateCcw size={12} />

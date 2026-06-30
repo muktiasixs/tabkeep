@@ -73,7 +73,7 @@ chrome.runtime.onInstalled.addListener(() => {
     chrome.contextMenus.create({
         id: "send-to-tabkeep",
         title: "Send selected tabs to Tabkeep",
-        contexts: ["tab"]
+        contexts: ["tab"] as any[]
     });
 });
 

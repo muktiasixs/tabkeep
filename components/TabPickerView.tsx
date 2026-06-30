@@ -142,7 +142,7 @@ export function TabPickerView() {
             // Ekstrak URL yang valid
             const urlRegex = /(https?:\/\/[^\s]+)/g;
             const foundUrls = clipboardText.match(urlRegex) || [];
-            
+
             if (foundUrls.length > 0) {
                 // Buka setiap URL di tab baru
                 for (const url of foundUrls) {
@@ -163,7 +163,7 @@ export function TabPickerView() {
     const noneSelected = selected.size === 0;
 
     return (
-        <div className="flex flex-col p-4 bg-[#111111] text-white rounded-lg select-none" style={{ maxHeight: "560px" }}>
+        <div className="flex flex-col p-4 bg-[#111111] text-white rounded-lg select-none transition-colors" style={{ maxHeight: "560px" }}>
             {/* TOP BAR / HEADER */}
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
@@ -181,7 +181,7 @@ export function TabPickerView() {
             </div>
 
             {/* SELECT ALL CHECKBOX */}
-            <label className="flex items-center gap-2.5 pb-2 mb-2 border-b border-white/5 cursor-pointer hover:opacity-85 select-none">
+            <label className="flex items-center gap-2.5 pb-2 mb-2 border-b border-white/5 cursor-pointer hover:opacity-85 select-none transition-colors">
                 <input
                     type="checkbox"
                     checked={allSelected}
@@ -237,37 +237,37 @@ export function TabPickerView() {
             </div>
 
             {/* BOTTOM BUTTON BAR */}
-            <div className="flex items-center justify-between mt-4 pt-3 border-t border-white/5 shrink-0">
-                <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between mt-4 pt-3 border-t border-white/5 shrink-0 transition-colors">
+                <div className="flex items-center">
                     <button
                         onClick={handleSave}
                         disabled={noneSelected || saving}
-                        className={`text-xs font-bold px-3 py-2 rounded transition-all shadow-sm ${
-                            noneSelected || saving
+                        className={`font-black px-5 py-2.5 rounded-md transition-all shadow-md text-sm tracking-wide ${noneSelected || saving
                                 ? "bg-[#222] text-gray-600 cursor-not-allowed"
-                                : "bg-[#0ea5e9] hover:bg-[#0284c7] text-white active:scale-95"
-                        }`}
+                                : "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white active:scale-95 shadow-blue-500/30"
+                            }`}
                     >
-                        {saving ? "Saving..." : "Save to tabkeep"}
+                        {saving ? "Saving..." : "Save to Tabkeep"}
                     </button>
+                </div>
+                <div className="flex items-center gap-2">
                     <button
                         onClick={handleCopy}
                         disabled={noneSelected}
-                        className={`text-xs font-bold px-3 py-2 rounded transition-all shadow-sm ${
-                            noneSelected
+                        className={`text-xs font-bold px-3 py-2 rounded transition-all shadow-sm ${noneSelected
                                 ? "bg-[#222] text-gray-600 cursor-not-allowed"
-                                : "bg-[#0ea5e9] hover:bg-[#0284c7] text-white active:scale-95"
-                        }`}
+                                : "bg-white/10 hover:bg-white/20 text-white active:scale-95"
+                            }`}
                     >
                         {copied ? "Copied!" : "Copy link"}
                     </button>
+                    <button
+                        onClick={handlePasteClipboard}
+                        className="bg-[#707530] hover:bg-[#616527] text-white text-xs font-bold px-3 py-2 rounded transition-all shadow-sm active:scale-95"
+                    >
+                        Paste clipboard link
+                    </button>
                 </div>
-                <button
-                    onClick={handlePasteClipboard}
-                    className="bg-[#707530] hover:bg-[#616527] text-white text-xs font-bold px-3 py-2 rounded transition-all shadow-sm active:scale-95"
-                >
-                    Paste clipboard link
-                </button>
             </div>
         </div>
     );

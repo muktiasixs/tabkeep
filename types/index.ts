@@ -15,10 +15,20 @@ export interface Session {
     tabs: SavedTab[];
     folderId: string | null; // null = Uncategorized
     deletedAt?: string;
+    originalSessionId?: string;
 }
 
 export interface Folder {
     id: string;
     name: string;
     createdAt: string;
+}
+
+export interface PinnedLink {
+    id: string;
+    title: string;
+    url: string;
+    favIconUrl?: string;
+    pinnedAt: string;
+    folderId: string | null; // which folder the source session belongs to
 }

@@ -1,7 +1,7 @@
 // Semua operasi chrome.storage terpusat di sini.
 // Komponen & hooks tidak boleh memanggil chrome.storage langsung.
 
-import type { Session, Folder, SavedTab } from "~types"
+import type { Session, Folder, SavedTab, PinnedLink } from "~types"
 
 // --- Getters ---
 
@@ -37,6 +37,15 @@ export async function updateFolders(folders: Folder[]): Promise<void> {
 
 export async function updateDeletedSessions(deletedSessions: Session[]): Promise<void> {
     await chrome.storage.local.set({ deletedSessions });
+}
+
+export async function getPinnedLinks(): Promise<PinnedLink[]> {
+    const data = await chrome.storage.local.get("pinnedLinks");
+    return (data.pinnedLinks || []) as PinnedLink[];
+}
+
+export async function updatePinnedLinks(pinnedLinks: PinnedLink[]): Promise<void> {
+    await chrome.storage.local.set({ pinnedLinks });
 }
 
 // --- Helpers ---
