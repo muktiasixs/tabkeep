@@ -748,7 +748,7 @@ export default function TabkeepDashboard() {
 
             <div className="flex flex-1 overflow-hidden">
                 {/* SIDEBAR */}
-                <aside className="w-64 bg-white dark:bg-[#1e1e1e] border-r border-gray-200 dark:border-[#333] flex flex-col p-4 shrink-0 overflow-y-auto transition-colors duration-200">
+                <aside className="w-64 bg-white dark:bg-[#1e1e1e] border-r border-gray-200 dark:border-[#333] flex flex-col p-4 shrink-0 overflow-y-auto custom-scrollbar transition-colors duration-200">
                     <div className="mb-3 px-1 text-sm font-bold text-gray-400 dark:text-gray-600 uppercase tracking-[0.2em] opacity-60">
                         Workspace
                     </div>

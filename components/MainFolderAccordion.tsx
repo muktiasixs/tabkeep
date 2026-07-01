@@ -135,7 +135,10 @@ export function MainFolderAccordion({ folder, sessions, allFolders, onDeleteSess
     };
 
     return (
-        <div className="relative mb-6 last:mb-0">
+        <div className={`relative mb-6 last:mb-0 bg-white dark:bg-[#1a1a1a] rounded-2xl border transition-all ${isDragOver && !folderDropPos
+            ? "border-blue-500 ring-2 ring-blue-500/20"
+            : "border-gray-200 dark:border-[#333]"
+        }`}>
             {/* Folder reorder drop indicator – before */}
             {folderDropPos === "before" && (
                 <div className="absolute -top-3 left-0 right-0 h-1 bg-blue-500 rounded-full pointer-events-none z-10" />
@@ -149,10 +152,7 @@ export function MainFolderAccordion({ folder, sessions, allFolders, onDeleteSess
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
-                className={`flex items-center gap-3 cursor-pointer group p-4 transition-all bg-white dark:bg-[#1a1a1a] rounded-xl border ${isExpanded ? "border-b border-gray-100 dark:border-white/10" : ""} ${isDragOver && !folderDropPos
-                    ? "border-blue-500 ring-2 ring-blue-500/20"
-                    : "border-gray-200 dark:border-[#333]"
-                    }`}
+                className={`flex items-center gap-3 cursor-pointer group p-4 transition-all rounded-t-2xl ${!isExpanded ? "rounded-b-2xl" : ""} ${isExpanded ? "border-b border-gray-100 dark:border-white/10" : ""}`}
                 onClick={() => setIsExpanded(!isExpanded)}
             >
                 <div className="p-1 rounded-md bg-gray-200 dark:bg-[#333] group-hover:bg-gray-300 dark:group-hover:bg-[#444] transition-colors">
@@ -203,7 +203,7 @@ export function MainFolderAccordion({ folder, sessions, allFolders, onDeleteSess
             </div>
 
             {isExpanded && (
-                <div className="p-4 space-y-3 bg-gray-50/30 dark:bg-transparent">
+                <div className="p-4 space-y-3 bg-gray-50/50 dark:bg-black/20 rounded-b-2xl">
                     {sessions.length === 0 ? (
                         <p className="text-[10px] text-gray-400 dark:text-gray-600 italic">Folder kosong</p>
                     ) : (

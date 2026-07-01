@@ -80,7 +80,7 @@ function SessionRow({
                             if (data.sessionId && data.sessionId !== session.id && onReorderSession) {
                                 onReorderSession(data.sessionId, session.id, sessionDropPos || "after");
                             }
-                        } catch {}
+                        } catch { }
                         setSessionDropPos(null);
                     } else if (e.dataTransfer.types.includes("application/json")) {
                         e.preventDefault(); e.stopPropagation();
@@ -107,45 +107,45 @@ function SessionRow({
                     <div className="h-0.5 bg-blue-500 rounded-full pointer-events-none" style={{ marginLeft: `${indentPx}px` }} />
                 )}
                 <div className="flex items-center gap-1.5 py-[3px] pr-2" style={{ paddingLeft: `${indentPx}px` }}>
-                {/* chevron – only show if has pins */}
-                <button
-                    onClick={(e) => { e.stopPropagation(); if (pins.length > 0) setIsOpen(v => !v); }}
-                    className={`flex-shrink-0 w-3.5 h-3.5 flex items-center justify-center rounded transition-colors ${pins.length > 0 ? "text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-400" : "text-transparent pointer-events-none"}`}
-                >
-                    {pins.length > 0 ? (isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />) : <span className="w-2.5" />}
-                </button>
-
-                <Clock size={14} className="flex-shrink-0 text-gray-400 dark:text-gray-600" />
-
-                {editing ? (
-                    <input
-                        autoFocus
-                        value={editValue}
-                        onChange={e => setEditValue(e.target.value)}
-                        onBlur={commitEdit}
-                        onKeyDown={e => { if (e.key === "Enter") commitEdit(); if (e.key === "Escape") setEditing(false); }}
-                        onClick={e => e.stopPropagation()}
-                        className="flex-1 bg-gray-100 dark:bg-[#333] text-gray-900 dark:text-white text-[14px] rounded px-1 py-0 outline-none border border-blue-500/50 min-w-0"
-                    />
-                ) : (
-                    <span className="flex-1 text-[14px] text-gray-600 dark:text-gray-400 truncate leading-tight">
-                        {session.name || `Session ${session.timestamp}`}
-                    </span>
-                )}
-
-                {!editing && (
+                    {/* chevron – only show if has pins */}
                     <button
-                        onClick={(e) => { e.stopPropagation(); setEditing(true); setEditValue(session.name || ""); }}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-300"
+                        onClick={(e) => { e.stopPropagation(); if (pins.length > 0) setIsOpen(v => !v); }}
+                        className={`flex-shrink-0 w-3.5 h-3.5 flex items-center justify-center rounded transition-colors ${pins.length > 0 ? "text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-400" : "text-transparent pointer-events-none"}`}
                     >
-                        <Pencil size={9} />
+                        {pins.length > 0 ? (isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />) : <span className="w-2.5" />}
                     </button>
+
+                    <Clock size={14} className="flex-shrink-0 text-gray-400 dark:text-gray-600" />
+
+                    {editing ? (
+                        <input
+                            autoFocus
+                            value={editValue}
+                            onChange={e => setEditValue(e.target.value)}
+                            onBlur={commitEdit}
+                            onKeyDown={e => { if (e.key === "Enter") commitEdit(); if (e.key === "Escape") setEditing(false); }}
+                            onClick={e => e.stopPropagation()}
+                            className="flex-1 bg-gray-100 dark:bg-[#333] text-gray-900 dark:text-white text-[14px] rounded px-1 py-0 outline-none border border-blue-500/50 min-w-0"
+                        />
+                    ) : (
+                        <span className="flex-1 text-[14px] text-gray-600 dark:text-gray-400 truncate leading-tight">
+                            {session.name || `Session ${session.timestamp}`}
+                        </span>
+                    )}
+
+                    {!editing && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); setEditing(true); setEditValue(session.name || ""); }}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-300"
+                        >
+                            <Pencil size={9} />
+                        </button>
+                    )}
+                </div>
+                {sessionDropPos === "after" && (
+                    <div className="h-0.5 bg-blue-500 rounded-full pointer-events-none" style={{ marginLeft: `${indentPx}px` }} />
                 )}
             </div>
-            {sessionDropPos === "after" && (
-                <div className="h-0.5 bg-blue-500 rounded-full pointer-events-none" style={{ marginLeft: `${indentPx}px` }} />
-            )}
-        </div>
 
             {/* Pinned links */}
             {isOpen && pins.map(link => (
@@ -289,116 +289,115 @@ function FolderRow({
             {folderDropPos === "before" && (
                 <div className="h-0.5 bg-blue-500 rounded-full mb-[1px] pointer-events-none" style={{ marginLeft: `${indentPx}px` }} />
             )}
-        <div
-            onDragOver={handleDragOver}
-            onDragLeave={(e) => {
-                // Only clear if leaving the folder area entirely
-                if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                    setIsDragOver(false);
-                    setFolderDropPos(null);
-                }
-            }}
-            onDrop={handleDrop}
-            className={`rounded-md transition-all ${isDragOver && !folderDropPos
-                ? "ring-1 ring-blue-400 dark:ring-blue-500 bg-blue-50/50 dark:bg-blue-500/10"
-                : ""
-            }`}
-        >
-            {/* Folder header row */}
             <div
-                draggable
-                onDragStart={(e) => {
-                    e.stopPropagation();
-                    e.dataTransfer.setData("application/tabkeep-reorder-folder", JSON.stringify({ folderId: folder.id }));
-                    e.dataTransfer.effectAllowed = "move";
+                onDragOver={handleDragOver}
+                onDragLeave={(e) => {
+                    // Only clear if leaving the folder area entirely
+                    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                        setIsDragOver(false);
+                        setFolderDropPos(null);
+                    }
                 }}
-                className={`group flex items-center gap-1.5 py-[3px] pr-2 rounded-md transition-all select-none cursor-pointer ${
-                    isDragOver && !folderDropPos
+                onDrop={handleDrop}
+                className={`rounded-md transition-all ${isDragOver && !folderDropPos
+                    ? "ring-1 ring-blue-400 dark:ring-blue-500 bg-blue-50/50 dark:bg-blue-500/10"
+                    : ""
+                    }`}
+            >
+                {/* Folder header row */}
+                <div
+                    draggable
+                    onDragStart={(e) => {
+                        e.stopPropagation();
+                        e.dataTransfer.setData("application/tabkeep-reorder-folder", JSON.stringify({ folderId: folder.id }));
+                        e.dataTransfer.effectAllowed = "move";
+                    }}
+                    className={`group flex items-center gap-1.5 py-[3px] pr-2 rounded-md transition-all select-none cursor-pointer ${isDragOver && !folderDropPos
                         ? "text-blue-600 dark:text-blue-400"
                         : isActive
                             ? "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400"
                             : "hover:bg-gray-100/80 dark:hover:bg-white/5 text-gray-700 dark:text-gray-300"
-                    }`}
-                style={{ paddingLeft: `${indentPx}px` }}
-            >
-                <button
-                    onClick={(e) => { e.stopPropagation(); setIsOpen(v => !v); }}
-                    className="flex-shrink-0 w-3.5 h-3.5 flex items-center justify-center text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-400 transition-colors"
+                        }`}
+                    style={{ paddingLeft: `${indentPx}px` }}
                 >
-                    {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-                </button>
+                    <button
+                        onClick={(e) => { e.stopPropagation(); setIsOpen(v => !v); }}
+                        className="flex-shrink-0 w-3.5 h-3.5 flex items-center justify-center text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-400 transition-colors"
+                    >
+                        {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                    </button>
 
-                <button onClick={onClick} className="flex items-center gap-1.5 flex-1 min-w-0">
-                    {isActive || isDragOver
-                        ? <FolderOpen size={16} className={`flex-shrink-0 ${isDragOver ? "text-blue-500" : "text-blue-500 dark:text-blue-400"}`} />
-                        : <Folder size={16} className="flex-shrink-0 text-gray-400 dark:text-gray-500" />
-                    }
-                    {editing ? (
-                        <input
-                            autoFocus
-                            value={editValue}
-                            onChange={e => setEditValue(e.target.value)}
-                            onBlur={commitEdit}
-                            onKeyDown={e => { if (e.key === "Enter") commitEdit(); if (e.key === "Escape") setEditing(false); }}
-                            onClick={e => e.stopPropagation()}
-                            className="flex-1 bg-gray-100 dark:bg-[#333] text-gray-900 dark:text-white text-[15px] rounded px-1 py-0 outline-none border border-blue-500/50 min-w-0"
-                        />
-                    ) : (
-                        <span className={`flex-1 text-[15px] font-medium truncate text-left leading-tight ${isActive || isDragOver ? "text-blue-600 dark:text-blue-400" : ""}`}>
-                            {folder.name}
-                        </span>
+                    <button onClick={onClick} className="flex items-center gap-1.5 flex-1 min-w-0">
+                        {isActive || isDragOver
+                            ? <FolderOpen size={16} className={`flex-shrink-0 ${isDragOver ? "text-blue-500" : "text-blue-500 dark:text-blue-400"}`} />
+                            : <Folder size={16} className="flex-shrink-0 text-gray-400 dark:text-gray-500" />
+                        }
+                        {editing ? (
+                            <input
+                                autoFocus
+                                value={editValue}
+                                onChange={e => setEditValue(e.target.value)}
+                                onBlur={commitEdit}
+                                onKeyDown={e => { if (e.key === "Enter") commitEdit(); if (e.key === "Escape") setEditing(false); }}
+                                onClick={e => e.stopPropagation()}
+                                className="flex-1 bg-gray-100 dark:bg-[#333] text-gray-900 dark:text-white text-[15px] rounded px-1 py-0 outline-none border border-blue-500/50 min-w-0"
+                            />
+                        ) : (
+                            <span className={`flex-1 text-[15px] font-medium truncate text-left leading-tight ${isActive || isDragOver ? "text-blue-600 dark:text-blue-400" : ""}`}>
+                                {folder.name}
+                            </span>
+                        )}
+                    </button>
+
+                    <span className={`text-[11px] font-mono flex-shrink-0 ${isActive || isDragOver ? "text-blue-500/70 dark:text-blue-400/60" : "text-gray-400 dark:text-gray-600"}`}>
+                        {sessions.length}
+                    </span>
+
+                    {!editing && (
+                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                            <button onClick={e => { e.stopPropagation(); setEditing(true); setEditValue(folder.name); }} title="Rename" className="w-4 h-4 flex items-center justify-center text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
+                                <Pencil size={9} />
+                            </button>
+                            <button onClick={e => { e.stopPropagation(); onDelete(folder.id); }} title="Hapus" className="w-4 h-4 flex items-center justify-center text-gray-400 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400 transition-colors">
+                                <X size={9} />
+                            </button>
+                        </div>
                     )}
-                </button>
+                </div>
 
-                <span className={`text-[11px] font-mono flex-shrink-0 ${isActive || isDragOver ? "text-blue-500/70 dark:text-blue-400/60" : "text-gray-400 dark:text-gray-600"}`}>
-                    {sessions.length}
-                </span>
-
-                {!editing && (
-                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                        <button onClick={e => { e.stopPropagation(); setEditing(true); setEditValue(folder.name); }} title="Rename" className="w-4 h-4 flex items-center justify-center text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
-                            <Pencil size={9} />
-                        </button>
-                        <button onClick={e => { e.stopPropagation(); onDelete(folder.id); }} title="Hapus" className="w-4 h-4 flex items-center justify-center text-gray-400 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400 transition-colors">
-                            <X size={9} />
-                        </button>
+                {/* Sessions inside folder */}
+                {isOpen && (
+                    <div className="relative">
+                        {/* Vertical connector line */}
+                        <div
+                            className="absolute top-0 bottom-0 w-px bg-gray-200 dark:bg-[#2a2a2a]"
+                            style={{ left: `${indentPx + 6}px` }}
+                        />
+                        {sessions.length === 0 ? (
+                            <div
+                                className="flex items-center py-1.5 text-[12px] text-gray-400 dark:text-gray-700 italic"
+                                style={{ paddingLeft: `${indentPx + 20}px` }}
+                            >
+                                {isDragOver ? "Drop di sini" : "Belum ada session"}
+                            </div>
+                        ) : (
+                            sessions.map(session => (
+                                <SessionRow
+                                    key={session.id}
+                                    session={session}
+                                    pinnedLinks={pinnedLinks}
+                                    depth={depth + 1}
+                                    onRenameSession={onRenameSession}
+                                    onMoveTabToSession={onMoveTabToSession}
+                                    onMoveMultiTabsToSession={onMoveMultiTabsToSession}
+                                    onDropPinnedLinkToSession={onDropPinnedLinkToSession}
+                                    onReorderSession={onReorderSession}
+                                />
+                            ))
+                        )}
                     </div>
                 )}
             </div>
-
-            {/* Sessions inside folder */}
-            {isOpen && (
-                <div className="relative">
-                    {/* Vertical connector line */}
-                    <div
-                        className="absolute top-0 bottom-0 w-px bg-gray-200 dark:bg-[#2a2a2a]"
-                        style={{ left: `${indentPx + 6}px` }}
-                    />
-                    {sessions.length === 0 ? (
-                        <div
-                            className="flex items-center py-1.5 text-[12px] text-gray-400 dark:text-gray-700 italic"
-                            style={{ paddingLeft: `${indentPx + 20}px` }}
-                        >
-                            {isDragOver ? "Drop di sini" : "Belum ada session"}
-                        </div>
-                    ) : (
-                        sessions.map(session => (
-                            <SessionRow
-                                key={session.id}
-                                session={session}
-                                pinnedLinks={pinnedLinks}
-                                depth={depth + 1}
-                                onRenameSession={onRenameSession}
-                                onMoveTabToSession={onMoveTabToSession}
-                                onMoveMultiTabsToSession={onMoveMultiTabsToSession}
-                                onDropPinnedLinkToSession={onDropPinnedLinkToSession}
-                                onReorderSession={onReorderSession}
-                            />
-                        ))
-                    )}
-                </div>
-            )}
-        </div>
             {/* Folder reorder drop indicator – after */}
             {folderDropPos === "after" && (
                 <div className="h-0.5 bg-blue-500 rounded-full mt-[1px] pointer-events-none" style={{ marginLeft: `${indentPx}px` }} />
