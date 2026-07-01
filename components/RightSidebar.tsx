@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Globe, Tv, Briefcase, BookOpen, Database, HelpCircle, Activity } from "lucide-react";
 import type { Session, SavedTab } from "~types";
+import { getThumbnail } from "~lib/db";
 
 interface RightSidebarProps {
     hoveredTab: (SavedTab & { sessionTimestamp?: string; sessionId?: string }) | null;
@@ -11,10 +12,36 @@ interface RightSidebarProps {
 export function RightSidebar({ hoveredTab, allSessions, theme }: RightSidebarProps) {
     // State to track if the screenshot image is loading or failed
     const [imgState, setImgState] = useState<"loading" | "loaded" | "error">("loading");
+    // State to hold the object URL from IndexedDB
+    const [idbImage, setIdbImage] = useState<string | null>(null);
 
     // Reset image state whenever the hovered tab URL changes
     useEffect(() => {
         setImgState("loading");
+        
+        let objectUrl: string | null = null;
+        
+        const fetchImage = async () => {
+            if (hoveredTab?.url) {
+                const blob = await getThumbnail(hoveredTab.url);
+                if (blob) {
+                    objectUrl = URL.createObjectURL(blob);
+                    setIdbImage(objectUrl);
+                } else {
+                    setIdbImage(null);
+                }
+            } else {
+                setIdbImage(null);
+            }
+        };
+        
+        fetchImage();
+        
+        return () => {
+            if (objectUrl) {
+                URL.revokeObjectURL(objectUrl);
+            }
+        };
     }, [hoveredTab?.url]);
 
     // Helpers to classify URLs
@@ -201,7 +228,7 @@ export function RightSidebar({ hoveredTab, allSessions, theme }: RightSidebarPro
     }, [hoveredTab]);
 
     // Determine if we have a local screenshot or need a remote one
-    const localScreenshot = hoveredTab?.screenshot;
+    const localScreenshot = idbImage || hoveredTab?.screenshot;
     const showRemoteScreenshot = !localScreenshot && hoveredTab && hoveredTab.url.startsWith("http");
     const remoteScreenshotUrl = showRemoteScreenshot
         ? `https://image.thum.io/get/width/400/crop/800/${hoveredTab.url}`

@@ -1,57 +1,62 @@
 import { persistSession } from "~lib/storage";
+import { saveThumbnail } from "~lib/db";
 
 export { }
 
 const DASHBOARD_URL = chrome.runtime.getURL("tabs/dashboard.html");
 
-// In-memory cache for screenshots: tabId -> base64 data URL
-const screenshotCache = new Map<number, string>();
+let captureDebounce: ReturnType<typeof setTimeout>;
 
-// Helper to capture a tab's visible area
+// Helper to capture a tab's visible area and save to IndexedDB
 async function captureTab(tabId: number) {
     try {
         const tab = await chrome.tabs.get(tabId);
-        if (tab.active && tab.status === "complete" && tab.url && tab.url.startsWith("http")) {
+        // Only capture active tabs that are fully loaded and not discarded
+        if (tab.active && tab.status === "complete" && tab.url && tab.url.startsWith("http") && !tab.discarded) {
             const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, {
                 format: "jpeg",
-                quality: 35 // Compressed to save space and memory
+                quality: 50 // Get a decent initial image before resizing
             });
-            screenshotCache.set(tabId, dataUrl);
+
+            // Convert base64 to blob
+            const response = await fetch(dataUrl);
+            const blob = await response.blob();
+            
+            // Resize using OffscreenCanvas
+            const bitmap = await createImageBitmap(blob, { resizeWidth: 320, resizeQuality: 'low' });
+            
+            // Calculate aspect ratio height to maintain proportions (assuming 16:9 for generic tabs, or dynamically based on bitmap)
+            const aspectRatio = bitmap.width / bitmap.height;
+            const targetHeight = Math.round(320 / aspectRatio);
+            
+            const canvas = new OffscreenCanvas(320, targetHeight);
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                ctx.drawImage(bitmap, 0, 0, 320, targetHeight);
+                const webpBlob = await canvas.convertToBlob({ type: 'image/webp', quality: 0.5 });
+                
+                // Save to IndexedDB using URL as key
+                await saveThumbnail(tab.url, webpBlob);
+            }
         }
     } catch (e) {
         // Silently catch exceptions (e.g., when capturing chrome:// tabs or extension popups)
+        console.error("Failed to capture tab:", e);
     }
 }
 
 // Track active tab changes
-chrome.tabs.onActivated.addListener((activeInfo) => {
-    captureTab(activeInfo.tabId);
+chrome.tabs.onActivated.addListener(({ tabId }) => {
+    clearTimeout(captureDebounce);
+    // Wait for user to settle on the tab before capturing
+    captureDebounce = setTimeout(() => captureTab(tabId), 1000);
 });
 
 // Track page loads/updates
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (changeInfo.status === "complete" && tab.active) {
-        captureTab(tabId);
-    }
-});
-
-// Clean up cache when tab is closed
-chrome.tabs.onRemoved.addListener((tabId) => {
-    screenshotCache.delete(tabId);
-});
-
-// Listen to messages requesting screenshots
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === "getScreenshots" && Array.isArray(message.tabIds)) {
-        const result: Record<number, string> = {};
-        message.tabIds.forEach((id: number) => {
-            const cached = screenshotCache.get(id);
-            if (cached) {
-                result[id] = cached;
-            }
-        });
-        sendResponse(result);
-        return false; // Synchronous response
+        clearTimeout(captureDebounce);
+        captureDebounce = setTimeout(() => captureTab(tabId), 1000);
     }
 });
 
@@ -85,12 +90,12 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
         if (tabsToSave.length > 0) {
             const savedTabs = tabsToSave.map(t => {
-                const screenshot = t.id ? screenshotCache.get(t.id) : undefined;
                 return {
                     title: t.title || "No Title",
                     url: t.url || "",
                     favIconUrl: t.favIconUrl || "",
-                    screenshot
+                    // We no longer populate screenshot here. It is fetched lazily via IndexedDB.
+                    screenshot: undefined 
                 };
             });
             await persistSession(savedTabs);
