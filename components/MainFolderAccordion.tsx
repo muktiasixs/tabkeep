@@ -12,10 +12,10 @@ interface Props {
     onRenameFolder: (id: string, newName: string) => void;
     onDeleteFolder: (id: string) => void;
     onMoveFolder: (sessionId: string, folderId: string | null) => void;
-    onMoveTab?: (sourceSessionId: string, targetSessionId: string, tabIndex: number) => void;
-    onMoveMultiTabs?: (tabsToMove: SelectedTab[], targetSessionId: string) => void;
-    onMoveTabToFolder?: (sourceSessionId: string, tabIndex: number, folderId: string | null) => void;
-    onMoveMultiTabsToFolder?: (tabsToMove: SelectedTab[], folderId: string | null) => void;
+    onMoveTab?: (sourceSessionId: string, targetSessionId: string, tabIndex: number, insertIndex?: number) => void;
+    onMoveMultiTabs?: (tabsToMove: SelectedTab[], targetSessionId: string, insertIndex?: number) => void;
+    onMoveTabToFolder?: (sourceSessionId: string, tabIndex: number, folderId: string | null, targetSessionId?: string, insertPosition?: "before" | "after") => void;
+    onMoveMultiTabsToFolder?: (tabsToMove: SelectedTab[], folderId: string | null, targetSessionId?: string, insertPosition?: "before" | "after") => void;
     onMergeSessions?: (sourceSessionId: string, targetSessionId: string) => void;
     onDeleteTab?: (sessionId: string, tabIndex: number) => void;
     onTabHover: (tab: (SavedTab & { sessionTimestamp?: string; sessionId?: string }) | null) => void;
@@ -23,7 +23,7 @@ interface Props {
     onPinTab: (tab: SavedTab, folderId: string | null) => void;
     onUnpinTab: (url: string) => void;
     onDropPinnedLinkToFolder?: (link: any, folderId: string) => void;
-    onDropPinnedLinkToSession?: (link: any, sessionId: string) => void;
+    onDropPinnedLinkToSession?: (link: any, sessionId: string, targetSessionId?: string, insertPosition?: "before" | "after") => void;
     onReorderFolder?: (draggedId: string, targetId: string, position: "before" | "after") => void;
     onReorderSession?: (draggedId: string, targetId: string, position: "before" | "after") => void;
     onReorderTab?: (sessionId: string, fromIdx: number, toIdx: number) => void;
@@ -42,7 +42,7 @@ export function MainFolderAccordion({ folder, sessions, allFolders, onDeleteSess
     const [editValue, setEditValue] = useState(folder.name);
 
     const handleDragOver = (e: React.DragEvent) => {
-        if (e.dataTransfer.types.includes("application/tabkeep-session") || e.dataTransfer.types.includes("application/json") || e.dataTransfer.types.includes("application/tabkeep-pinned-link") || e.dataTransfer.types.includes("application/tabkeep-reorder-folder")) {
+        if (e.dataTransfer.types.includes("application/tabkeep-session") || e.dataTransfer.types.includes("application/json") || e.dataTransfer.types.includes("application/tabkeep-pinned-link") || e.dataTransfer.types.includes("application/tabkeep-reorder-folder") || e.dataTransfer.types.includes("application/tabkeep-multi-tabs")) {
             e.preventDefault();
             e.stopPropagation();
             e.dataTransfer.dropEffect = "move";
@@ -218,6 +218,8 @@ export function MainFolderAccordion({ folder, sessions, allFolders, onDeleteSess
                                 onMoveFolder={onMoveFolder}
                                 onMoveTab={onMoveTab}
                                 onMoveMultiTabs={onMoveMultiTabs}
+                                onMoveTabToFolder={onMoveTabToFolder}
+                                onMoveMultiTabsToFolder={onMoveMultiTabsToFolder}
                                 onMergeSessions={onMergeSessions}
                                 onDeleteTab={onDeleteTab}
                                 onTabHover={onTabHover}

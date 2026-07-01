@@ -228,7 +228,8 @@ function FolderRow({
             e.dataTransfer.types.includes("application/json") ||
             e.dataTransfer.types.includes("application/tabkeep-multi-tabs") ||
             e.dataTransfer.types.includes("application/tabkeep-pinned-link") ||
-            e.dataTransfer.types.includes("application/tabkeep-reorder-folder")
+            e.dataTransfer.types.includes("application/tabkeep-reorder-folder") ||
+            e.dataTransfer.types.includes("application/tabkeep-multi-tabs")
         ) {
             e.preventDefault();
             e.stopPropagation();
@@ -420,8 +421,8 @@ interface SidebarTreeProps {
     onMoveFolder: (sessionId: string, folderId: string | null) => void;
     onMoveTabToFolder: (sourceSessionId: string, tabIndex: number, folderId: string | null) => void;
     onMoveMultiTabsToFolder: (tabsToMove: any[], folderId: string | null) => void;
-    onMoveTab: (sourceSessionId: string, targetSessionId: string, tabIndex: number) => void;
-    onMoveMultiTabs: (tabsToMove: any[], targetSessionId: string) => void;
+    onMoveTab?: (sourceSessionId: string, targetSessionId: string, tabIndex: number, insertIndex?: number) => void;
+    onMoveMultiTabs?: (tabsToMove: any[], targetSessionId: string, insertIndex?: number) => void;
     onDropPinnedLink: (link: any, sessionId: string | null, folderId: string | null) => void;
     onReorderFolder?: (draggedId: string, targetId: string, position: "before" | "after") => void;
     onReorderSession?: (draggedId: string, targetId: string, position: "before" | "after") => void;

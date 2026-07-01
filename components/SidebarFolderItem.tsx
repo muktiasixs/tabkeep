@@ -200,7 +200,10 @@ export function SidebarFolderItem({ folder, isActive, sessions, pinnedLinks, onC
                                             e.dataTransfer.effectAllowed = "move";
                                         }}
                                         onDragOver={(e) => {
-                                            if (e.dataTransfer.types.includes("application/json") || e.dataTransfer.types.includes("application/tabkeep-multi-tabs")) {
+                                            if (e.dataTransfer.types.includes("application/json") ||
+                                                e.dataTransfer.types.includes("application/tabkeep-pinned-link") ||
+                                                e.dataTransfer.types.includes("application/tabkeep-multi-tabs")
+                                            ) {
                                                 e.preventDefault();
                                                 e.stopPropagation();
                                                 e.dataTransfer.dropEffect = "move";
@@ -251,9 +254,8 @@ export function SidebarFolderItem({ folder, isActive, sessions, pinnedLinks, onC
                                                 e.dataTransfer.setData("application/tabkeep-pinned-link", JSON.stringify(link));
                                                 e.dataTransfer.effectAllowed = "move";
                                             }}
-                                            onClick={(e) => handleOpenTab(e, link.url)}
                                             title={link.title}
-                                            className="flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-gray-100 dark:hover:bg-[#2a2a2a] group/tab transition-colors"
+                                            className="flex items-center gap-2 px-2 py-1 hover:bg-gray-100 dark:hover:bg-[#2a2a2a] group/tab transition-colors"
                                         >
                                             <Pin size={9} className="text-amber-500 dark:text-amber-400 flex-shrink-0" />
                                             <img
@@ -262,9 +264,14 @@ export function SidebarFolderItem({ folder, isActive, sessions, pinnedLinks, onC
                                                 onError={(e) => { (e.target as HTMLImageElement).src = "https://www.google.com/s2/favicons?domain=google.com"; }}
                                                 draggable={false}
                                             />
-                                            <span className="text-[11px] text-gray-500 group-hover/tab:text-blue-600 dark:group-hover/tab:text-blue-400 truncate transition-colors">
-                                                {link.title || "Untitled"}
-                                            </span>
+                                            <div className="flex-1 truncate">
+                                                <span 
+                                                    onClick={(e) => { e.stopPropagation(); handleOpenTab(e, link.url); }}
+                                                    className="text-[11px] text-gray-500 group-hover/tab:text-blue-600 dark:group-hover/tab:text-blue-400 font-medium select-none cursor-pointer transition-colors"
+                                                >
+                                                    {link.title || "Untitled"}
+                                                </span>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>

@@ -8,16 +8,18 @@ interface Props {
     folders: Folder[];
     pinnedLinks: PinnedLink[];
     onDelete: (id: string) => void;
-    onMoveFolder: (sessionId: string, folderId: string | null) => void;
-    onMoveTab?: (sourceSessionId: string, targetSessionId: string, tabIndex: number) => void;
-    onMoveMultiTabs?: (tabsToMove: SelectedTab[], targetSessionId: string) => void;
+    onMoveFolder?: (sessionId: string, folderId: string | null) => void;
+    onMoveTab?: (sourceSessionId: string, targetSessionId: string, tabIndex: number, insertIndex?: number) => void;
+    onMoveMultiTabs?: (tabsToMove: SelectedTab[], targetSessionId: string, insertIndex?: number) => void;
+    onMoveTabToFolder?: (sourceSessionId: string, tabIndex: number, folderId: string | null, targetSessionId?: string, insertPosition?: "before" | "after") => void;
+    onMoveMultiTabsToFolder?: (tabsToMove: SelectedTab[], folderId: string | null, targetSessionId?: string, insertPosition?: "before" | "after") => void;
     onMergeSessions?: (sourceSessionId: string, targetSessionId: string) => void;
     onDeleteTab?: (sessionId: string, tabIndex: number) => void;
     onTabHover?: (tab: SavedTab & { sessionTimestamp?: string }) => void;
     onPinTab?: (tab: SavedTab, folderId: string | null) => void;
     onUnpinTab?: (url: string) => void;
     onRenameSession?: (id: string, newName: string) => void;
-    onDropPinnedLinkToSession?: (link: any, sessionId: string) => void;
+    onDropPinnedLinkToSession?: (link: any, sessionId: string, targetSessionId?: string, insertPosition?: "before" | "after") => void;
     onReorderTab?: (sessionId: string, fromIdx: number, toIdx: number) => void;
     onReorderSession?: (draggedId: string, targetId: string, position: "before" | "after") => void;
     selectedTabs?: SelectedTab[];
@@ -25,7 +27,7 @@ interface Props {
     theme?: string;
 }
 
-export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSession, onMoveFolder, onMoveTab, onMoveMultiTabs, onMergeSessions, onDeleteTab, onTabHover, onPinTab, onUnpinTab, onDropPinnedLinkToSession, onReorderTab, onReorderSession, selectedTabs, onToggleTabSelection, theme }: Props & { onReorderTab?: (sessionId: string, fromIdx: number, toIdx: number) => void; onReorderSession?: (draggedId: string, targetId: string, position: "before" | "after") => void; }) {
+export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSession, onMoveFolder, onMoveTab, onMoveMultiTabs, onMoveTabToFolder, onMoveMultiTabsToFolder, onMergeSessions, onDeleteTab, onTabHover, onPinTab, onUnpinTab, onDropPinnedLinkToSession, onReorderTab, onReorderSession, selectedTabs, onToggleTabSelection, theme }: Props) {
     const [isExpanded, setIsExpanded] = useState(true);
     const [isDragOver, setIsDragOver] = useState(false);
     const [sessionDropPos, setSessionDropPos] = useState<"before" | "after" | null>(null);
@@ -111,22 +113,78 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
     };
 
     const handleDragOver = (e: React.DragEvent) => {
-        if (e.dataTransfer.types.includes("application/tabkeep-session") || e.dataTransfer.types.includes("application/json") || e.dataTransfer.types.includes("application/tabkeep-pinned-link") || e.dataTransfer.types.includes("application/tabkeep-multi-tabs")) {
+        if (e.dataTransfer.types.includes("application/tabkeep-session") || e.dataTransfer.types.includes("application/tabkeep-reorder-session") || e.dataTransfer.types.includes("application/json") || e.dataTransfer.types.includes("application/tabkeep-pinned-link") || e.dataTransfer.types.includes("application/tabkeep-multi-tabs")) {
             e.preventDefault();
             e.stopPropagation();
             e.dataTransfer.dropEffect = "move";
-            if (!isDragOver) setIsDragOver(true);
+            
+            if (e.dataTransfer.types.includes("application/tabkeep-reorder-session")) {
+                const rect = e.currentTarget.getBoundingClientRect();
+                const relativeY = e.clientY - rect.top;
+                if (relativeY < rect.height * 0.25) {
+                    setSessionDropPos("before");
+                    if (isDragOver) setIsDragOver(false);
+                } else if (relativeY > rect.height * 0.75) {
+                    setSessionDropPos("after");
+                    if (isDragOver) setIsDragOver(false);
+                } else {
+                    setSessionDropPos(null);
+                    if (!isDragOver) setIsDragOver(true);
+                }
+            } else {
+                if (!isDragOver) setIsDragOver(true);
+            }
         }
     };
 
     const handleDragLeave = (e: React.DragEvent) => {
         e.preventDefault();
-        setIsDragOver(false);
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+            setIsDragOver(false);
+            setSessionDropPos(null);
+        }
     };
 
     const handleDrop = (e: React.DragEvent) => {
         setIsDragOver(false);
-        if (e.dataTransfer.types.includes("application/tabkeep-session")) {
+        const dropPos = sessionDropPos;
+        setSessionDropPos(null);
+
+        if (dropPos) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (e.dataTransfer.types.includes("application/tabkeep-reorder-session")) {
+                try {
+                    const data = JSON.parse(e.dataTransfer.getData("application/tabkeep-reorder-session"));
+                    if (data.sessionId && data.sessionId !== session.id && onReorderSession)
+                        onReorderSession(data.sessionId, session.id, dropPos);
+                } catch {}
+            } else if (e.dataTransfer.types.includes("application/json")) {
+                try {
+                    const data = JSON.parse(e.dataTransfer.getData("application/json"));
+                    if (data.sourceSessionId) {
+                        onMoveTabToFolder?.(data.sourceSessionId, data.tabIndex, session.folderId, session.id, dropPos);
+                        if (!isExpanded) setIsExpanded(true);
+                    }
+                } catch {}
+            } else if (e.dataTransfer.types.includes("application/tabkeep-multi-tabs")) {
+                try {
+                    const data = JSON.parse(e.dataTransfer.getData("application/tabkeep-multi-tabs"));
+                    if (data && data.length > 0) {
+                        onMoveMultiTabsToFolder?.(data, session.folderId, session.id, dropPos);
+                        if (!isExpanded) setIsExpanded(true);
+                    }
+                } catch {}
+            } else if (e.dataTransfer.types.includes("application/tabkeep-pinned-link")) {
+                try {
+                    const link = JSON.parse(e.dataTransfer.getData("application/tabkeep-pinned-link"));
+                    if (link) {
+                        onDropPinnedLinkToSession?.(link, session.id, session.id, dropPos);
+                        if (!isExpanded) setIsExpanded(true);
+                    }
+                } catch {}
+            }
+        } else if (e.dataTransfer.types.includes("application/tabkeep-session")) {
             e.preventDefault();
             e.stopPropagation();
             try {
@@ -145,9 +203,7 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                     onMoveTab?.(data.sourceSessionId, session.id, data.tabIndex);
                     if (!isExpanded) setIsExpanded(true);
                 }
-            } catch (err) {
-                // ignore invalid drops
-            }
+            } catch (err) {}
         } else if (e.dataTransfer.types.includes("application/tabkeep-pinned-link")) {
             e.preventDefault();
             e.stopPropagation();
@@ -172,32 +228,7 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
     };
 
     return (
-        <div
-            className="relative pb-4"
-            onDragOver={(e) => {
-                if (e.dataTransfer.types.includes("application/tabkeep-reorder-session")) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    setSessionDropPos(e.clientY < rect.top + rect.height / 2 ? "before" : "after");
-                }
-            }}
-            onDragLeave={(e) => {
-                if (!e.currentTarget.contains(e.relatedTarget as Node)) setSessionDropPos(null);
-            }}
-            onDrop={(e) => {
-                if (e.dataTransfer.types.includes("application/tabkeep-reorder-session")) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    try {
-                        const data = JSON.parse(e.dataTransfer.getData("application/tabkeep-reorder-session"));
-                        if (data.sessionId && data.sessionId !== session.id && onReorderSession)
-                            onReorderSession(data.sessionId, session.id, sessionDropPos || "after");
-                    } catch {}
-                    setSessionDropPos(null);
-                }
-            }}
-        >
+        <div className="relative pb-4">
             {/* Session reorder drop indicator – before */}
             {sessionDropPos === "before" && (
                 <div className="absolute top-[-2px] left-1 right-1 h-1 bg-blue-500 rounded-full pointer-events-none z-10" />
@@ -306,7 +337,7 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                                     e.dataTransfer.setData("application/tabkeep-reorder-tab", JSON.stringify({ sessionId: session.id, tabIndex: idx }));
                                 }}
                                 onDragOver={(e) => {
-                                    if (e.dataTransfer.types.includes("application/tabkeep-reorder-tab")) {
+                                    if (e.dataTransfer.types.includes("application/tabkeep-reorder-tab") || e.dataTransfer.types.includes("application/json") || e.dataTransfer.types.includes("application/tabkeep-multi-tabs")) {
                                         e.preventDefault();
                                         e.stopPropagation();
                                         const rect = e.currentTarget.getBoundingClientRect();
@@ -316,21 +347,48 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                                 }}
                                 onDragLeave={() => setTabDropTarget(null)}
                                 onDrop={(e) => {
-                                    if (e.dataTransfer.types.includes("application/tabkeep-reorder-tab")) {
+                                    if (e.dataTransfer.types.includes("application/tabkeep-reorder-tab") || e.dataTransfer.types.includes("application/json") || e.dataTransfer.types.includes("application/tabkeep-multi-tabs")) {
                                         e.preventDefault();
                                         e.stopPropagation();
+                                        const pos = tabDropTarget?.pos || "after";
+                                        const toIdx = pos === "before" ? idx : idx + 1;
+                                        
                                         try {
-                                            const data = JSON.parse(e.dataTransfer.getData("application/tabkeep-reorder-tab"));
-                                            if (data.sessionId === session.id && data.tabIndex !== idx) {
-                                                const pos = tabDropTarget?.pos || "after";
-                                                const toIdx = pos === "before" ? idx : idx + 1;
-                                                onReorderTab?.(session.id, data.tabIndex, data.tabIndex < idx ? toIdx - 1 : toIdx);
+                                            if (e.dataTransfer.types.includes("application/tabkeep-multi-tabs")) {
+                                                const data = JSON.parse(e.dataTransfer.getData("application/tabkeep-multi-tabs"));
+                                                if (Array.isArray(data) && data.length > 0) {
+                                                    onMoveMultiTabs?.(data, session.id, toIdx);
+                                                    if (!isExpanded) setIsExpanded(true);
+                                                }
+                                            } else if (e.dataTransfer.types.includes("application/tabkeep-reorder-tab") || e.dataTransfer.types.includes("application/json")) {
+                                                let sourceSessionId = null, tabIndex = null;
+                                                
+                                                if (e.dataTransfer.types.includes("application/tabkeep-reorder-tab")) {
+                                                    const data = JSON.parse(e.dataTransfer.getData("application/tabkeep-reorder-tab"));
+                                                    sourceSessionId = data.sessionId;
+                                                    tabIndex = data.tabIndex;
+                                                } else if (e.dataTransfer.types.includes("application/json")) {
+                                                    const data = JSON.parse(e.dataTransfer.getData("application/json"));
+                                                    sourceSessionId = data.sourceSessionId;
+                                                    tabIndex = data.tabIndex;
+                                                }
+
+                                                if (sourceSessionId && tabIndex !== null && tabIndex !== undefined) {
+                                                    if (sourceSessionId === session.id) {
+                                                        if (tabIndex !== idx) {
+                                                            onReorderTab?.(session.id, tabIndex, tabIndex < idx ? toIdx - 1 : toIdx);
+                                                        }
+                                                    } else {
+                                                        // Dropped from a different session
+                                                        onMoveTab?.(sourceSessionId, session.id, tabIndex, toIdx);
+                                                        if (!isExpanded) setIsExpanded(true);
+                                                    }
+                                                }
                                             }
                                         } catch {}
                                         setTabDropTarget(null);
                                     }
                                 }}
-                                onClick={() => handleOpenTab(tab.url)}
                                 onMouseEnter={() => onTabHover?.({ ...tab, sessionTimestamp: session.timestamp })}
                                 className={`flex items-center gap-3 p-2 rounded cursor-grab active:cursor-grabbing group transition-colors ${
                                     isSelected 
@@ -357,9 +415,14 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                                     onError={(e) => { (e.target as HTMLImageElement).src = "https://www.google.com/s2/favicons?domain=google.com"; }}
                                     draggable={false}
                                 />
-                                <span className="text-xs text-gray-600 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 truncate flex-1 font-medium select-none">
-                                    {tab.title || "Untitled Tab"}
-                                </span>
+                                <div className="flex-1 truncate">
+                                    <span 
+                                        onClick={(e) => { e.stopPropagation(); handleOpenTab(tab.url); }}
+                                        className="text-xs text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 font-medium select-none cursor-pointer transition-colors"
+                                    >
+                                        {tab.title || "Untitled Tab"}
+                                    </span>
+                                </div>
                                 <span className="text-[10px] text-gray-400 dark:text-gray-500 font-mono whitespace-nowrap">
                                     {session.timestamp.includes(' ') ? session.timestamp.split(' ').pop() : session.timestamp}
                                 </span>

@@ -3,7 +3,7 @@ import "~style.css"
 import {
     FolderOpen, LayoutGrid, Search, X,
     Trash2, FolderPlus,
-    Sun, Moon
+    Sun, Moon, RotateCcw
 } from "lucide-react"
 import { useTabkeepStorage } from "~hooks/useTabkeepStorage"
 import { updateSessions, updateFolders, updateDeletedSessions, updatePinnedLinks } from "~lib/storage"
@@ -150,7 +150,7 @@ export default function TabkeepDashboard() {
         await updateSessions(updated);
     };
 
-    const handleMoveTab = async (sourceSessionId: string, targetSessionId: string, tabIndex: number) => {
+    const handleMoveTab = async (sourceSessionId: string, targetSessionId: string, tabIndex: number, insertIndex?: number) => {
         if (sourceSessionId === targetSessionId) return;
 
         const sourceSession = sessions.find(s => s.id === sourceSessionId);
@@ -162,7 +162,12 @@ export default function TabkeepDashboard() {
         const newSourceTabs = [...sourceSession.tabs];
         newSourceTabs.splice(tabIndex, 1);
 
-        const newTargetTabs = [...targetSession.tabs, tabToMove];
+        const newTargetTabs = [...targetSession.tabs];
+        if (insertIndex !== undefined) {
+            newTargetTabs.splice(insertIndex, 0, tabToMove);
+        } else {
+            newTargetTabs.push(tabToMove);
+        }
 
         let updatedSessions = sessions.map(s => {
             if (s.id === sourceSessionId) return { ...s, tabs: newSourceTabs };
@@ -189,7 +194,7 @@ export default function TabkeepDashboard() {
         }
     };
 
-    const handleMoveTabToFolder = async (sourceSessionId: string, tabIndex: number, folderId: string | null) => {
+    const handleMoveTabToFolder = async (sourceSessionId: string, tabIndex: number, folderId: string | null, targetSessionId?: string, insertPosition?: "before" | "after") => {
         const sourceSession = sessions.find(s => s.id === sourceSessionId);
         if (!sourceSession) return;
         const tabToMove = sourceSession.tabs[tabIndex];
@@ -210,8 +215,19 @@ export default function TabkeepDashboard() {
             return s;
         });
 
-        // Add the new session at the top
-        updatedSessions = [newSession, ...updatedSessions];
+        // Compute insertion index
+        if (targetSessionId && insertPosition) {
+            const tIndex = updatedSessions.findIndex(s => s.id === targetSessionId);
+            if (tIndex !== -1) {
+                const insertIdx = insertPosition === "before" ? tIndex : tIndex + 1;
+                updatedSessions.splice(insertIdx, 0, newSession);
+            } else {
+                updatedSessions = [newSession, ...updatedSessions];
+            }
+        } else {
+            // Add the new session at the top
+            updatedSessions = [newSession, ...updatedSessions];
+        }
 
         // Remove empty sessions
         updatedSessions = updatedSessions.filter(s => s.tabs.length > 0);
@@ -232,7 +248,7 @@ export default function TabkeepDashboard() {
         }
     };
 
-    const handleMoveMultiTabs = async (tabsToMove: SelectedTab[], targetSessionId: string) => {
+    const handleMoveMultiTabs = async (tabsToMove: SelectedTab[], targetSessionId: string, insertIndex?: number) => {
         if (tabsToMove.length === 0) return;
         const targetSession = sessions.find(s => s.id === targetSessionId);
         if (!targetSession) return;
@@ -281,7 +297,15 @@ export default function TabkeepDashboard() {
         if (extractedTabs.length === 0) return;
 
         updatedSessions = updatedSessions.map(s => {
-            if (s.id === targetSessionId) return { ...s, tabs: [...s.tabs, ...extractedTabs] };
+            if (s.id === targetSessionId) {
+                const newTabs = [...s.tabs];
+                if (insertIndex !== undefined) {
+                    newTabs.splice(insertIndex, 0, ...extractedTabs);
+                } else {
+                    newTabs.push(...extractedTabs);
+                }
+                return { ...s, tabs: newTabs };
+            }
             return s;
         });
 
@@ -299,13 +323,11 @@ export default function TabkeepDashboard() {
         setSelectedTabs([]); // Clear selection after moving
     };
 
-    const handleMoveMultiTabsToFolder = async (tabsToMove: SelectedTab[], folderId: string | null) => {
+    const handleMoveMultiTabsToFolder = async (tabsToMove: SelectedTab[], folderId: string | null, targetSessionId?: string, insertPosition?: "before" | "after") => {
         if (tabsToMove.length === 0) return;
-        
         let updatedSessions = [...sessions];
         let updatedPins = [...pinnedLinks];
         
-        // Group by session
         const bySession: Record<string, number[]> = {};
         for (const tab of tabsToMove) {
             if (!bySession[tab.sessionId]) bySession[tab.sessionId] = [];
@@ -321,13 +343,13 @@ export default function TabkeepDashboard() {
             const indices = bySession[sessionId].sort((a, b) => b - a);
             const newTabs = [...session.tabs];
 
-            // Extract tabs backwards
             for (const idx of indices) {
                 const tab = newTabs[idx];
                 extractedTabs.unshift(tab);
                 
-                // Update pin folder if needed
-                updatedPins = updatedPins.map(p => p.url === tab.url ? { ...p, folderId } : p);
+                if (session.folderId !== folderId) {
+                    updatedPins = updatedPins.map(p => p.url === tab.url ? { ...p, folderId } : p);
+                }
                 
                 newTabs.splice(idx, 1);
             }
@@ -339,16 +361,27 @@ export default function TabkeepDashboard() {
         }
         
         if (extractedTabs.length === 0) return;
-        
+
         const newSession: Session = {
             id: `session-${Date.now()}`,
-            name: `Extracted Tabs (${extractedTabs.length})`,
+            name: "Extracted Tabs",
             tabs: extractedTabs,
             timestamp: new Date().toLocaleString(),
             folderId
         };
 
-        updatedSessions = [newSession, ...updatedSessions];
+        // Compute insertion index
+        if (targetSessionId && insertPosition) {
+            const tIndex = updatedSessions.findIndex(s => s.id === targetSessionId);
+            if (tIndex !== -1) {
+                const insertIdx = insertPosition === "before" ? tIndex : tIndex + 1;
+                updatedSessions.splice(insertIdx, 0, newSession);
+            } else {
+                updatedSessions = [newSession, ...updatedSessions];
+            }
+        } else {
+            updatedSessions = [newSession, ...updatedSessions];
+        }
         updatedSessions = updatedSessions.filter(s => s.tabs.length > 0);
 
         setSessions(updatedSessions);
@@ -470,6 +503,21 @@ export default function TabkeepDashboard() {
         setLastClickedTab(null);
     };
 
+    const handleRestoreSelected = async () => {
+        if (selectedTabs.length === 0) return;
+        
+        for (const sel of selectedTabs) {
+            const session = sessions.find(s => s.id === sel.sessionId);
+            if (session) {
+                const tab = session.tabs[sel.tabIndex];
+                if (tab && tab.url) {
+                    await chrome.tabs.create({ url: tab.url, active: false });
+                }
+            }
+        }
+        handleClearSelection();
+    };
+
     const handleDeleteSelected = async () => {
         if (selectedTabs.length === 0) return;
         
@@ -537,33 +585,47 @@ export default function TabkeepDashboard() {
         setSelectedTabs([]);
     };
 
-    const handleDropPinnedLink = async (link: PinnedLink, targetSessionId: string | null = null, folderId: string | null = null) => {
-        const newTab = {
-            title: link.title,
-            url: link.url,
-            favIconUrl: link.favIconUrl || ""
-        };
+    const handleDropPinnedLink = async (link: PinnedLink, sessionId: string | null, folderId: string | null, targetSessionId?: string, insertPosition?: "before" | "after") => {
+        if (!link) return;
 
-        if (targetSessionId) {
-            let updatedSessions = sessions.map(s => {
-                if (s.id === targetSessionId) {
-                    return { ...s, tabs: [...s.tabs, newTab] };
+        if (sessionId && !insertPosition) {
+            // Drop INTO an existing session
+            const sessionIdx = sessions.findIndex(s => s.id === sessionId);
+            if (sessionIdx !== -1) {
+                const session = sessions[sessionIdx];
+                const alreadyHasLink = session.tabs.some(t => t.url === link.url);
+                if (!alreadyHasLink) {
+                    const newTabs = [...session.tabs, { title: link.title, url: link.url, favIconUrl: link.favIconUrl }];
+                    const newSessions = [...sessions];
+                    newSessions[sessionIdx] = { ...session, tabs: newTabs };
+                    setSessions(newSessions);
+                    await updateSessions(newSessions);
                 }
-                return s;
-            });
-            setSessions(updatedSessions);
-            await updateSessions(updatedSessions);
+            }
         } else {
+            // Drop outside (create new session or insert at position)
             const newSession: Session = {
                 id: `session-${Date.now()}`,
-                name: "Dropped Link",
-                tabs: [newTab],
+                name: "Pinned Link",
+                tabs: [{ title: link.title, url: link.url, favIconUrl: link.favIconUrl }],
                 timestamp: new Date().toLocaleString(),
                 folderId
             };
-            const updatedSessions = [newSession, ...sessions];
-            setSessions(updatedSessions);
-            await updateSessions(updatedSessions);
+            
+            let newSessions = [...sessions];
+            if (targetSessionId && insertPosition) {
+                const tIndex = newSessions.findIndex(s => s.id === targetSessionId);
+                if (tIndex !== -1) {
+                    const insertIdx = insertPosition === "before" ? tIndex : tIndex + 1;
+                    newSessions.splice(insertIdx, 0, newSession);
+                } else {
+                    newSessions = [newSession, ...newSessions];
+                }
+            } else {
+                newSessions = [newSession, ...newSessions];
+            }
+            setSessions(newSessions);
+            await updateSessions(newSessions);
         }
     };
 
@@ -823,7 +885,7 @@ export default function TabkeepDashboard() {
                 <main
                     className="flex-1 p-10 overflow-y-auto bg-[#f5f5f7] dark:bg-[#171717] custom-scrollbar transition-colors duration-200"
                     onDragOver={(e) => {
-                        if (activeFolderId !== "trash" && (e.dataTransfer.types.includes("application/tabkeep-session") || e.dataTransfer.types.includes("application/tabkeep-pinned-link") || e.dataTransfer.types.includes("application/json"))) {
+                        if (activeFolderId !== "trash" && (e.dataTransfer.types.includes("application/tabkeep-session") || e.dataTransfer.types.includes("application/tabkeep-pinned-link") || e.dataTransfer.types.includes("application/json") || e.dataTransfer.types.includes("application/tabkeep-multi-tabs"))) {
                             e.preventDefault();
                             e.dataTransfer.dropEffect = "move";
                             if (!isMainDragOver) setIsMainDragOver(true);
@@ -856,6 +918,14 @@ export default function TabkeepDashboard() {
                                     const data = JSON.parse(e.dataTransfer.getData("application/json"));
                                     if (data.sourceSessionId && data.tabIndex !== undefined) {
                                         handleMoveTabToFolder(data.sourceSessionId, data.tabIndex, targetFolderId);
+                                    }
+                                } catch (err) { }
+                            } else if (e.dataTransfer.types.includes("application/tabkeep-multi-tabs")) {
+                                e.preventDefault();
+                                try {
+                                    const data = JSON.parse(e.dataTransfer.getData("application/tabkeep-multi-tabs"));
+                                    if (Array.isArray(data) && data.length > 0) {
+                                        handleMoveMultiTabsToFolder(data, targetFolderId);
                                     }
                                 } catch (err) { }
                             }
@@ -931,6 +1001,8 @@ export default function TabkeepDashboard() {
                                                     onMoveFolder={handleMoveFolder}
                                                     onMoveTab={handleMoveTab}
                                                     onMoveMultiTabs={handleMoveMultiTabs}
+                                                    onMoveTabToFolder={handleMoveTabToFolder}
+                                                    onMoveMultiTabsToFolder={handleMoveMultiTabsToFolder}
                                                     onMergeSessions={handleMergeSessions}
                                                     onDeleteTab={handleDeleteTab}
                                                     onTabHover={setHoveredTab}
@@ -938,7 +1010,7 @@ export default function TabkeepDashboard() {
                                                     onToggleTabSelection={handleToggleTabSelection}
                                                     onPinTab={handlePinLink}
                                                     onUnpinTab={handleUnpinLink}
-                                                    onDropPinnedLinkToSession={(link, sId) => handleDropPinnedLink(link, sId, null)}
+                                                    onDropPinnedLinkToSession={(link, sId, targetId, pos) => handleDropPinnedLink(link, pos ? null : sId, null, targetId, pos)}
                                                     onReorderTab={handleReorderTabs}
                                                     onReorderSession={handleReorderSessions}
                                                     theme={theme}
@@ -992,6 +1064,8 @@ export default function TabkeepDashboard() {
                                                 onMoveFolder={handleMoveFolder}
                                                 onMoveTab={handleMoveTab}
                                                 onMoveMultiTabs={handleMoveMultiTabs}
+                                                onMoveTabToFolder={handleMoveTabToFolder}
+                                                onMoveMultiTabsToFolder={handleMoveMultiTabsToFolder}
                                                 onMergeSessions={handleMergeSessions}
                                                 onDeleteTab={handleDeleteTab}
                                                 onTabHover={setHoveredTab}
@@ -999,7 +1073,7 @@ export default function TabkeepDashboard() {
                                                 onToggleTabSelection={handleToggleTabSelection}
                                                 onPinTab={handlePinLink}
                                                 onUnpinTab={handleUnpinLink}
-                                                onDropPinnedLinkToSession={(link, sId) => handleDropPinnedLink(link, sId, activeFolderId === "all" ? null : activeFolderId)}
+                                                onDropPinnedLinkToSession={(link, sId, targetId, pos) => handleDropPinnedLink(link, pos ? null : sId, activeFolderId === "all" ? null : activeFolderId, targetId, pos)}
                                                 onReorderTab={handleReorderTabs}
                                                 onReorderSession={handleReorderSessions}
                                                 theme={theme}
@@ -1037,20 +1111,27 @@ export default function TabkeepDashboard() {
                 
                 {/* FLOATING ACTION BAR FOR MULTI-SELECTION */}
                 {selectedTabs.length > 0 && (
-                    <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-6 py-3 rounded-full shadow-2xl flex items-center gap-6 animate-in slide-in-from-bottom-10 fade-in duration-300 z-50">
+                    <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-6 py-3 rounded-xl shadow-2xl flex items-center gap-6 animate-in slide-in-from-bottom-10 fade-in duration-300 z-50">
                         <span className="text-sm font-bold">{selectedTabs.length} tab{selectedTabs.length > 1 ? 's' : ''} selected</span>
                         <div className="w-px h-4 bg-gray-700 dark:bg-gray-300"></div>
                         <div className="flex items-center gap-2">
                             <button
+                                onClick={handleRestoreSelected}
+                                className="flex items-center gap-1.5 text-xs font-bold bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg transition-colors"
+                            >
+                                <RotateCcw size={12} />
+                                Restore
+                            </button>
+                            <button
                                 onClick={handleDeleteSelected}
-                                className="flex items-center gap-1.5 text-xs font-bold bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-full transition-colors"
+                                className="flex items-center gap-1.5 text-xs font-bold bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg transition-colors"
                             >
                                 <Trash2 size={12} />
                                 Delete
                             </button>
                             <button
                                 onClick={handleClearSelection}
-                                className="text-xs font-bold text-gray-400 dark:text-gray-500 hover:text-white dark:hover:text-gray-900 px-3 py-1.5 transition-colors"
+                                className="text-xs font-bold text-gray-400 dark:text-gray-500 hover:text-white dark:hover:text-gray-900 px-3 py-1.5 rounded-lg transition-colors"
                             >
                                 Cancel
                             </button>
