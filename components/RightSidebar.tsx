@@ -227,12 +227,8 @@ export function RightSidebar({ hoveredTab, allSessions, theme }: RightSidebarPro
         }
     }, [hoveredTab]);
 
-    // Determine if we have a local screenshot or need a remote one
+    // Determine if we have a local screenshot
     const localScreenshot = idbImage || hoveredTab?.screenshot;
-    const showRemoteScreenshot = !localScreenshot && hoveredTab && hoveredTab.url.startsWith("http");
-    const remoteScreenshotUrl = showRemoteScreenshot
-        ? `https://image.thum.io/get/width/400/crop/800/${hoveredTab.url}`
-        : "";
 
     // Fallback UI helper
     const renderFallbackPreview = () => {
@@ -290,23 +286,6 @@ export function RightSidebar({ hoveredTab, allSessions, theme }: RightSidebarPro
                                     alt={hoveredTab.title}
                                     className="w-full h-full object-cover"
                                 />
-                            ) : showRemoteScreenshot && imgState !== "error" ? (
-                                <>
-                                    {imgState === "loading" && (
-                                        <div className="absolute inset-0 flex items-center justify-center bg-gray-900/60">
-                                            <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                                        </div>
-                                    )}
-                                    <img
-                                        src={remoteScreenshotUrl}
-                                        alt={hoveredTab.title}
-                                        onLoad={() => setImgState("loaded")}
-                                        onError={() => setImgState("error")}
-                                        className={`w-full h-full object-cover transition-opacity duration-300 ${
-                                            imgState === "loaded" ? "opacity-100" : "opacity-0"
-                                        }`}
-                                    />
-                                </>
                             ) : (
                                 renderFallbackPreview()
                             )}
