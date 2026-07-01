@@ -567,6 +567,49 @@ export default function TabkeepDashboard() {
         }
     };
 
+    // ── Reorder handlers ───────────────────────────────────────────
+    const handleReorderFolders = async (draggedId: string, targetId: string, position: "before" | "after") => {
+        if (draggedId === targetId) return;
+        const copy = [...folders];
+        const fromIdx = copy.findIndex(f => f.id === draggedId);
+        if (fromIdx === -1) return;
+        const [item] = copy.splice(fromIdx, 1);
+        const toIdx = copy.findIndex(f => f.id === targetId);
+        if (toIdx === -1) return;
+        copy.splice(position === "before" ? toIdx : toIdx + 1, 0, item);
+        setFolders(copy);
+        await updateFolders(copy);
+    };
+
+    const handleReorderSessions = async (draggedId: string, targetId: string, position: "before" | "after") => {
+        if (draggedId === targetId) return;
+        const copy = [...sessions];
+        const fromIdx = copy.findIndex(s => s.id === draggedId);
+        const targetSession = copy.find(s => s.id === targetId);
+        if (fromIdx === -1 || !targetSession) return;
+        const [item] = copy.splice(fromIdx, 1);
+        // If cross-folder, update folderId to match target
+        const updated = { ...item, folderId: targetSession.folderId };
+        const toIdx = copy.findIndex(s => s.id === targetId);
+        if (toIdx === -1) return;
+        copy.splice(position === "before" ? toIdx : toIdx + 1, 0, updated);
+        setSessions(copy);
+        await updateSessions(copy);
+    };
+
+    const handleReorderTabs = async (sessionId: string, fromIdx: number, toIdx: number) => {
+        if (fromIdx === toIdx) return;
+        const updated = sessions.map(s => {
+            if (s.id !== sessionId) return s;
+            const tabs = [...s.tabs];
+            const [moved] = tabs.splice(fromIdx, 1);
+            tabs.splice(toIdx, 0, moved);
+            return { ...s, tabs };
+        });
+        setSessions(updated);
+        await updateSessions(updated);
+    };
+
     const handleRestoreSession = async (id: string) => {
         const sessionToRestore = deletedSessions.find(s => s.id === id);
         if (sessionToRestore) {
@@ -726,6 +769,8 @@ export default function TabkeepDashboard() {
                             onMoveTab={handleMoveTab}
                             onMoveMultiTabs={handleMoveMultiTabs}
                             onDropPinnedLink={handleDropPinnedLink}
+                            onReorderFolder={handleReorderFolders}
+                            onReorderSession={handleReorderSessions}
                         />
 
                         {/* Input folder baru */}
@@ -894,6 +939,8 @@ export default function TabkeepDashboard() {
                                                     onPinTab={handlePinLink}
                                                     onUnpinTab={handleUnpinLink}
                                                     onDropPinnedLinkToSession={(link, sId) => handleDropPinnedLink(link, sId, null)}
+                                                    onReorderTab={handleReorderTabs}
+                                                    onReorderSession={handleReorderSessions}
                                                     theme={theme}
                                                 />
                                             ))}
@@ -925,6 +972,9 @@ export default function TabkeepDashboard() {
                                                 onUnpinTab={handleUnpinLink}
                                                 onDropPinnedLinkToFolder={(link, folderId) => handleDropPinnedLink(link, null, folderId)}
                                                 onDropPinnedLinkToSession={(link, sId) => handleDropPinnedLink(link, sId, f.id)}
+                                                onReorderTab={handleReorderTabs}
+                                                onReorderSession={handleReorderSessions}
+                                                onReorderFolder={handleReorderFolders}
                                                 theme={theme}
                                             />
                                         ))}
@@ -949,7 +999,9 @@ export default function TabkeepDashboard() {
                                                 onToggleTabSelection={handleToggleTabSelection}
                                                 onPinTab={handlePinLink}
                                                 onUnpinTab={handleUnpinLink}
-                                                onDropPinnedLinkToSession={(link, sId) => handleDropPinnedLink(link, sId, activeFolderId)}
+                                                onDropPinnedLinkToSession={(link, sId) => handleDropPinnedLink(link, sId, activeFolderId === "all" ? null : activeFolderId)}
+                                                onReorderTab={handleReorderTabs}
+                                                onReorderSession={handleReorderSessions}
                                                 theme={theme}
                                             />
                                         ))}

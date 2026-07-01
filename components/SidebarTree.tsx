@@ -15,16 +15,18 @@ interface SessionRowProps {
     onMoveTabToSession?: (sourceSessionId: string, targetSessionId: string, tabIndex: number) => void;
     onMoveMultiTabsToSession?: (tabsToMove: any[], targetSessionId: string) => void;
     onDropPinnedLinkToSession?: (link: any, sessionId: string) => void;
+    onReorderSession?: (draggedId: string, targetId: string, position: "before" | "after") => void;
 }
 
 function SessionRow({
     session, pinnedLinks, depth,
-    onRenameSession, onMoveTabToSession, onMoveMultiTabsToSession, onDropPinnedLinkToSession
+    onRenameSession, onMoveTabToSession, onMoveMultiTabsToSession, onDropPinnedLinkToSession, onReorderSession
 }: SessionRowProps) {
     const [isOpen, setIsOpen] = useState(true);
     const [editing, setEditing] = useState(false);
     const [editValue, setEditValue] = useState(session.name || "");
     const [isDropOver, setIsDropOver] = useState(false);
+    const [sessionDropPos, setSessionDropPos] = useState<"before" | "after" | null>(null);
 
     const pins = session.tabs
         .filter(tab => pinnedLinks.some(p => p.url === tab.url))
@@ -46,20 +48,41 @@ function SessionRow({
                 onDragStart={(e) => {
                     e.stopPropagation();
                     e.dataTransfer.setData("application/tabkeep-session", JSON.stringify({ sessionId: session.id }));
+                    e.dataTransfer.setData("application/tabkeep-reorder-session", JSON.stringify({ sessionId: session.id }));
                     e.dataTransfer.effectAllowed = "move";
                 }}
                 onDragOver={(e) => {
-                    if (e.dataTransfer.types.includes("application/json") || e.dataTransfer.types.includes("application/tabkeep-multi-tabs")) {
+                    if (e.dataTransfer.types.includes("application/json") || e.dataTransfer.types.includes("application/tabkeep-multi-tabs") || e.dataTransfer.types.includes("application/tabkeep-reorder-session")) {
                         e.preventDefault();
                         e.stopPropagation();
                         e.dataTransfer.dropEffect = "move";
-                        setIsDropOver(true);
+                        if (!e.dataTransfer.types.includes("application/tabkeep-reorder-session")) {
+                            setIsDropOver(true);
+                        }
+                        if (e.dataTransfer.types.includes("application/tabkeep-reorder-session")) {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            setSessionDropPos(e.clientY < rect.top + rect.height / 2 ? "before" : "after");
+                        }
                     }
                 }}
-                onDragLeave={() => setIsDropOver(false)}
+                onDragLeave={(e) => {
+                    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                        setIsDropOver(false);
+                        setSessionDropPos(null);
+                    }
+                }}
                 onDrop={(e) => {
                     setIsDropOver(false);
-                    if (e.dataTransfer.types.includes("application/json")) {
+                    if (e.dataTransfer.types.includes("application/tabkeep-reorder-session")) {
+                        e.preventDefault(); e.stopPropagation();
+                        try {
+                            const data = JSON.parse(e.dataTransfer.getData("application/tabkeep-reorder-session"));
+                            if (data.sessionId && data.sessionId !== session.id && onReorderSession) {
+                                onReorderSession(data.sessionId, session.id, sessionDropPos || "after");
+                            }
+                        } catch {}
+                        setSessionDropPos(null);
+                    } else if (e.dataTransfer.types.includes("application/json")) {
                         e.preventDefault(); e.stopPropagation();
                         try {
                             const data = JSON.parse(e.dataTransfer.getData("application/json"));
@@ -75,12 +98,15 @@ function SessionRow({
                         } catch { }
                     }
                 }}
-                className={`group flex items-center gap-1.5 py-[3px] pr-2 cursor-grab active:cursor-grabbing rounded-md transition-all select-none ${isDropOver
+                className={`group flex flex-col cursor-grab active:cursor-grabbing rounded-md transition-all select-none ${isDropOver
                     ? "bg-blue-100 dark:bg-blue-500/15 ring-1 ring-blue-400 dark:ring-blue-500"
                     : "hover:bg-gray-100/80 dark:hover:bg-white/5"
                     }`}
-                style={{ paddingLeft: `${indentPx}px` }}
             >
+                {sessionDropPos === "before" && (
+                    <div className="h-0.5 bg-blue-500 rounded-full pointer-events-none" style={{ marginLeft: `${indentPx}px` }} />
+                )}
+                <div className="flex items-center gap-1.5 py-[3px] pr-2" style={{ paddingLeft: `${indentPx}px` }}>
                 {/* chevron – only show if has pins */}
                 <button
                     onClick={(e) => { e.stopPropagation(); if (pins.length > 0) setIsOpen(v => !v); }}
@@ -116,6 +142,10 @@ function SessionRow({
                     </button>
                 )}
             </div>
+            {sessionDropPos === "after" && (
+                <div className="h-0.5 bg-blue-500 rounded-full pointer-events-none" style={{ marginLeft: `${indentPx}px` }} />
+            )}
+        </div>
 
             {/* Pinned links */}
             {isOpen && pins.map(link => (
@@ -167,6 +197,8 @@ interface FolderRowProps {
     onDropPinnedLinkToFolder?: (link: any, folderId: string) => void;
     onDropPinnedLinkToSession?: (link: any, sessionId: string) => void;
     onRenameSession?: (id: string, newName: string) => void;
+    onReorderFolder?: (draggedId: string, targetId: string, position: "before" | "after") => void;
+    onReorderSession?: (draggedId: string, targetId: string, position: "before" | "after") => void;
 }
 
 function FolderRow({
@@ -174,12 +206,13 @@ function FolderRow({
     onClick, onRename, onDelete,
     onMoveSessionToFolder, onMoveTabToFolder, onMoveMultiTabsToFolder,
     onMoveTabToSession, onMoveMultiTabsToSession,
-    onDropPinnedLinkToFolder, onDropPinnedLinkToSession, onRenameSession
+    onDropPinnedLinkToFolder, onDropPinnedLinkToSession, onRenameSession, onReorderFolder, onReorderSession
 }: FolderRowProps) {
     const [isOpen, setIsOpen] = useState(true);
     const [editing, setEditing] = useState(false);
     const [editValue, setEditValue] = useState(folder.name);
     const [isDragOver, setIsDragOver] = useState(false);
+    const [folderDropPos, setFolderDropPos] = useState<"before" | "after" | null>(null);
 
     const indentPx = depth * 16;
 
@@ -194,12 +227,19 @@ function FolderRow({
             e.dataTransfer.types.includes("application/tabkeep-session") ||
             e.dataTransfer.types.includes("application/json") ||
             e.dataTransfer.types.includes("application/tabkeep-multi-tabs") ||
-            e.dataTransfer.types.includes("application/tabkeep-pinned-link")
+            e.dataTransfer.types.includes("application/tabkeep-pinned-link") ||
+            e.dataTransfer.types.includes("application/tabkeep-reorder-folder")
         ) {
             e.preventDefault();
             e.stopPropagation();
             e.dataTransfer.dropEffect = "move";
-            setIsDragOver(true);
+            if (!e.dataTransfer.types.includes("application/tabkeep-reorder-folder")) {
+                setIsDragOver(true);
+            }
+            if (e.dataTransfer.types.includes("application/tabkeep-reorder-folder")) {
+                const rect = e.currentTarget.getBoundingClientRect();
+                setFolderDropPos(e.clientY < rect.top + rect.height / 2 ? "before" : "after");
+            }
         }
     };
 
@@ -222,7 +262,8 @@ function FolderRow({
             e.preventDefault(); e.stopPropagation();
             try {
                 const tabs = JSON.parse(e.dataTransfer.getData("application/tabkeep-multi-tabs"));
-                if (tabs?.length > 0 && onMoveMultiTabsToFolder) onMoveMultiTabsToFolder(tabs, folder.id);
+                if (tabs?.length > 0 && onMoveMultiTabsToFolder)
+                    onMoveMultiTabsToFolder(tabs, folder.id);
             } catch { }
         } else if (e.dataTransfer.types.includes("application/tabkeep-pinned-link")) {
             e.preventDefault(); e.stopPropagation();
@@ -230,28 +271,49 @@ function FolderRow({
                 const link = JSON.parse(e.dataTransfer.getData("application/tabkeep-pinned-link"));
                 if (link && onDropPinnedLinkToFolder) onDropPinnedLinkToFolder(link, folder.id);
             } catch { }
+        } else if (e.dataTransfer.types.includes("application/tabkeep-reorder-folder")) {
+            e.preventDefault(); e.stopPropagation();
+            try {
+                const data = JSON.parse(e.dataTransfer.getData("application/tabkeep-reorder-folder"));
+                if (data.folderId && data.folderId !== folder.id && onReorderFolder) {
+                    onReorderFolder(data.folderId, folder.id, folderDropPos || "after");
+                }
+            } catch { }
+            setFolderDropPos(null);
         }
     };
 
     return (
+        <div className="relative">
+            {/* Folder reorder drop indicator – before */}
+            {folderDropPos === "before" && (
+                <div className="h-0.5 bg-blue-500 rounded-full mb-[1px] pointer-events-none" style={{ marginLeft: `${indentPx}px` }} />
+            )}
         <div
             onDragOver={handleDragOver}
             onDragLeave={(e) => {
                 // Only clear if leaving the folder area entirely
                 if (!e.currentTarget.contains(e.relatedTarget as Node)) {
                     setIsDragOver(false);
+                    setFolderDropPos(null);
                 }
             }}
             onDrop={handleDrop}
-            className={`rounded-md transition-all ${isDragOver
+            className={`rounded-md transition-all ${isDragOver && !folderDropPos
                 ? "ring-1 ring-blue-400 dark:ring-blue-500 bg-blue-50/50 dark:bg-blue-500/10"
                 : ""
             }`}
         >
             {/* Folder header row */}
             <div
+                draggable
+                onDragStart={(e) => {
+                    e.stopPropagation();
+                    e.dataTransfer.setData("application/tabkeep-reorder-folder", JSON.stringify({ folderId: folder.id }));
+                    e.dataTransfer.effectAllowed = "move";
+                }}
                 className={`group flex items-center gap-1.5 py-[3px] pr-2 rounded-md transition-all select-none cursor-pointer ${
-                    isDragOver
+                    isDragOver && !folderDropPos
                         ? "text-blue-600 dark:text-blue-400"
                         : isActive
                             ? "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400"
@@ -330,10 +392,16 @@ function FolderRow({
                                 onMoveTabToSession={onMoveTabToSession}
                                 onMoveMultiTabsToSession={onMoveMultiTabsToSession}
                                 onDropPinnedLinkToSession={onDropPinnedLinkToSession}
+                                onReorderSession={onReorderSession}
                             />
                         ))
                     )}
                 </div>
+            )}
+        </div>
+            {/* Folder reorder drop indicator – after */}
+            {folderDropPos === "after" && (
+                <div className="h-0.5 bg-blue-500 rounded-full mt-[1px] pointer-events-none" style={{ marginLeft: `${indentPx}px` }} />
             )}
         </div>
     );
@@ -356,13 +424,16 @@ interface SidebarTreeProps {
     onMoveTab: (sourceSessionId: string, targetSessionId: string, tabIndex: number) => void;
     onMoveMultiTabs: (tabsToMove: any[], targetSessionId: string) => void;
     onDropPinnedLink: (link: any, sessionId: string | null, folderId: string | null) => void;
+    onReorderFolder?: (draggedId: string, targetId: string, position: "before" | "after") => void;
+    onReorderSession?: (draggedId: string, targetId: string, position: "before" | "after") => void;
 }
 
 export function SidebarTree({
     sessions, folders, pinnedLinks, activeFolderId,
     onSetActive, onRenameFolder, onDeleteFolder, onRenameSession,
     onMoveFolder, onMoveTabToFolder, onMoveMultiTabsToFolder,
-    onMoveTab, onMoveMultiTabs, onDropPinnedLink
+    onMoveTab, onMoveMultiTabs, onDropPinnedLink,
+    onReorderFolder, onReorderSession
 }: SidebarTreeProps) {
     const [rootOpen, setRootOpen] = useState(true);
     const [isRootDragOver, setIsRootDragOver] = useState(false);
@@ -456,6 +527,7 @@ export function SidebarTree({
                                 onMoveTabToSession={onMoveTab}
                                 onMoveMultiTabsToSession={onMoveMultiTabs}
                                 onDropPinnedLinkToSession={(link, sId) => onDropPinnedLink(link, sId, null)}
+                                onReorderSession={onReorderSession}
                             />
                         ))}
 
@@ -479,6 +551,8 @@ export function SidebarTree({
                                 onDropPinnedLinkToFolder={(link, fId) => onDropPinnedLink(link, null, fId)}
                                 onDropPinnedLinkToSession={(link, sId) => onDropPinnedLink(link, sId, folder.id)}
                                 onRenameSession={onRenameSession}
+                                onReorderFolder={onReorderFolder}
+                                onReorderSession={onReorderSession}
                             />
                         ))}
 

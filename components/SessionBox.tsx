@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ChevronDown, ChevronRight, RotateCcw, X, Pin, PinOff } from "lucide-react";
+import { ChevronDown, ChevronRight, GripVertical, RotateCcw, X, Pin, PinOff } from "lucide-react";
 import type { Session, Folder, SavedTab, PinnedLink, SelectedTab } from "~types";
 import { MoveFolderDropdown } from "./MoveFolderDropdown";
 
@@ -18,14 +18,18 @@ interface Props {
     onUnpinTab?: (url: string) => void;
     onRenameSession?: (id: string, newName: string) => void;
     onDropPinnedLinkToSession?: (link: any, sessionId: string) => void;
+    onReorderTab?: (sessionId: string, fromIdx: number, toIdx: number) => void;
+    onReorderSession?: (draggedId: string, targetId: string, position: "before" | "after") => void;
     selectedTabs?: SelectedTab[];
     onToggleTabSelection?: (sessionId: string, tabIndex: number, url: string, isShift: boolean) => void;
     theme?: string;
 }
 
-export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSession, onMoveFolder, onMoveTab, onMoveMultiTabs, onMergeSessions, onDeleteTab, onTabHover, onPinTab, onUnpinTab, onDropPinnedLinkToSession, selectedTabs, onToggleTabSelection, theme }: Props) {
+export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSession, onMoveFolder, onMoveTab, onMoveMultiTabs, onMergeSessions, onDeleteTab, onTabHover, onPinTab, onUnpinTab, onDropPinnedLinkToSession, onReorderTab, onReorderSession, selectedTabs, onToggleTabSelection, theme }: Props & { onReorderTab?: (sessionId: string, fromIdx: number, toIdx: number) => void; onReorderSession?: (draggedId: string, targetId: string, position: "before" | "after") => void; }) {
     const [isExpanded, setIsExpanded] = useState(true);
     const [isDragOver, setIsDragOver] = useState(false);
+    const [sessionDropPos, setSessionDropPos] = useState<"before" | "after" | null>(null);
+    const [tabDropTarget, setTabDropTarget] = useState<{ idx: number; pos: "before" | "after" } | null>(null);
 
     // Rename state
     const [editing, setEditing] = useState(false);
@@ -102,6 +106,7 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
 
     const handleSessionDragStart = (e: React.DragEvent) => {
         e.dataTransfer.setData("application/tabkeep-session", JSON.stringify({ sessionId: session.id }));
+        e.dataTransfer.setData("application/tabkeep-reorder-session", JSON.stringify({ sessionId: session.id }));
         e.dataTransfer.effectAllowed = "move";
     };
 
@@ -168,9 +173,39 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
 
     return (
         <div
+            className="relative pb-4"
+            onDragOver={(e) => {
+                if (e.dataTransfer.types.includes("application/tabkeep-reorder-session")) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setSessionDropPos(e.clientY < rect.top + rect.height / 2 ? "before" : "after");
+                }
+            }}
+            onDragLeave={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node)) setSessionDropPos(null);
+            }}
+            onDrop={(e) => {
+                if (e.dataTransfer.types.includes("application/tabkeep-reorder-session")) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    try {
+                        const data = JSON.parse(e.dataTransfer.getData("application/tabkeep-reorder-session"));
+                        if (data.sessionId && data.sessionId !== session.id && onReorderSession)
+                            onReorderSession(data.sessionId, session.id, sessionDropPos || "after");
+                    } catch {}
+                    setSessionDropPos(null);
+                }
+            }}
+        >
+            {/* Session reorder drop indicator – before */}
+            {sessionDropPos === "before" && (
+                <div className="absolute top-[-2px] left-1 right-1 h-1 bg-blue-500 rounded-full pointer-events-none z-10" />
+            )}
+        <div
             draggable
             onDragStart={handleSessionDragStart}
-            className={`bg-white dark:bg-[#1e1e1e] rounded-lg border mb-4 overflow-hidden shadow-sm dark:shadow-lg transition-all animate-in fade-in duration-300 ${isDragOver ? "border-blue-500 shadow-blue-500/20" : "border-gray-200 dark:border-[#333]"
+            className={`bg-white dark:bg-[#1e1e1e] rounded-lg border overflow-hidden shadow-sm dark:shadow-lg transition-all animate-in fade-in duration-300 ${isDragOver ? "border-blue-500 shadow-blue-500/20" : "border-gray-200 dark:border-[#333]"
                 }`}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
@@ -258,15 +293,44 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                         const isSelected = selectedTabs?.some(t => t.sessionId === session.id && t.tabIndex === idx) || false;
                         
                         return (
+                            <React.Fragment key={idx}>
+                                {/* Tab reorder drop indicator – before */}
+                                {tabDropTarget?.idx === idx && tabDropTarget.pos === "before" && (
+                                    <div className="absolute left-2 right-2 h-0.5 bg-blue-500 rounded-full pointer-events-none z-10" />
+                                )}
                             <li
-                                key={idx}
                                 draggable
-                                onDragStart={(e) => handleDragStartTab(e, idx)}
-                                onClick={(e) => {
-                                    // if user clicked the checkbox area, it's handled by the input
-                                    // otherwise open tab
-                                    handleOpenTab(tab.url);
+                                onDragStart={(e) => {
+                                    e.stopPropagation();
+                                    handleDragStartTab(e, idx);
+                                    e.dataTransfer.setData("application/tabkeep-reorder-tab", JSON.stringify({ sessionId: session.id, tabIndex: idx }));
                                 }}
+                                onDragOver={(e) => {
+                                    if (e.dataTransfer.types.includes("application/tabkeep-reorder-tab")) {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        const rect = e.currentTarget.getBoundingClientRect();
+                                        const pos = e.clientY < rect.top + rect.height / 2 ? "before" : "after";
+                                        setTabDropTarget({ idx, pos });
+                                    }
+                                }}
+                                onDragLeave={() => setTabDropTarget(null)}
+                                onDrop={(e) => {
+                                    if (e.dataTransfer.types.includes("application/tabkeep-reorder-tab")) {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        try {
+                                            const data = JSON.parse(e.dataTransfer.getData("application/tabkeep-reorder-tab"));
+                                            if (data.sessionId === session.id && data.tabIndex !== idx) {
+                                                const pos = tabDropTarget?.pos || "after";
+                                                const toIdx = pos === "before" ? idx : idx + 1;
+                                                onReorderTab?.(session.id, data.tabIndex, data.tabIndex < idx ? toIdx - 1 : toIdx);
+                                            }
+                                        } catch {}
+                                        setTabDropTarget(null);
+                                    }
+                                }}
+                                onClick={() => handleOpenTab(tab.url)}
                                 onMouseEnter={() => onTabHover?.({ ...tab, sessionTimestamp: session.timestamp })}
                                 className={`flex items-center gap-3 p-2 rounded cursor-grab active:cursor-grabbing group transition-colors ${
                                     isSelected 
@@ -296,11 +360,9 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                                 <span className="text-xs text-gray-600 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 truncate flex-1 font-medium select-none">
                                     {tab.title || "Untitled Tab"}
                                 </span>
-                                {/* Time */}
                                 <span className="text-[10px] text-gray-400 dark:text-gray-500 font-mono whitespace-nowrap">
                                     {session.timestamp.includes(' ') ? session.timestamp.split(' ').pop() : session.timestamp}
                                 </span>
-                                {/* Pin button */}
                                 <button
                                     onClick={(e) => handlePinTabClick(e, tab)}
                                     title={isPinned ? "Unpin dari sidebar" : "Pin ke sidebar"}
@@ -311,10 +373,29 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                                 >
                                     {isPinned ? <PinOff size={13} /> : <Pin size={13} />}
                                 </button>
+                                {onDeleteTab && (
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); onDeleteTab(session.id, idx); }}
+                                        title="Hapus tab"
+                                        className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-500 dark:hover:text-red-400 flex-shrink-0"
+                                    >
+                                        <X size={11} />
+                                    </button>
+                                )}
                             </li>
+                                {/* Tab reorder drop indicator – after last item */}
+                                {tabDropTarget?.idx === idx && tabDropTarget.pos === "after" && (
+                                    <div className="absolute left-2 right-2 h-0.5 bg-blue-500 rounded-full pointer-events-none z-10" />
+                                )}
+                            </React.Fragment>
                         );
                     })}
                 </ul>
+            )}
+        </div>
+            {/* Session reorder drop indicator – after */}
+            {sessionDropPos === "after" && (
+                <div className="absolute bottom-[-2px] left-1 right-1 h-1 bg-blue-500 rounded-full pointer-events-none z-10" />
             )}
         </div>
     );

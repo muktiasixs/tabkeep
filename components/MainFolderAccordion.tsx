@@ -24,30 +24,42 @@ interface Props {
     onUnpinTab: (url: string) => void;
     onDropPinnedLinkToFolder?: (link: any, folderId: string) => void;
     onDropPinnedLinkToSession?: (link: any, sessionId: string) => void;
+    onReorderFolder?: (draggedId: string, targetId: string, position: "before" | "after") => void;
+    onReorderSession?: (draggedId: string, targetId: string, position: "before" | "after") => void;
+    onReorderTab?: (sessionId: string, fromIdx: number, toIdx: number) => void;
     selectedTabs?: SelectedTab[];
     onToggleTabSelection?: (sessionId: string, tabIndex: number, url: string, isShift: boolean) => void;
     theme: "light" | "dark";
 }
 
-export function MainFolderAccordion({ folder, sessions, allFolders, onDeleteSession, onRenameSession, onRenameFolder, onDeleteFolder, onMoveFolder, onMoveTab, onMoveMultiTabs, onMoveTabToFolder, onMoveMultiTabsToFolder, onMergeSessions, onDeleteTab, onTabHover, pinnedLinks, onPinTab, onUnpinTab, onDropPinnedLinkToFolder, onDropPinnedLinkToSession, selectedTabs, onToggleTabSelection, theme }: Props) {
+export function MainFolderAccordion({ folder, sessions, allFolders, onDeleteSession, onRenameSession, onRenameFolder, onDeleteFolder, onMoveFolder, onMoveTab, onMoveMultiTabs, onMoveTabToFolder, onMoveMultiTabsToFolder, onMergeSessions, onDeleteTab, onTabHover, pinnedLinks, onPinTab, onUnpinTab, onDropPinnedLinkToFolder, onDropPinnedLinkToSession, onReorderFolder, onReorderSession, onReorderTab, selectedTabs, onToggleTabSelection, theme }: Props) {
     const [isExpanded, setIsExpanded] = useState(true);
     const [isDragOver, setIsDragOver] = useState(false);
+    const [folderDropPos, setFolderDropPos] = useState<"before" | "after" | null>(null);
     
     // Edit folder state
     const [editing, setEditing] = useState(false);
     const [editValue, setEditValue] = useState(folder.name);
 
     const handleDragOver = (e: React.DragEvent) => {
-        if (e.dataTransfer.types.includes("application/tabkeep-session") || e.dataTransfer.types.includes("application/json") || e.dataTransfer.types.includes("application/tabkeep-pinned-link")) {
+        if (e.dataTransfer.types.includes("application/tabkeep-session") || e.dataTransfer.types.includes("application/json") || e.dataTransfer.types.includes("application/tabkeep-pinned-link") || e.dataTransfer.types.includes("application/tabkeep-reorder-folder")) {
             e.preventDefault();
             e.stopPropagation();
             e.dataTransfer.dropEffect = "move";
             if (!isDragOver) setIsDragOver(true);
+            
+            if (e.dataTransfer.types.includes("application/tabkeep-reorder-folder")) {
+                const rect = e.currentTarget.getBoundingClientRect();
+                setFolderDropPos(e.clientY < rect.top + rect.height / 2 ? "before" : "after");
+            }
         }
     };
 
     const handleDragLeave = (e: React.DragEvent) => {
-        setIsDragOver(false);
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+            setIsDragOver(false);
+            setFolderDropPos(null);
+        }
     };
 
     const handleDrop = (e: React.DragEvent) => {
@@ -89,6 +101,16 @@ export function MainFolderAccordion({ folder, sessions, allFolders, onDeleteSess
                     if (!isExpanded) setIsExpanded(true);
                 }
             } catch (err) {}
+        } else if (e.dataTransfer.types.includes("application/tabkeep-reorder-folder")) {
+            e.preventDefault();
+            e.stopPropagation();
+            try {
+                const data = JSON.parse(e.dataTransfer.getData("application/tabkeep-reorder-folder"));
+                if (data.folderId && data.folderId !== folder.id && onReorderFolder) {
+                    onReorderFolder(data.folderId, folder.id, folderDropPos || "after");
+                }
+            } catch (err) {}
+            setFolderDropPos(null);
         }
     };
     
@@ -113,15 +135,23 @@ export function MainFolderAccordion({ folder, sessions, allFolders, onDeleteSess
     };
 
     return (
-        <div
-            className={`mb-8 border rounded-xl overflow-hidden transition-all shadow-sm dark:shadow-none ${isDragOver ? "border-blue-500 bg-blue-50/50 dark:bg-blue-500/10 outline-dashed outline-2 outline-blue-500" : "border-gray-200 dark:border-white/10 bg-white dark:bg-[#1a1a1a]"
-                }`}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-        >
+        <div className="relative mb-6 last:mb-0">
+            {/* Folder reorder drop indicator – before */}
+            {folderDropPos === "before" && (
+                <div className="absolute -top-3 left-0 right-0 h-1 bg-blue-500 rounded-full pointer-events-none z-10" />
+            )}
             <div
-                className={`flex items-center gap-3 cursor-pointer group p-4 transition-all ${isExpanded ? "border-b border-gray-100 dark:border-white/10 bg-gray-50/80 dark:bg-[#222]" : "hover:bg-gray-50 dark:hover:bg-[#252525]"
+                draggable
+                onDragStart={(e) => {
+                    e.dataTransfer.setData("application/tabkeep-reorder-folder", JSON.stringify({ folderId: folder.id }));
+                    e.dataTransfer.effectAllowed = "move";
+                }}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={`flex items-center gap-3 cursor-pointer group p-4 transition-all bg-white dark:bg-[#1a1a1a] rounded-xl border ${isExpanded ? "border-b border-gray-100 dark:border-white/10" : ""} ${isDragOver && !folderDropPos
+                    ? "border-blue-500 ring-2 ring-blue-500/20"
+                    : "border-gray-200 dark:border-[#333]"
                     }`}
                 onClick={() => setIsExpanded(!isExpanded)}
             >
@@ -196,11 +226,18 @@ export function MainFolderAccordion({ folder, sessions, allFolders, onDeleteSess
                                 onPinTab={onPinTab}
                                 onUnpinTab={onUnpinTab}
                                 onDropPinnedLinkToSession={onDropPinnedLinkToSession}
+                                onReorderTab={onReorderTab}
+                                onReorderSession={onReorderSession}
                                 theme={theme}
                             />
                         ))
                     )}
                 </div>
+            )}
+
+            {/* Folder reorder drop indicator – after */}
+            {folderDropPos === "after" && (
+                <div className="absolute -bottom-3 left-0 right-0 h-1 bg-blue-500 rounded-full pointer-events-none z-10" />
             )}
         </div>
     );
