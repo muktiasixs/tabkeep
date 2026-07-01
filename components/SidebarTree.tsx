@@ -234,17 +234,28 @@ function FolderRow({
     };
 
     return (
-        <div>
+        <div
+            onDragOver={handleDragOver}
+            onDragLeave={(e) => {
+                // Only clear if leaving the folder area entirely
+                if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                    setIsDragOver(false);
+                }
+            }}
+            onDrop={handleDrop}
+            className={`rounded-md transition-all ${isDragOver
+                ? "ring-1 ring-blue-400 dark:ring-blue-500 bg-blue-50/50 dark:bg-blue-500/10"
+                : ""
+            }`}
+        >
             {/* Folder header row */}
             <div
-                onDragOver={handleDragOver}
-                onDragLeave={() => setIsDragOver(false)}
-                onDrop={handleDrop}
-                className={`group flex items-center gap-1.5 py-[3px] pr-2 rounded-md transition-all select-none ${isDragOver
-                    ? "bg-blue-100 dark:bg-blue-500/15 ring-1 ring-blue-400 dark:ring-blue-500"
-                    : isActive
-                        ? "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400"
-                        : "hover:bg-gray-100/80 dark:hover:bg-white/5 text-gray-700 dark:text-gray-300"
+                className={`group flex items-center gap-1.5 py-[3px] pr-2 rounded-md transition-all select-none cursor-pointer ${
+                    isDragOver
+                        ? "text-blue-600 dark:text-blue-400"
+                        : isActive
+                            ? "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                            : "hover:bg-gray-100/80 dark:hover:bg-white/5 text-gray-700 dark:text-gray-300"
                     }`}
                 style={{ paddingLeft: `${indentPx}px` }}
             >
@@ -256,9 +267,9 @@ function FolderRow({
                 </button>
 
                 <button onClick={onClick} className="flex items-center gap-1.5 flex-1 min-w-0">
-                    {isActive
-                        ? <FolderOpen size={13} className="flex-shrink-0 text-blue-500 dark:text-blue-400" />
-                        : <Folder size={13} className={`flex-shrink-0 ${isDragOver ? "text-blue-500" : "text-gray-400 dark:text-gray-500"}`} />
+                    {isActive || isDragOver
+                        ? <FolderOpen size={13} className={`flex-shrink-0 ${isDragOver ? "text-blue-500" : "text-blue-500 dark:text-blue-400"}`} />
+                        : <Folder size={13} className="flex-shrink-0 text-gray-400 dark:text-gray-500" />
                     }
                     {editing ? (
                         <input
@@ -271,13 +282,13 @@ function FolderRow({
                             className="flex-1 bg-gray-100 dark:bg-[#333] text-gray-900 dark:text-white text-[12px] rounded px-1 py-0 outline-none border border-blue-500/50 min-w-0"
                         />
                     ) : (
-                        <span className={`flex-1 text-[12px] font-medium truncate text-left leading-tight ${isActive ? "text-blue-600 dark:text-blue-400" : ""}`}>
+                        <span className={`flex-1 text-[12px] font-medium truncate text-left leading-tight ${isActive || isDragOver ? "text-blue-600 dark:text-blue-400" : ""}`}>
                             {folder.name}
                         </span>
                     )}
                 </button>
 
-                <span className={`text-[9px] font-mono flex-shrink-0 ${isActive ? "text-blue-500/70 dark:text-blue-400/60" : "text-gray-400 dark:text-gray-600"}`}>
+                <span className={`text-[9px] font-mono flex-shrink-0 ${isActive || isDragOver ? "text-blue-500/70 dark:text-blue-400/60" : "text-gray-400 dark:text-gray-600"}`}>
                     {sessions.length}
                 </span>
 
@@ -306,7 +317,7 @@ function FolderRow({
                             className="flex items-center py-1.5 text-[10px] text-gray-400 dark:text-gray-700 italic"
                             style={{ paddingLeft: `${indentPx + 20}px` }}
                         >
-                            Belum ada session
+                            {isDragOver ? "Drop di sini" : "Belum ada session"}
                         </div>
                     ) : (
                         sessions.map(session => (
