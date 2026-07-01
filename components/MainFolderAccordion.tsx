@@ -1,11 +1,12 @@
 import React, { useState } from "react";
 import { ChevronDown, ChevronRight, Folder, X } from "lucide-react";
 import { SessionBox } from "./SessionBox";
-import type { Folder as FolderType, Session, SavedTab, PinnedLink } from "~types";
+import type { Folder as FolderType, Session, SavedTab, PinnedLink, SelectedTab } from "~types";
 
 interface Props {
     folder: FolderType;
     sessions: Session[];
+    allFolders: FolderType[];
     onDeleteSession: (id: string) => void;
     onRenameSession: (id: string, newName: string) => void;
     onRenameFolder: (id: string, newName: string) => void;

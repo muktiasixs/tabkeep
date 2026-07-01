@@ -14,10 +14,12 @@ interface Props {
     onMoveTabToFolder?: (sourceSessionId: string, tabIndex: number, folderId: string | null) => void;
     onMoveMultiTabsToFolder?: (tabsToMove: any[], folderId: string | null) => void;
     onDropPinnedLinkToFolder?: (link: any, folderId: string) => void;
+    onMoveTabToSession?: (sourceSessionId: string, targetSessionId: string, tabIndex: number) => void;
+    onMoveMultiTabsToSession?: (tabsToMove: any[], targetSessionId: string) => void;
     theme?: string;
 }
 
-export function SidebarFolderItem({ folder, isActive, sessions, pinnedLinks, onClick, onRename, onDelete, onMoveSessionToFolder, onMoveTabToFolder, onMoveMultiTabsToFolder, onDropPinnedLinkToFolder, theme }: Props) {
+export function SidebarFolderItem({ folder, isActive, sessions, pinnedLinks, onClick, onRename, onDelete, onMoveSessionToFolder, onMoveTabToFolder, onMoveMultiTabsToFolder, onDropPinnedLinkToFolder, onMoveTabToSession, onMoveMultiTabsToSession, theme }: Props) {
     const [isOpen, setIsOpen] = useState(true);
     const [editing, setEditing] = useState(false);
     const [editValue, setEditValue] = useState(folder.name);
@@ -197,7 +199,43 @@ export function SidebarFolderItem({ folder, isActive, sessions, pinnedLinks, onC
                                             e.dataTransfer.setData("application/tabkeep-session", JSON.stringify({ sessionId: session.id }));
                                             e.dataTransfer.effectAllowed = "move";
                                         }}
-                                        className="px-2 py-1 text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider truncate flex items-center justify-between group/session-title cursor-grab active:cursor-grabbing hover:bg-gray-100 dark:hover:bg-[#2a2a2a] transition-colors rounded-sm"
+                                        onDragOver={(e) => {
+                                            if (e.dataTransfer.types.includes("application/json") || e.dataTransfer.types.includes("application/tabkeep-multi-tabs")) {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                e.dataTransfer.dropEffect = "move";
+                                                e.currentTarget.classList.add("bg-blue-100", "dark:bg-blue-500/10", "border-blue-500", "border-dashed");
+                                                e.currentTarget.classList.remove("border-transparent");
+                                            }
+                                        }}
+                                        onDragLeave={(e) => {
+                                            e.currentTarget.classList.remove("bg-blue-100", "dark:bg-blue-500/10", "border-blue-500", "border-dashed");
+                                            e.currentTarget.classList.add("border-transparent");
+                                        }}
+                                        onDrop={(e) => {
+                                            e.currentTarget.classList.remove("bg-blue-100", "dark:bg-blue-500/10", "border-blue-500", "border-dashed");
+                                            e.currentTarget.classList.add("border-transparent");
+                                            if (e.dataTransfer.types.includes("application/json")) {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                try {
+                                                    const data = JSON.parse(e.dataTransfer.getData("application/json"));
+                                                    if (data.sourceSessionId && data.tabIndex !== undefined && onMoveTabToSession) {
+                                                        onMoveTabToSession(data.sourceSessionId, session.id, data.tabIndex);
+                                                    }
+                                                } catch (err) {}
+                                            } else if (e.dataTransfer.types.includes("application/tabkeep-multi-tabs")) {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                try {
+                                                    const tabsToMove = JSON.parse(e.dataTransfer.getData("application/tabkeep-multi-tabs"));
+                                                    if (tabsToMove && tabsToMove.length > 0 && onMoveMultiTabsToSession) {
+                                                        onMoveMultiTabsToSession(tabsToMove, session.id);
+                                                    }
+                                                } catch (err) {}
+                                            }
+                                        }}
+                                        className="px-2 py-1 text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider truncate flex items-center justify-between group/session-title cursor-grab active:cursor-grabbing hover:bg-gray-100 dark:hover:bg-[#2a2a2a] transition-colors rounded-sm border border-transparent"
                                     >
                                         <span>{session.name || "Unnamed Session"}</span>
                                         <span className="text-[8px] opacity-0 group-hover/session-title:opacity-100 transition-opacity">

@@ -1,15 +1,15 @@
 import React, { useEffect, useMemo, useRef, useState } from "react"
 import "~style.css"
 import {
-    FolderOpen, LayoutGrid, Clock, Search, X,
-    Trash2, Plus, FolderPlus, Folder, Layers,
-    Sun, Moon, Pin
+    FolderOpen, LayoutGrid, Search, X,
+    Trash2, FolderPlus,
+    Sun, Moon
 } from "lucide-react"
 import { useTabkeepStorage } from "~hooks/useTabkeepStorage"
 import { updateSessions, updateFolders, updateDeletedSessions, updatePinnedLinks } from "~lib/storage"
 import { SessionBox } from "~components/SessionBox"
 import { DeletedSessionBox } from "~components/DeletedSessionBox"
-import { SidebarFolderItem } from "~components/SidebarFolderItem"
+import { SidebarTree } from "~components/SidebarTree"
 import { RightSidebar } from "~components/RightSidebar"
 import { MainFolderAccordion } from "~components/MainFolderAccordion"
 import { PinnedLinks } from "~components/PinnedLinks"
@@ -706,157 +706,31 @@ export default function TabkeepDashboard() {
             <div className="flex flex-1 overflow-hidden">
                 {/* SIDEBAR */}
                 <aside className="w-64 bg-white dark:bg-[#1e1e1e] border-r border-gray-200 dark:border-[#333] flex flex-col p-4 shrink-0 overflow-y-auto transition-colors duration-200">
-                    <div className="mb-3 px-2 text-[10px] font-bold text-gray-400 dark:text-gray-600 uppercase tracking-[0.2em] opacity-60">
+                    <div className="mb-3 px-1 text-[10px] font-bold text-gray-400 dark:text-gray-600 uppercase tracking-[0.2em] opacity-60">
                         Workspace
                     </div>
 
-                    <div className="space-y-0.5">
-                        {/* All Sessions */}
-                        <div
-                            className={`mb-2 rounded-md transition-all border overflow-hidden ${isAllSessionsDragOver ? "bg-blue-100 dark:bg-blue-500/10 border-blue-500 outline-dashed outline-2 outline-blue-500" :
-                                activeFolderId === "all"
-                                    ? "bg-blue-50/30 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/30"
-                                    : "border-gray-200 dark:border-white/5 hover:border-gray-300 dark:hover:border-white/10"
-                                }`}
-                            onDragOver={(e) => {
-                                if (e.dataTransfer.types.includes("application/tabkeep-session") || e.dataTransfer.types.includes("application/json") || e.dataTransfer.types.includes("application/tabkeep-pinned-link")) {
-                                    e.preventDefault();
-                                    e.dataTransfer.dropEffect = "move";
-                                    if (!isAllSessionsDragOver) setIsAllSessionsDragOver(true);
-                                }
-                            }}
-                            onDragLeave={() => setIsAllSessionsDragOver(false)}
-                            onDrop={(e) => {
-                                setIsAllSessionsDragOver(false);
-                                if (e.dataTransfer.types.includes("application/tabkeep-session")) {
-                                    e.preventDefault();
-                                    try {
-                                        const data = JSON.parse(e.dataTransfer.getData("application/tabkeep-session"));
-                                        if (data.sessionId) handleMoveFolder(data.sessionId, null);
-                                    } catch (err) { }
-                                } else if (e.dataTransfer.types.includes("application/json")) {
-                                    e.preventDefault();
-                                    try {
-                                        const data = JSON.parse(e.dataTransfer.getData("application/json"));
-                                        if (data.sourceSessionId && data.tabIndex !== undefined) {
-                                            handleMoveTabToFolder(data.sourceSessionId, data.tabIndex, null);
-                                        }
-                                    } catch (err) { }
-                                } else if (e.dataTransfer.types.includes("application/tabkeep-pinned-link")) {
-                                    e.preventDefault();
-                                    try {
-                                        const link = JSON.parse(e.dataTransfer.getData("application/tabkeep-pinned-link"));
-                                        if (link) handleDropPinnedLink(link, null, null);
-                                    } catch (err) { }
-                                }
-                            }}
-                        >
-                            {/* Header */}
-                            <div
-                                onClick={() => setActiveFolderId("all")}
-                                className={`flex items-center gap-2 py-1.5 px-2 cursor-pointer transition-all ${activeFolderId === "all" ? "text-blue-600 dark:text-blue-400 font-semibold" : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-                                    } border-b border-gray-200 dark:border-white/5 bg-transparent dark:bg-black/10`}
-                            >
-                                <Layers size={14} className={activeFolderId === "all" ? "text-blue-500 dark:text-blue-400" : "text-gray-400 dark:text-gray-500"} />
-                                <span className="text-sm flex-1">All Sessions</span>
-                                <span className="text-[10px] font-mono text-gray-400 dark:text-gray-600">{sessions.length}</span>
-                            </div>
-
-                            {/* Pinned links from uncategorized sessions only */}
-                            {(() => {
-                                const uncatPins = pinnedLinks.filter(p => p.folderId === null);
-                                const uncatSessions = sessions.filter(s => s.folderId === null);
-
-                                if (uncatSessions.length === 0) {
-                                    return (
-                                        <div className="px-3 py-1.5">
-                                            <span className="text-[10px] text-gray-400 dark:text-gray-700 italic">
-                                                Belum ada session
-                                            </span>
-                                        </div>
-                                    );
-                                }
-
-                                return (
-                                    <div className="pb-1">
-                                        {uncatSessions.map((session) => {
-                                            const pins = session.tabs
-                                                .filter(tab => uncatPins.some(p => p.url === tab.url))
-                                                .map(tab => uncatPins.find(p => p.url === tab.url)!);
-
-                                            return (
-                                                <div key={session.id} className="mb-2">
-                                                    <div
-                                                        draggable
-                                                        onDragStart={(e) => {
-                                                            e.stopPropagation();
-                                                            e.dataTransfer.setData("application/tabkeep-session", JSON.stringify({ sessionId: session.id }));
-                                                            e.dataTransfer.effectAllowed = "move";
-                                                        }}
-                                                        className="px-2 py-1 text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider truncate flex items-center justify-between group/session-title cursor-grab active:cursor-grabbing hover:bg-gray-100 dark:hover:bg-[#2a2a2a] transition-colors rounded-sm"
-                                                    >
-                                                        <span>{session.name || "Unnamed Session"}</span>
-                                                        <span className="text-[8px] opacity-0 group-hover/session-title:opacity-100 transition-opacity">
-                                                            {pins.length > 0 ? `${pins.length} pinned` : ""}
-                                                        </span>
-                                                    </div>
-                                                    {pins.map((link) => (
-                                                        <div
-                                                            key={link.id}
-                                                            draggable
-                                                            onDragStart={(e) => {
-                                                                e.stopPropagation();
-                                                                e.dataTransfer.setData("application/tabkeep-pinned-link", JSON.stringify(link));
-                                                                e.dataTransfer.effectAllowed = "move";
-                                                            }}
-                                                            onClick={() => chrome.tabs.create({ url: link.url, active: true })}
-                                                            title={link.url}
-                                                            className="flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-gray-100 dark:hover:bg-[#2a2a2a] group/tab transition-colors"
-                                                        >
-                                                            <Pin size={9} className="text-amber-500 dark:text-amber-400 flex-shrink-0" />
-                                                            <img
-                                                                src={link.favIconUrl || `https://www.google.com/s2/favicons?domain=${link.url}&sz=32`}
-                                                                className="w-3 h-3 flex-shrink-0 opacity-60 group-hover/tab:opacity-100 bg-gray-100 dark:bg-white/5 rounded-sm"
-                                                                onError={(e) => { (e.target as HTMLImageElement).src = "https://www.google.com/s2/favicons?domain=google.com"; }}
-                                                                draggable={false}
-                                                            />
-                                                            <span className="text-[11px] text-gray-500 group-hover/tab:text-blue-600 dark:group-hover/tab:text-blue-400 truncate transition-colors">
-                                                                {link.title || "Untitled"}
-                                                            </span>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                );
-                            })()}
-                        </div>
-
-                        {folders.length > 0 && <div className="border-t border-gray-100 dark:border-[#2a2a2a] my-2 mx-2" />}
-
-                        {/* Folder list */}
-                        {folders.map(folder => (
-                                <SidebarFolderItem
-                                    key={folder.id}
-                                    folder={folder}
-                                    isActive={activeFolderId === folder.id}
-                                    sessions={sessions.filter(s => s.folderId === folder.id)}
-                                    pinnedLinks={pinnedLinks}
-                                    onClick={() => setActiveFolderId(folder.id)}
-                                    onRename={handleRenameFolder}
-                                    onDelete={handleDeleteFolder}
-                                    onMoveSessionToFolder={handleMoveFolder}
-                                    onMoveTabToFolder={handleMoveTabToFolder}
-                                    onMoveMultiTabsToFolder={handleMoveMultiTabsToFolder}
-                                    onDropPinnedLinkToFolder={(link, folderId) => handleDropPinnedLink(link, null, folderId)}
-                                    theme={theme}
-                                />
-                        ))}
+                    <div className="flex-1">
+                        <SidebarTree
+                            sessions={sessions}
+                            folders={folders}
+                            pinnedLinks={pinnedLinks}
+                            activeFolderId={activeFolderId}
+                            onSetActive={setActiveFolderId}
+                            onRenameFolder={handleRenameFolder}
+                            onDeleteFolder={handleDeleteFolder}
+                            onRenameSession={handleRenameSession}
+                            onMoveFolder={handleMoveFolder}
+                            onMoveTabToFolder={handleMoveTabToFolder}
+                            onMoveMultiTabsToFolder={handleMoveMultiTabsToFolder}
+                            onMoveTab={handleMoveTab}
+                            onMoveMultiTabs={handleMoveMultiTabs}
+                            onDropPinnedLink={handleDropPinnedLink}
+                        />
 
                         {/* Input folder baru */}
                         {isCreatingFolder && (
-                            <div className="flex items-center gap-2 py-1.5 px-2 rounded-md bg-gray-50 dark:bg-[#252525] border border-blue-500/30">
+                            <div className="flex items-center gap-2 py-1.5 px-2 rounded-md bg-gray-50 dark:bg-[#252525] border border-blue-500/30 mt-2">
                                 <FolderPlus size={14} className="text-blue-400 flex-shrink-0" />
                                 <input
                                     ref={newFolderInputRef}
@@ -877,9 +751,9 @@ export default function TabkeepDashboard() {
                         {!isCreatingFolder && (
                             <button
                                 onClick={() => { setIsCreatingFolder(true); setNewFolderName(""); }}
-                                className="w-full flex items-center gap-2 py-1.5 px-2 rounded-md text-gray-400 dark:text-gray-600 hover:text-gray-900 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#252525] transition-all text-sm mt-1"
+                                className="w-full flex items-center gap-2 py-1 px-1 rounded-md text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-400 hover:bg-gray-100/80 dark:hover:bg-white/5 transition-all text-[11px] mt-2"
                             >
-                                <Plus size={14} />
+                                <FolderPlus size={12} />
                                 <span>Folder Baru</span>
                             </button>
                         )}
@@ -1085,7 +959,7 @@ export default function TabkeepDashboard() {
                                 <div className="flex flex-col items-center justify-center py-32 border-2 border-dashed border-gray-300 dark:border-[#222] rounded-[2rem] bg-white dark:bg-[#1a1a1a]/30 shadow-sm dark:shadow-none">
                                     <div className="w-16 h-16 bg-gray-100 dark:bg-[#222] rounded-full flex items-center justify-center mb-4">
                                         {activeFolderId === "all"
-                                            ? <Clock size={24} className="text-gray-400 dark:text-gray-700" />
+                                            ? <LayoutGrid size={24} className="text-gray-400 dark:text-gray-700" />
                                             : <FolderOpen size={24} className="text-gray-400 dark:text-gray-700" />
                                         }
                                     </div>
