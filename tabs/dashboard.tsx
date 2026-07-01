@@ -749,7 +749,7 @@ export default function TabkeepDashboard() {
             <div className="flex flex-1 overflow-hidden">
                 {/* SIDEBAR */}
                 <aside className="w-64 bg-white dark:bg-[#1e1e1e] border-r border-gray-200 dark:border-[#333] flex flex-col p-4 shrink-0 overflow-y-auto transition-colors duration-200">
-                    <div className="mb-3 px-1 text-[10px] font-bold text-gray-400 dark:text-gray-600 uppercase tracking-[0.2em] opacity-60">
+                    <div className="mb-3 px-1 text-sm font-bold text-gray-400 dark:text-gray-600 uppercase tracking-[0.2em] opacity-60">
                         Workspace
                     </div>
 
@@ -796,9 +796,9 @@ export default function TabkeepDashboard() {
                         {!isCreatingFolder && (
                             <button
                                 onClick={() => { setIsCreatingFolder(true); setNewFolderName(""); }}
-                                className="w-full flex items-center gap-2 py-1 px-1 rounded-md text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-400 hover:bg-gray-100/80 dark:hover:bg-white/5 transition-all text-[11px] mt-2"
+                                className="w-full flex items-center gap-2 py-1 px-1 rounded-md text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-400 hover:bg-gray-100/80 dark:hover:bg-white/5 transition-all text-[13px] mt-2"
                             >
-                                <FolderPlus size={12} />
+                                <FolderPlus size={14} />
                                 <span>Folder Baru</span>
                             </button>
                         )}
@@ -813,9 +813,9 @@ export default function TabkeepDashboard() {
                     >
                         <div className="flex items-center gap-3">
                             <Trash2 size={16} className={activeFolderId === "trash" ? "text-red-600 dark:text-red-400" : "group-hover:text-red-500 dark:group-hover:text-red-400"} />
-                            <span className="text-sm">Histori Hapus</span>
+                            <span className="text-[15px]">Histori Hapus</span>
                         </div>
-                        <span className="text-[10px] font-mono">{deletedSessions.length}</span>
+                        <span className="text-[11px] font-mono">{deletedSessions.length}</span>
                     </div>
                 </aside>
 

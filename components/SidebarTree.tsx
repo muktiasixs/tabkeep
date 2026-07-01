@@ -112,10 +112,10 @@ function SessionRow({
                     onClick={(e) => { e.stopPropagation(); if (pins.length > 0) setIsOpen(v => !v); }}
                     className={`flex-shrink-0 w-3.5 h-3.5 flex items-center justify-center rounded transition-colors ${pins.length > 0 ? "text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-400" : "text-transparent pointer-events-none"}`}
                 >
-                    {pins.length > 0 ? (isOpen ? <ChevronDown size={10} /> : <ChevronRight size={10} />) : <span className="w-2.5" />}
+                    {pins.length > 0 ? (isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />) : <span className="w-2.5" />}
                 </button>
 
-                <Clock size={11} className="flex-shrink-0 text-gray-400 dark:text-gray-600" />
+                <Clock size={14} className="flex-shrink-0 text-gray-400 dark:text-gray-600" />
 
                 {editing ? (
                     <input
@@ -125,10 +125,10 @@ function SessionRow({
                         onBlur={commitEdit}
                         onKeyDown={e => { if (e.key === "Enter") commitEdit(); if (e.key === "Escape") setEditing(false); }}
                         onClick={e => e.stopPropagation()}
-                        className="flex-1 bg-gray-100 dark:bg-[#333] text-gray-900 dark:text-white text-[11px] rounded px-1 py-0 outline-none border border-blue-500/50 min-w-0"
+                        className="flex-1 bg-gray-100 dark:bg-[#333] text-gray-900 dark:text-white text-[14px] rounded px-1 py-0 outline-none border border-blue-500/50 min-w-0"
                     />
                 ) : (
-                    <span className="flex-1 text-[11px] text-gray-600 dark:text-gray-400 truncate leading-tight">
+                    <span className="flex-1 text-[14px] text-gray-600 dark:text-gray-400 truncate leading-tight">
                         {session.name || `Session ${session.timestamp}`}
                     </span>
                 )}
@@ -169,7 +169,7 @@ function SessionRow({
                         onError={(e) => { (e.target as HTMLImageElement).src = "https://www.google.com/s2/favicons?domain=google.com"; }}
                         draggable={false}
                     />
-                    <span className="text-[10px] text-gray-500 dark:text-gray-500 group-hover/pin:text-blue-600 dark:group-hover/pin:text-blue-400 truncate transition-colors">
+                    <span className="text-[12px] text-gray-500 dark:text-gray-500 group-hover/pin:text-blue-600 dark:group-hover/pin:text-blue-400 truncate transition-colors">
                         {link.title || "Untitled"}
                     </span>
                 </div>
@@ -325,13 +325,13 @@ function FolderRow({
                     onClick={(e) => { e.stopPropagation(); setIsOpen(v => !v); }}
                     className="flex-shrink-0 w-3.5 h-3.5 flex items-center justify-center text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-400 transition-colors"
                 >
-                    {isOpen ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
+                    {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
                 </button>
 
                 <button onClick={onClick} className="flex items-center gap-1.5 flex-1 min-w-0">
                     {isActive || isDragOver
-                        ? <FolderOpen size={13} className={`flex-shrink-0 ${isDragOver ? "text-blue-500" : "text-blue-500 dark:text-blue-400"}`} />
-                        : <Folder size={13} className="flex-shrink-0 text-gray-400 dark:text-gray-500" />
+                        ? <FolderOpen size={16} className={`flex-shrink-0 ${isDragOver ? "text-blue-500" : "text-blue-500 dark:text-blue-400"}`} />
+                        : <Folder size={16} className="flex-shrink-0 text-gray-400 dark:text-gray-500" />
                     }
                     {editing ? (
                         <input
@@ -341,16 +341,16 @@ function FolderRow({
                             onBlur={commitEdit}
                             onKeyDown={e => { if (e.key === "Enter") commitEdit(); if (e.key === "Escape") setEditing(false); }}
                             onClick={e => e.stopPropagation()}
-                            className="flex-1 bg-gray-100 dark:bg-[#333] text-gray-900 dark:text-white text-[12px] rounded px-1 py-0 outline-none border border-blue-500/50 min-w-0"
+                            className="flex-1 bg-gray-100 dark:bg-[#333] text-gray-900 dark:text-white text-[15px] rounded px-1 py-0 outline-none border border-blue-500/50 min-w-0"
                         />
                     ) : (
-                        <span className={`flex-1 text-[12px] font-medium truncate text-left leading-tight ${isActive || isDragOver ? "text-blue-600 dark:text-blue-400" : ""}`}>
+                        <span className={`flex-1 text-[15px] font-medium truncate text-left leading-tight ${isActive || isDragOver ? "text-blue-600 dark:text-blue-400" : ""}`}>
                             {folder.name}
                         </span>
                     )}
                 </button>
 
-                <span className={`text-[9px] font-mono flex-shrink-0 ${isActive || isDragOver ? "text-blue-500/70 dark:text-blue-400/60" : "text-gray-400 dark:text-gray-600"}`}>
+                <span className={`text-[11px] font-mono flex-shrink-0 ${isActive || isDragOver ? "text-blue-500/70 dark:text-blue-400/60" : "text-gray-400 dark:text-gray-600"}`}>
                     {sessions.length}
                 </span>
 
@@ -376,7 +376,7 @@ function FolderRow({
                     />
                     {sessions.length === 0 ? (
                         <div
-                            className="flex items-center py-1.5 text-[10px] text-gray-400 dark:text-gray-700 italic"
+                            className="flex items-center py-1.5 text-[12px] text-gray-400 dark:text-gray-700 italic"
                             style={{ paddingLeft: `${indentPx + 20}px` }}
                         >
                             {isDragOver ? "Drop di sini" : "Belum ada session"}
@@ -495,17 +495,17 @@ export function SidebarTree({
                         onClick={(e) => { e.stopPropagation(); setRootOpen(v => !v); }}
                         className="flex-shrink-0 w-3.5 h-3.5 flex items-center justify-center text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-400 transition-colors"
                     >
-                        {rootOpen ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
+                        {rootOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
                     </button>
 
                     <button onClick={() => onSetActive("all")} className="flex items-center gap-1.5 flex-1 min-w-0">
-                        <Layers size={13} className={`flex-shrink-0 ${isRootDragOver ? "text-blue-500" : activeFolderId === "all" ? "text-blue-500 dark:text-blue-400" : "text-gray-400 dark:text-gray-500"}`} />
-                        <span className={`text-[12px] font-semibold flex-1 text-left leading-tight tracking-tight ${activeFolderId === "all" ? "text-blue-600 dark:text-blue-400" : ""}`}>
+                        <Layers size={16} className={`flex-shrink-0 ${isRootDragOver ? "text-blue-500" : activeFolderId === "all" ? "text-blue-500 dark:text-blue-400" : "text-gray-400 dark:text-gray-500"}`} />
+                        <span className={`text-[15px] font-semibold flex-1 text-left leading-tight tracking-tight ${activeFolderId === "all" ? "text-blue-600 dark:text-blue-400" : ""}`}>
                             All Sessions
                         </span>
                     </button>
 
-                    <span className={`text-[9px] font-mono flex-shrink-0 ${activeFolderId === "all" ? "text-blue-500/70 dark:text-blue-400/60" : "text-gray-400 dark:text-gray-600"}`}>
+                    <span className={`text-[11px] font-mono flex-shrink-0 ${activeFolderId === "all" ? "text-blue-500/70 dark:text-blue-400/60" : "text-gray-400 dark:text-gray-600"}`}>
                         {sessions.length}
                     </span>
                 </div>
