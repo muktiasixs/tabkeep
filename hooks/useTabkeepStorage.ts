@@ -2,12 +2,14 @@
 // serta mendengarkan perubahan storage secara real-time.
 
 import { useEffect, useState } from "react";
-import type { Session, Folder } from "~types";
-import { getSessions, getFolders } from "~lib/storage";
+import type { Session, Folder, PinnedLink } from "~types";
+import { getSessions, getFolders, getDeletedSessions, getPinnedLinks } from "~lib/storage";
 
 export function useTabkeepStorage() {
     const [sessions, setSessions] = useState<Session[]>([]);
     const [folders, setFolders] = useState<Folder[]>([]);
+    const [deletedSessions, setDeletedSessions] = useState<Session[]>([]);
+    const [pinnedLinks, setPinnedLinks] = useState<PinnedLink[]>([]);
 
     useEffect(() => {
         // Load awal
@@ -15,6 +17,8 @@ export function useTabkeepStorage() {
             if (typeof chrome === "undefined" || !chrome.storage) return;
             setSessions(await getSessions());
             setFolders(await getFolders());
+            setDeletedSessions(await getDeletedSessions());
+            setPinnedLinks(await getPinnedLinks());
         };
         load();
 
@@ -30,11 +34,17 @@ export function useTabkeepStorage() {
             if (changes.folders) {
                 setFolders(changes.folders.newValue || []);
             }
+            if (changes.deletedSessions) {
+                setDeletedSessions(changes.deletedSessions.newValue || []);
+            }
+            if (changes.pinnedLinks) {
+                setPinnedLinks(changes.pinnedLinks.newValue || []);
+            }
         };
 
         chrome.storage.onChanged.addListener(handleChange);
         return () => chrome.storage.onChanged.removeListener(handleChange);
     }, []);
 
-    return { sessions, setSessions, folders, setFolders };
+    return { sessions, setSessions, folders, setFolders, deletedSessions, setDeletedSessions, pinnedLinks, setPinnedLinks };
 }

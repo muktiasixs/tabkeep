@@ -8,16 +8,33 @@ export interface SavedTab {
     screenshot?: string; // Base64 data URL
 }
 
+export interface SelectedTab {
+    sessionId: string;
+    tabIndex: number;
+    url: string;
+}
+
 export interface Session {
     id: string;
     name: string;
     timestamp: string;
     tabs: SavedTab[];
     folderId: string | null; // null = Uncategorized
+    deletedAt?: string;
+    originalSessionId?: string;
 }
 
 export interface Folder {
     id: string;
     name: string;
     createdAt: string;
+}
+
+export interface PinnedLink {
+    id: string;
+    title: string;
+    url: string;
+    favIconUrl?: string;
+    pinnedAt: string;
+    folderId: string | null; // which folder the source session belongs to
 }

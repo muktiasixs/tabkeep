@@ -1,21 +1,29 @@
 import React, { useRef, useState } from "react";
-import { ChevronDown, ChevronRight, Folder, FolderOpen, Pencil, X } from "lucide-react";
-import type { Folder as FolderType, Session } from "~types";
+import { ChevronDown, ChevronRight, Folder, FolderOpen, Pencil, Pin, X } from "lucide-react";
+import type { Folder as FolderType, Session, PinnedLink } from "~types";
 
 interface Props {
     folder: FolderType;
     isActive: boolean;
     sessions: Session[];
+    pinnedLinks: PinnedLink[];
     onClick: () => void;
     onRename: (id: string, newName: string) => void;
     onDelete: (id: string) => void;
+    onMoveSessionToFolder?: (sessionId: string, folderId: string | null) => void;
+    onMoveTabToFolder?: (sourceSessionId: string, tabIndex: number, folderId: string | null) => void;
+    onMoveMultiTabsToFolder?: (tabsToMove: any[], folderId: string | null) => void;
+    onDropPinnedLinkToFolder?: (link: any, folderId: string) => void;
+    onMoveTabToSession?: (sourceSessionId: string, targetSessionId: string, tabIndex: number) => void;
+    onMoveMultiTabsToSession?: (tabsToMove: any[], targetSessionId: string) => void;
     theme?: string;
 }
 
-export function SidebarFolderItem({ folder, isActive, sessions, onClick, onRename, onDelete, theme }: Props) {
+export function SidebarFolderItem({ folder, isActive, sessions, pinnedLinks, onClick, onRename, onDelete, onMoveSessionToFolder, onMoveTabToFolder, onMoveMultiTabsToFolder, onDropPinnedLinkToFolder, onMoveTabToSession, onMoveMultiTabsToSession, theme }: Props) {
     const [isOpen, setIsOpen] = useState(true);
     const [editing, setEditing] = useState(false);
     const [editValue, setEditValue] = useState(folder.name);
+    const [isDragOver, setIsDragOver] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
 
     const startEdit = (e: React.MouseEvent) => {
@@ -41,16 +49,78 @@ export function SidebarFolderItem({ folder, isActive, sessions, onClick, onRenam
         if (url) chrome.tabs.create({ url, active: true });
     };
 
+    const handleDragOver = (e: React.DragEvent) => {
+        if (e.dataTransfer.types.includes("application/tabkeep-session") || e.dataTransfer.types.includes("application/json") || e.dataTransfer.types.includes("application/tabkeep-pinned-link") || e.dataTransfer.types.includes("application/tabkeep-multi-tabs")) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.dataTransfer.dropEffect = "move";
+            if (!isDragOver) setIsDragOver(true);
+        }
+    };
+
+    const handleDragLeave = (e: React.DragEvent) => {
+        setIsDragOver(false);
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        setIsDragOver(false);
+        if (e.dataTransfer.types.includes("application/tabkeep-session")) {
+            e.preventDefault();
+            e.stopPropagation();
+            try {
+                const data = JSON.parse(e.dataTransfer.getData("application/tabkeep-session"));
+                if (data.sessionId && onMoveSessionToFolder) {
+                    onMoveSessionToFolder(data.sessionId, folder.id);
+                }
+            } catch (err) { }
+        } else if (e.dataTransfer.types.includes("application/json")) {
+            e.preventDefault();
+            e.stopPropagation();
+            try {
+                const data = JSON.parse(e.dataTransfer.getData("application/json"));
+                if (data.sourceSessionId && data.tabIndex !== undefined && onMoveTabToFolder) {
+                    onMoveTabToFolder(data.sourceSessionId, data.tabIndex, folder.id);
+                }
+            } catch (err) { }
+        } else if (e.dataTransfer.types.includes("application/tabkeep-pinned-link")) {
+            e.preventDefault();
+            e.stopPropagation();
+            try {
+                const link = JSON.parse(e.dataTransfer.getData("application/tabkeep-pinned-link"));
+                if (link && onDropPinnedLinkToFolder) {
+                    onDropPinnedLinkToFolder(link, folder.id);
+                }
+            } catch (err) { }
+        } else if (e.dataTransfer.types.includes("application/tabkeep-multi-tabs")) {
+            e.preventDefault();
+            e.stopPropagation();
+            try {
+                const tabsToMove = JSON.parse(e.dataTransfer.getData("application/tabkeep-multi-tabs"));
+                if (tabsToMove && tabsToMove.length > 0 && onMoveMultiTabsToFolder) {
+                    onMoveMultiTabsToFolder(tabsToMove, folder.id);
+                }
+            } catch (err) {}
+        }
+    };
+
     return (
-        <div>
+        <div
+            className={`mb-2 rounded-md transition-all border overflow-hidden ${isDragOver ? "bg-blue-100 dark:bg-blue-500/10 border-blue-500 outline-dashed outline-2 outline-blue-500" :
+                isActive
+                    ? "bg-blue-50/30 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/30"
+                    : "border-gray-200 dark:border-white/5 hover:border-gray-300 dark:hover:border-white/10"
+                }`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+        >
             {/* Header folder */}
             <div
                 onClick={onClick}
-                className={`group flex items-center gap-2 py-1.5 px-2 rounded-md cursor-pointer transition-all ${
-                    isActive 
-                        ? "bg-blue-50 dark:bg-blue-600/20 text-blue-600 dark:text-blue-400 font-semibold" 
-                        : "hover:bg-gray-100 dark:hover:bg-[#252525] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-                }`}
+                className={`group flex items-center gap-2 py-1.5 px-2 cursor-pointer transition-all ${isActive
+                    ? "text-blue-600 dark:text-blue-400 font-semibold"
+                    : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                    } ${isOpen ? "border-b border-gray-200 dark:border-white/5 bg-transparent dark:bg-black/10" : ""}`}
             >
                 {/* Chevron toggle */}
                 <button
@@ -99,55 +169,110 @@ export function SidebarFolderItem({ folder, isActive, sessions, onClick, onRenam
                 )}
             </div>
 
-            {/* Dropdown: session list + 4 tab pertama */}
-            {isOpen && sessions.length > 0 && (
-                <div className="ml-5 mt-0.5 space-y-1">
-                    {sessions.map((session) => (
-                        <div key={session.id} className="py-1">
-                            <div className="flex items-center gap-1.5 px-2 py-0.5 mb-0.5">
-                                <div className="w-[1px] h-3 bg-gray-200 dark:bg-[#333] flex-shrink-0" />
-                                <span className="text-[10px] text-gray-400 dark:text-gray-600 font-mono italic">
-                                    {session.tabs.length} tabs · {session.timestamp}
-                                </span>
-                            </div>
-                            <div className="space-y-0.5">
-                                {session.tabs.slice(0, 4).map((tab, idx) => (
-                                    <div
-                                        key={idx}
-                                        onClick={(e) => handleOpenTab(e, tab.url)}
-                                        title={tab.title}
-                                        className="flex items-center gap-2 px-2 py-1 rounded cursor-pointer hover:bg-gray-100 dark:hover:bg-[#2a2a2a] group/tab transition-colors"
-                                    >
-                                        <div className="w-[1px] h-3 bg-gray-200 dark:bg-[#333] flex-shrink-0" />
-                                        <img
-                                            src={tab.favIconUrl || "https://www.google.com/s2/favicons?domain=google.com&sz=32"}
-                                            className="w-3 h-3 flex-shrink-0 opacity-60 group-hover/tab:opacity-100 bg-gray-100 dark:bg-white/5 rounded-sm"
-                                            onError={(e) => { (e.target as HTMLImageElement).src = "https://www.google.com/s2/favicons?domain=google.com"; }}
-                                        />
-                                        <span className="text-[11px] text-gray-500 group-hover/tab:text-blue-600 dark:group-hover/tab:text-blue-400 truncate transition-colors">
-                                            {tab.title || "Untitled"}
-                                        </span>
-                                    </div>
-                                ))}
-                                {session.tabs.length > 4 && (
-                                    <div className="flex items-center gap-2 px-2 py-0.5">
-                                        <div className="w-[1px] h-3 bg-gray-200 dark:bg-[#333] flex-shrink-0" />
-                                        <span className="text-[10px] text-gray-400 dark:text-gray-700 italic">
-                                            +{session.tabs.length - 4} tab lainnya...
-                                        </span>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )}
+            {/* Pinned links that belong to this folder */}
+            {isOpen && (() => {
+                const folderPins = pinnedLinks.filter(p => p.folderId === folder.id);
 
-            {isOpen && sessions.length === 0 && (
-                <div className="ml-5 mt-0.5 px-2 py-1">
-                    <span className="text-[10px] text-gray-400 dark:text-gray-700 italic">Folder kosong</span>
-                </div>
-            )}
+                if (sessions.length === 0) {
+                    return (
+                        <div className="px-3 py-1.5">
+                            <span className="text-[10px] text-gray-400 dark:text-gray-700 italic flex items-center gap-1">
+                                Belum ada session di folder ini
+                            </span>
+                        </div>
+                    );
+                }
+
+                return (
+                    <div className="pb-1">
+                        {sessions.map((session) => {
+                            const pins = session.tabs
+                                .filter(tab => folderPins.some(p => p.url === tab.url))
+                                .map(tab => folderPins.find(p => p.url === tab.url)!);
+
+                            return (
+                                <div key={session.id} className="mb-2">
+                                    <div
+                                        draggable
+                                        onDragStart={(e) => {
+                                            e.stopPropagation();
+                                            e.dataTransfer.setData("application/tabkeep-session", JSON.stringify({ sessionId: session.id }));
+                                            e.dataTransfer.effectAllowed = "move";
+                                        }}
+                                        onDragOver={(e) => {
+                                            if (e.dataTransfer.types.includes("application/json") || e.dataTransfer.types.includes("application/tabkeep-multi-tabs")) {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                e.dataTransfer.dropEffect = "move";
+                                                e.currentTarget.classList.add("bg-blue-100", "dark:bg-blue-500/10", "border-blue-500", "border-dashed");
+                                                e.currentTarget.classList.remove("border-transparent");
+                                            }
+                                        }}
+                                        onDragLeave={(e) => {
+                                            e.currentTarget.classList.remove("bg-blue-100", "dark:bg-blue-500/10", "border-blue-500", "border-dashed");
+                                            e.currentTarget.classList.add("border-transparent");
+                                        }}
+                                        onDrop={(e) => {
+                                            e.currentTarget.classList.remove("bg-blue-100", "dark:bg-blue-500/10", "border-blue-500", "border-dashed");
+                                            e.currentTarget.classList.add("border-transparent");
+                                            if (e.dataTransfer.types.includes("application/json")) {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                try {
+                                                    const data = JSON.parse(e.dataTransfer.getData("application/json"));
+                                                    if (data.sourceSessionId && data.tabIndex !== undefined && onMoveTabToSession) {
+                                                        onMoveTabToSession(data.sourceSessionId, session.id, data.tabIndex);
+                                                    }
+                                                } catch (err) {}
+                                            } else if (e.dataTransfer.types.includes("application/tabkeep-multi-tabs")) {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                try {
+                                                    const tabsToMove = JSON.parse(e.dataTransfer.getData("application/tabkeep-multi-tabs"));
+                                                    if (tabsToMove && tabsToMove.length > 0 && onMoveMultiTabsToSession) {
+                                                        onMoveMultiTabsToSession(tabsToMove, session.id);
+                                                    }
+                                                } catch (err) {}
+                                            }
+                                        }}
+                                        className="px-2 py-1 text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider truncate flex items-center justify-between group/session-title cursor-grab active:cursor-grabbing hover:bg-gray-100 dark:hover:bg-[#2a2a2a] transition-colors rounded-sm border border-transparent"
+                                    >
+                                        <span>{session.name || "Unnamed Session"}</span>
+                                        <span className="text-[8px] opacity-0 group-hover/session-title:opacity-100 transition-opacity">
+                                            {pins.length > 0 ? `${pins.length} pinned` : ""}
+                                        </span>
+                                    </div>
+                                    {pins.map((link) => (
+                                        <div
+                                            key={link.id}
+                                            draggable
+                                            onDragStart={(e) => {
+                                                e.stopPropagation();
+                                                e.dataTransfer.setData("application/tabkeep-pinned-link", JSON.stringify(link));
+                                                e.dataTransfer.effectAllowed = "move";
+                                            }}
+                                            onClick={(e) => handleOpenTab(e, link.url)}
+                                            title={link.title}
+                                            className="flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-gray-100 dark:hover:bg-[#2a2a2a] group/tab transition-colors"
+                                        >
+                                            <Pin size={9} className="text-amber-500 dark:text-amber-400 flex-shrink-0" />
+                                            <img
+                                                src={link.favIconUrl || `https://www.google.com/s2/favicons?domain=${link.url}&sz=32`}
+                                                className="w-3 h-3 flex-shrink-0 opacity-60 group-hover/tab:opacity-100 bg-gray-100 dark:bg-white/5 rounded-sm"
+                                                onError={(e) => { (e.target as HTMLImageElement).src = "https://www.google.com/s2/favicons?domain=google.com"; }}
+                                                draggable={false}
+                                            />
+                                            <span className="text-[11px] text-gray-500 group-hover/tab:text-blue-600 dark:group-hover/tab:text-blue-400 truncate transition-colors">
+                                                {link.title || "Untitled"}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            );
+                        })}
+                    </div>
+                );
+            })()}
         </div>
     );
 }
