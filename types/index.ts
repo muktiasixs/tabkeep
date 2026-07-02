@@ -6,6 +6,7 @@ export interface SavedTab {
     url: string;
     favIconUrl: string;
     screenshot?: string; // Base64 data URL
+    archived?: boolean; // For "mark as archived" restore option
 }
 
 export interface SelectedTab {
@@ -37,4 +38,10 @@ export interface PinnedLink {
     favIconUrl?: string;
     pinnedAt: string;
     folderId: string | null; // which folder the source session belongs to
+}
+
+export interface Settings {
+    restoreOption: "remove" | "keep" | "archived";
+    duplicateOption: "allow" | "reject";
+    urlDisplayOption: "none" | "domain" | "abbreviated" | "full";
 }

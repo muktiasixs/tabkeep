@@ -305,9 +305,14 @@ export function RightSidebar({ hoveredTab, allSessions, theme }: RightSidebarPro
 
             {/* SYSTEM ANALYTICS PANEL (RED BOX) */}
             <div className="border border-gray-200 dark:border-red-500/20 bg-gray-50 dark:bg-[#252525]/30 rounded-xl p-4 flex flex-col shadow-sm">
-                <div className="flex items-center gap-2 mb-4 border-b border-gray-200 dark:border-[#333] pb-2">
-                    <Activity className="text-red-500 dark:text-red-400" size={16} />
-                    <span className="text-[10px] text-gray-700 dark:text-gray-200 font-black uppercase tracking-widest">System Analytics</span>
+                <div className="flex items-center justify-between mb-4 border-b border-gray-200 dark:border-[#333] pb-2">
+                    <div className="flex items-center gap-2">
+                        <Activity className="text-red-500 dark:text-red-400" size={16} />
+                        <span className="text-[10px] text-gray-700 dark:text-gray-200 font-black uppercase tracking-widest">System Analytics</span>
+                    </div>
+                    <span className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-tighter">
+                        {allSessions.length} sessions · {analytics.totalTabsCount} tabs
+                    </span>
                 </div>
 
                 {/* Tab Usage Distribution */}

@@ -3,7 +3,7 @@ import "~style.css"
 import {
     FolderOpen, LayoutGrid, Search, X,
     Trash2, FolderPlus,
-    Sun, Moon, RotateCcw
+    Sun, Moon, RotateCcw, Settings
 } from "lucide-react"
 import { useTabkeepStorage } from "~hooks/useTabkeepStorage"
 import { updateSessions, updateFolders, updateDeletedSessions, updatePinnedLinks } from "~lib/storage"
@@ -13,6 +13,7 @@ import { SidebarTree } from "~components/SidebarTree"
 import { RightSidebar } from "~components/RightSidebar"
 import { MainFolderAccordion } from "~components/MainFolderAccordion"
 import { PinnedLinks } from "~components/PinnedLinks"
+import { SettingsModal } from "~components/SettingsModal"
 import type { Folder as FolderType, SavedTab, PinnedLink, Session, SelectedTab } from "~types"
 
 export default function TabkeepDashboard() {
@@ -22,6 +23,7 @@ export default function TabkeepDashboard() {
     const [isCreatingFolder, setIsCreatingFolder] = useState(false);
     const [newFolderName, setNewFolderName] = useState("");
     const newFolderInputRef = useRef<HTMLInputElement>(null);
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
     const [hoveredTab, setHoveredTab] = useState<(SavedTab & { sessionTimestamp?: string; sessionId?: string }) | null>(null);
     const [isAllSessionsDragOver, setIsAllSessionsDragOver] = useState(false);
@@ -802,9 +804,13 @@ export default function TabkeepDashboard() {
                     >
                         {theme === "dark" ? <Sun size={14} /> : <Moon size={14} />}
                     </button>
-                    <span className="text-xs font-bold text-gray-400 dark:text-gray-600 uppercase tracking-tighter">
-                        {sessions.length} sessions · {totalTabs} tabs
-                    </span>
+                    <button
+                        onClick={() => setIsSettingsOpen(true)}
+                        className="p-1.5 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-gray-200 dark:border-white/10 transition-colors"
+                        title="Settings"
+                    >
+                        <Settings size={14} />
+                    </button>
                 </div>
             </header>
 
@@ -1139,6 +1145,8 @@ export default function TabkeepDashboard() {
                     </div>
                 )}
             </div>
+
+            <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
         </div>
     );
 }

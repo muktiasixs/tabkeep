@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { ChevronDown, ChevronRight, GripVertical, RotateCcw, X, Pin, PinOff } from "lucide-react";
 import type { Session, Folder, SavedTab, PinnedLink, SelectedTab } from "~types";
 import { MoveFolderDropdown } from "./MoveFolderDropdown";
+import { useTabkeepStorage } from "~hooks/useTabkeepStorage";
+import { updateSessions } from "~lib/storage";
 
 interface Props {
     session: Session;
@@ -33,6 +35,8 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
     const [sessionDropPos, setSessionDropPos] = useState<"before" | "after" | null>(null);
     const [tabDropTarget, setTabDropTarget] = useState<{ idx: number; pos: "before" | "after" } | null>(null);
 
+    const { settings, sessions, setSessions } = useTabkeepStorage();
+
     // Rename state
     const [editing, setEditing] = useState(false);
     const [editValue, setEditValue] = useState(session.name || "");
@@ -42,13 +46,69 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
 
     const handleRestoreAll = async (e: React.MouseEvent) => {
         e.stopPropagation();
+        
+        let shouldRemove = false;
+        let shouldArchive = false;
+
+        if (settings.restoreOption === "remove") {
+            shouldRemove = true; // Selalu hapus jika opsinya 'remove'
+        } else if (settings.restoreOption === "keep") {
+            shouldRemove = false; // Selalu simpan jika opsinya 'keep'
+        } else if (settings.restoreOption === "archived") {
+            shouldArchive = true;
+        }
+
         for (const tab of session.tabs) {
             if (tab.url) await chrome.tabs.create({ url: tab.url, active: false });
         }
+
+        if (shouldRemove) {
+            onDelete(session.id);
+        } else if (shouldArchive) {
+            const updatedSessions = sessions.map(s => {
+                if (s.id === session.id) {
+                    return { ...s, tabs: s.tabs.map(t => ({ ...t, archived: true })) };
+                }
+                return s;
+            });
+            setSessions(updatedSessions);
+            updateSessions(updatedSessions);
+        }
     };
 
-    const handleOpenTab = (url: string) => {
-        if (url) chrome.tabs.create({ url, active: true });
+    const handleOpenTab = (url: string, e?: React.MouseEvent, tabIndex?: number) => {
+        if (url) {
+            const openInForeground = e ? !(e.ctrlKey || e.metaKey) : true;
+            chrome.tabs.create({ url, active: openInForeground });
+        }
+
+        if (e && tabIndex !== undefined) {
+            let shouldRemove = false;
+            let shouldArchive = false;
+
+            if (settings.restoreOption === "remove") {
+                shouldRemove = true; // Selalu hapus jika opsinya 'remove'
+            } else if (settings.restoreOption === "keep") {
+                shouldRemove = false; // Selalu simpan jika opsinya 'keep'
+            } else if (settings.restoreOption === "archived") {
+                shouldArchive = true;
+            }
+
+            if (shouldRemove && onDeleteTab) {
+                onDeleteTab(session.id, tabIndex);
+            } else if (shouldArchive) {
+                const updatedSessions = sessions.map(s => {
+                    if (s.id === session.id) {
+                        const newTabs = [...s.tabs];
+                        newTabs[tabIndex] = { ...newTabs[tabIndex], archived: true };
+                        return { ...s, tabs: newTabs };
+                    }
+                    return s;
+                });
+                setSessions(updatedSessions);
+                updateSessions(updatedSessions);
+            }
+        }
     };
 
     const handleDelete = (e: React.MouseEvent) => {
@@ -322,6 +382,7 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                     {session.tabs.map((tab, idx) => {
                         const isPinned = pinnedLinks.some(p => p.url === tab.url);
                         const isSelected = selectedTabs?.some(t => t.sessionId === session.id && t.tabIndex === idx) || false;
+                        const isArchived = tab.archived;
                         
                         return (
                             <React.Fragment key={idx}>
@@ -393,6 +454,8 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                                 className={`flex items-center gap-3 p-2 rounded cursor-grab active:cursor-grabbing group transition-colors ${
                                     isSelected 
                                     ? "bg-blue-50 dark:bg-blue-900/30" 
+                                    : isArchived
+                                    ? "bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(0,0,0,0.02)_10px,rgba(0,0,0,0.02)_20px)] dark:bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(255,255,255,0.02)_10px,rgba(255,255,255,0.02)_20px)] hover:bg-gray-100 dark:hover:bg-[#2a2a2a]"
                                     : "hover:bg-blue-50/50 dark:hover:bg-[#252525]"
                                 }`}
                             >
@@ -415,13 +478,22 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                                     onError={(e) => { (e.target as HTMLImageElement).src = "https://www.google.com/s2/favicons?domain=google.com"; }}
                                     draggable={false}
                                 />
-                                <div className="flex-1 truncate">
+                                <div className="flex-1 overflow-hidden flex flex-col justify-center">
                                     <span 
-                                        onClick={(e) => { e.stopPropagation(); handleOpenTab(tab.url); }}
-                                        className="text-xs text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 font-medium select-none cursor-pointer transition-colors"
+                                        onClick={(e) => { e.stopPropagation(); handleOpenTab(tab.url, e, idx); }}
+                                        className={`text-xs hover:text-blue-600 dark:hover:text-blue-400 font-medium select-none cursor-pointer transition-colors truncate block ${isArchived ? "text-gray-400 dark:text-gray-500 line-through decoration-gray-300 dark:decoration-gray-600" : "text-gray-600 dark:text-gray-400"}`}
                                     >
                                         {tab.title || "Untitled Tab"}
                                     </span>
+                                    {settings.urlDisplayOption !== "none" && (
+                                        <span className={`text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 ${
+                                            settings.urlDisplayOption === "full" ? "break-all whitespace-normal" : "truncate block"
+                                        }`}>
+                                            {settings.urlDisplayOption === "domain" 
+                                                ? (function() { try { return new URL(tab.url).hostname.replace("www.", ""); } catch { return tab.url; } })() 
+                                                : tab.url}
+                                        </span>
+                                    )}
                                 </div>
                                 <span className="text-[10px] text-gray-400 dark:text-gray-500 font-mono whitespace-nowrap">
                                     {session.timestamp.includes(' ') ? session.timestamp.split(' ').pop() : session.timestamp}

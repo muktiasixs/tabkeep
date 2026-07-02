@@ -1,7 +1,13 @@
 // Semua operasi chrome.storage terpusat di sini.
 // Komponen & hooks tidak boleh memanggil chrome.storage langsung.
 
-import type { Session, Folder, SavedTab, PinnedLink } from "~types"
+import type { Session, Folder, SavedTab, PinnedLink, Settings } from "~types"
+
+export const defaultSettings: Settings = {
+    restoreOption: "remove",
+    duplicateOption: "allow",
+    urlDisplayOption: "domain"
+};
 
 // --- Getters ---
 
@@ -48,6 +54,15 @@ export async function updatePinnedLinks(pinnedLinks: PinnedLink[]): Promise<void
     await chrome.storage.local.set({ pinnedLinks });
 }
 
+export async function getSettings(): Promise<Settings> {
+    const data = await chrome.storage.local.get("settings");
+    return { ...defaultSettings, ...(data.settings || {}) };
+}
+
+export async function updateSettings(settings: Settings): Promise<void> {
+    await chrome.storage.local.set({ settings });
+}
+
 // --- Helpers ---
 
 /**
@@ -56,12 +71,24 @@ export async function updatePinnedLinks(pinnedLinks: PinnedLink[]): Promise<void
  */
 export async function persistSession(tabsToSave: SavedTab[]): Promise<void> {
     const sessions = await getSessions();
+    const settings = await getSettings();
+
+    let finalTabs = tabsToSave;
+    
+    if (settings.duplicateOption === "reject") {
+        const existingUrls = new Set<string>();
+        sessions.forEach(s => s.tabs.forEach(t => existingUrls.add(t.url)));
+        finalTabs = tabsToSave.filter(t => !existingUrls.has(t.url));
+    }
+
+    if (finalTabs.length === 0) return;
+
     const newSession: Session = {
         id: `session-${Date.now()}`,
         name: `Session ${new Date().toLocaleTimeString()}`,
         timestamp: new Date().toLocaleString(),
         folderId: null,
-        tabs: tabsToSave
+        tabs: finalTabs
     };
     await updateSessions([newSession, ...sessions]);
 }
