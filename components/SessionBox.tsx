@@ -1,7 +1,6 @@
-import React, { useState } from "react";
-import { ChevronDown, ChevronRight, GripVertical, RotateCcw, X, Pin, PinOff } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { ChevronDown, ChevronRight, GripVertical, RotateCcw, X, Pin, PinOff, MoreHorizontal, ExternalLink, Monitor, Copy, Pencil, Star, Link, Layers, FolderPlus } from "lucide-react";
 import type { Session, Folder, SavedTab, PinnedLink, SelectedTab } from "~types";
-import { MoveFolderDropdown } from "./MoveFolderDropdown";
 import { useTabkeepStorage } from "~hooks/useTabkeepStorage";
 import { updateSessions } from "~lib/storage";
 
@@ -36,17 +35,36 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
     const [tabDropTarget, setTabDropTarget] = useState<{ idx: number; pos: "before" | "after" } | null>(null);
 
     const { settings, sessions, setSessions } = useTabkeepStorage();
-
-    // Rename state
     const [editing, setEditing] = useState(false);
     const [editValue, setEditValue] = useState(session.name || "");
-    const inputRef = React.useRef<HTMLInputElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    const handleUpdateSession = (updates: Partial<Session>) => {
+        const updated = sessions.map(s => s.id === session.id ? { ...s, ...updates } : s);
+        setSessions(updated);
+        updateSessions(updated);
+    };
+
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+                setIsMenuOpen(false);
+            }
+        };
+        if (isMenuOpen) {
+            document.addEventListener("mousedown", handleClickOutside);
+        }
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [isMenuOpen]);
 
     if (!session || !session.tabs) return null;
 
     const handleRestoreAll = async (e: React.MouseEvent) => {
         e.stopPropagation();
-        
+
         let shouldRemove = false;
         let shouldArchive = false;
 
@@ -154,7 +172,7 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
     const handleDragStartTab = (e: React.DragEvent, tabIndex: number) => {
         e.stopPropagation();
         const tab = session.tabs[tabIndex];
-        
+
         // If this tab is part of a selection, drag all selected tabs
         if (selectedTabs && selectedTabs.some(t => t.sessionId === session.id && t.tabIndex === tabIndex)) {
             e.dataTransfer.setData("application/tabkeep-multi-tabs", JSON.stringify(selectedTabs));
@@ -177,21 +195,18 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
             e.preventDefault();
             e.stopPropagation();
             e.dataTransfer.dropEffect = "move";
-            
-            if (e.dataTransfer.types.includes("application/tabkeep-reorder-session")) {
-                const rect = e.currentTarget.getBoundingClientRect();
-                const relativeY = e.clientY - rect.top;
-                if (relativeY < rect.height * 0.25) {
-                    setSessionDropPos("before");
-                    if (isDragOver) setIsDragOver(false);
-                } else if (relativeY > rect.height * 0.75) {
-                    setSessionDropPos("after");
-                    if (isDragOver) setIsDragOver(false);
-                } else {
-                    setSessionDropPos(null);
-                    if (!isDragOver) setIsDragOver(true);
-                }
+
+            // Allow dropping between sessions for all these types
+            const rect = e.currentTarget.getBoundingClientRect();
+            const relativeY = e.clientY - rect.top;
+            if (relativeY < rect.height * 0.25) {
+                setSessionDropPos("before");
+                if (isDragOver) setIsDragOver(false);
+            } else if (relativeY > rect.height * 0.75) {
+                setSessionDropPos("after");
+                if (isDragOver) setIsDragOver(false);
             } else {
+                setSessionDropPos(null);
                 if (!isDragOver) setIsDragOver(true);
             }
         }
@@ -218,7 +233,7 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                     const data = JSON.parse(e.dataTransfer.getData("application/tabkeep-reorder-session"));
                     if (data.sessionId && data.sessionId !== session.id && onReorderSession)
                         onReorderSession(data.sessionId, session.id, dropPos);
-                } catch {}
+                } catch { }
             } else if (e.dataTransfer.types.includes("application/json")) {
                 try {
                     const data = JSON.parse(e.dataTransfer.getData("application/json"));
@@ -226,7 +241,7 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                         onMoveTabToFolder?.(data.sourceSessionId, data.tabIndex, session.folderId, session.id, dropPos);
                         if (!isExpanded) setIsExpanded(true);
                     }
-                } catch {}
+                } catch { }
             } else if (e.dataTransfer.types.includes("application/tabkeep-multi-tabs")) {
                 try {
                     const data = JSON.parse(e.dataTransfer.getData("application/tabkeep-multi-tabs"));
@@ -234,7 +249,7 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                         onMoveMultiTabsToFolder?.(data, session.folderId, session.id, dropPos);
                         if (!isExpanded) setIsExpanded(true);
                     }
-                } catch {}
+                } catch { }
             } else if (e.dataTransfer.types.includes("application/tabkeep-pinned-link")) {
                 try {
                     const link = JSON.parse(e.dataTransfer.getData("application/tabkeep-pinned-link"));
@@ -242,7 +257,7 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                         onDropPinnedLinkToSession?.(link, session.id, session.id, dropPos);
                         if (!isExpanded) setIsExpanded(true);
                     }
-                } catch {}
+                } catch { }
             }
         } else if (e.dataTransfer.types.includes("application/tabkeep-session")) {
             e.preventDefault();
@@ -253,7 +268,7 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                     onMergeSessions(data.sessionId, session.id);
                     if (!isExpanded) setIsExpanded(true);
                 }
-            } catch (err) {}
+            } catch (err) { }
         } else if (e.dataTransfer.types.includes("application/json")) {
             e.preventDefault();
             e.stopPropagation();
@@ -263,7 +278,7 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                     onMoveTab?.(data.sourceSessionId, session.id, data.tabIndex);
                     if (!isExpanded) setIsExpanded(true);
                 }
-            } catch (err) {}
+            } catch (err) { }
         } else if (e.dataTransfer.types.includes("application/tabkeep-pinned-link")) {
             e.preventDefault();
             e.stopPropagation();
@@ -283,7 +298,7 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                     onMoveMultiTabs(tabsToMove, session.id);
                     if (!isExpanded) setIsExpanded(true);
                 }
-            } catch (err) {}
+            } catch (err) { }
         }
     };
 
@@ -293,241 +308,373 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
             {sessionDropPos === "before" && (
                 <div className="absolute top-[-2px] left-1 right-1 h-1 bg-blue-500 rounded-full pointer-events-none z-10" />
             )}
-        <div
-            draggable
-            onDragStart={handleSessionDragStart}
-            className={`bg-white dark:bg-[#1e1e1e] rounded-lg border overflow-hidden shadow-sm dark:shadow-lg transition-all animate-in fade-in duration-300 ${isDragOver ? "border-blue-500 shadow-blue-500/20" : "border-gray-200 dark:border-[#333]"
-                }`}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-        >
-            {/* Header */}
             <div
-                className="p-4 bg-gray-50 dark:bg-[#252525] border-b border-gray-100 dark:border-[#333] flex justify-between items-center cursor-pointer hover:bg-gray-100/50 dark:hover:bg-[#2a2a2a]"
-                onClick={() => setIsExpanded(!isExpanded)}
+                draggable
+                onDragStart={handleSessionDragStart}
+                className={`bg-white dark:bg-[#242424] rounded-lg border shadow-sm transition-all animate-in fade-in duration-300 ${isDragOver ? "border-blue-500 shadow-blue-500/20" : "border-gray-200 dark:border-[#333]"
+                    }`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
             >
-                <div className="flex items-center gap-3 group/header">
-                    {isExpanded
-                        ? <ChevronDown size={16} className="text-gray-400 dark:text-gray-500" />
-                        : <ChevronRight size={16} className="text-gray-400 dark:text-gray-500" />
-                    }
-                    {editing ? (
-                        <input
-                            ref={inputRef}
-                            value={editValue}
-                            onChange={(e) => setEditValue(e.target.value)}
-                            onBlur={commitEdit}
-                            onKeyDown={handleKeyDown}
-                            onClick={(e) => e.stopPropagation()}
-                            className="bg-white dark:bg-[#1a1a1a] border border-blue-500 rounded px-2 py-0.5 text-sm text-gray-900 dark:text-white outline-none w-48"
-                        />
-                    ) : (
-                        <h3
-                            className="text-sm font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-2 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                            onClick={(e) => {
-                                if (e.detail === 2) startEdit(e); // double click to edit
-                            }}
-                        >
-                            {session.name || "Unnamed Session"}
-                            <span className="text-xs font-normal text-gray-500 ml-1 italic opacity-80">
-                                ({session.tabs.length} tabs)
-                            </span>
-                        </h3>
-                    )}
-
-                    {!editing && onRenameSession && (
-                        <button
-                            onClick={startEdit}
-                            title="Rename session"
-                            className="text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-300 transition-colors opacity-0 group-hover/header:opacity-100"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /></svg>
-                        </button>
-                    )}
-                </div>
-
-                <div className="text-right flex items-center gap-2">
-                    <span className="text-[10px] text-gray-400 dark:text-gray-500 font-mono italic">
-                        {session.timestamp || "Just now"}
-                    </span>
-                    <MoveFolderDropdown
-                        sessionId={session.id}
-                        currentFolderId={session.folderId}
-                        folders={folders}
-                        onMove={onMoveFolder}
-                        theme={theme}
-                    />
-                    <button
-                        onClick={handleRestoreAll}
-                        title="Restore semua tab"
-                        className="flex items-center gap-1 text-[11px] text-blue-600 dark:text-blue-500 font-bold hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
-                    >
-                        <RotateCcw size={11} />
-                        Restore All
-                    </button>
-                    <button
-                        onClick={handleDelete}
-                        title="Hapus session"
-                        className="text-gray-400 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400 transition-colors ml-1"
-                    >
-                        <X size={14} />
-                    </button>
-                </div>
-            </div>
-
-            {/* Tab list */}
-            {isExpanded && (
-                <ul className="p-2 space-y-1 bg-white dark:bg-[#1a1a1a]/50 border-t border-gray-100 dark:border-[#333]">
-                    {session.tabs.map((tab, idx) => {
-                        const isPinned = pinnedLinks.some(p => p.url === tab.url);
-                        const isSelected = selectedTabs?.some(t => t.sessionId === session.id && t.tabIndex === idx) || false;
-                        const isArchived = tab.archived;
-                        
-                        return (
-                            <React.Fragment key={idx}>
-                                {/* Tab reorder drop indicator – before */}
-                                {tabDropTarget?.idx === idx && tabDropTarget.pos === "before" && (
-                                    <div className="absolute left-2 right-2 h-0.5 bg-blue-500 rounded-full pointer-events-none z-10" />
-                                )}
-                            <li
-                                draggable
-                                onDragStart={(e) => {
-                                    e.stopPropagation();
-                                    handleDragStartTab(e, idx);
-                                    e.dataTransfer.setData("application/tabkeep-reorder-tab", JSON.stringify({ sessionId: session.id, tabIndex: idx }));
+                {/* Header */}
+                <div
+                    className={`group/header px-5 pt-4 pb-2 bg-transparent flex justify-between items-center cursor-pointer hover:bg-gray-50/50 dark:hover:bg-white/[0.02] rounded-t-lg ${!isExpanded ? 'rounded-b-lg' : ''}`}
+                    onClick={() => setIsExpanded(!isExpanded)}
+                >
+                    <div className="flex items-center gap-2">
+                        {/* Hide chevron unless hovered for a cleaner look */}
+                        <div className="opacity-0 group-hover/header:opacity-100 transition-opacity">
+                            {isExpanded
+                                ? <ChevronDown size={16} className="text-gray-400 dark:text-gray-500" />
+                                : <ChevronRight size={16} className="text-gray-400 dark:text-gray-500" />
+                            }
+                        </div>
+                        {editing ? (
+                            <input
+                                ref={inputRef}
+                                value={editValue}
+                                onChange={(e) => setEditValue(e.target.value)}
+                                onBlur={commitEdit}
+                                onKeyDown={handleKeyDown}
+                                onClick={(e) => e.stopPropagation()}
+                                className="bg-white dark:bg-[#1a1a1a] border border-blue-500 rounded px-2 py-0.5 text-sm text-gray-900 dark:text-white outline-none w-48"
+                            />
+                        ) : (
+                            <h3
+                                className="text-[22px] font-normal text-gray-700 dark:text-[#a0a0a0] tracking-tight flex items-center gap-2 transition-colors ml-1"
+                                onClick={(e) => {
+                                    if (e.detail === 2) startEdit(e); // double click to edit
                                 }}
-                                onDragOver={(e) => {
-                                    if (e.dataTransfer.types.includes("application/tabkeep-reorder-tab") || e.dataTransfer.types.includes("application/json") || e.dataTransfer.types.includes("application/tabkeep-multi-tabs")) {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        const rect = e.currentTarget.getBoundingClientRect();
-                                        const pos = e.clientY < rect.top + rect.height / 2 ? "before" : "after";
-                                        setTabDropTarget({ idx, pos });
-                                    }
-                                }}
-                                onDragLeave={() => setTabDropTarget(null)}
-                                onDrop={(e) => {
-                                    if (e.dataTransfer.types.includes("application/tabkeep-reorder-tab") || e.dataTransfer.types.includes("application/json") || e.dataTransfer.types.includes("application/tabkeep-multi-tabs")) {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        const pos = tabDropTarget?.pos || "after";
-                                        const toIdx = pos === "before" ? idx : idx + 1;
-                                        
-                                        try {
-                                            if (e.dataTransfer.types.includes("application/tabkeep-multi-tabs")) {
-                                                const data = JSON.parse(e.dataTransfer.getData("application/tabkeep-multi-tabs"));
-                                                if (Array.isArray(data) && data.length > 0) {
-                                                    onMoveMultiTabs?.(data, session.id, toIdx);
-                                                    if (!isExpanded) setIsExpanded(true);
-                                                }
-                                            } else if (e.dataTransfer.types.includes("application/tabkeep-reorder-tab") || e.dataTransfer.types.includes("application/json")) {
-                                                let sourceSessionId = null, tabIndex = null;
-                                                
-                                                if (e.dataTransfer.types.includes("application/tabkeep-reorder-tab")) {
-                                                    const data = JSON.parse(e.dataTransfer.getData("application/tabkeep-reorder-tab"));
-                                                    sourceSessionId = data.sessionId;
-                                                    tabIndex = data.tabIndex;
-                                                } else if (e.dataTransfer.types.includes("application/json")) {
-                                                    const data = JSON.parse(e.dataTransfer.getData("application/json"));
-                                                    sourceSessionId = data.sourceSessionId;
-                                                    tabIndex = data.tabIndex;
-                                                }
-
-                                                if (sourceSessionId && tabIndex !== null && tabIndex !== undefined) {
-                                                    if (sourceSessionId === session.id) {
-                                                        if (tabIndex !== idx) {
-                                                            onReorderTab?.(session.id, tabIndex, tabIndex < idx ? toIdx - 1 : toIdx);
-                                                        }
-                                                    } else {
-                                                        // Dropped from a different session
-                                                        onMoveTab?.(sourceSessionId, session.id, tabIndex, toIdx);
-                                                        if (!isExpanded) setIsExpanded(true);
-                                                    }
-                                                }
-                                            }
-                                        } catch {}
-                                        setTabDropTarget(null);
-                                    }
-                                }}
-                                onMouseEnter={() => onTabHover?.({ ...tab, sessionTimestamp: session.timestamp })}
-                                className={`flex items-center gap-3 p-2 rounded cursor-grab active:cursor-grabbing group transition-colors ${
-                                    isSelected 
-                                    ? "bg-blue-50 dark:bg-blue-900/30" 
-                                    : isArchived
-                                    ? "bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(0,0,0,0.02)_10px,rgba(0,0,0,0.02)_20px)] dark:bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(255,255,255,0.02)_10px,rgba(255,255,255,0.02)_20px)] hover:bg-gray-100 dark:hover:bg-[#2a2a2a]"
-                                    : "hover:bg-blue-50/50 dark:hover:bg-[#252525]"
-                                }`}
                             >
-                                <div className={`flex items-center justify-center transition-opacity ${isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
-                                     onClick={(e) => {
-                                         e.stopPropagation();
-                                         onToggleTabSelection?.(session.id, idx, tab.url, e.shiftKey);
-                                     }}
-                                >
-                                    <input 
-                                        type="checkbox" 
-                                        checked={isSelected}
-                                        readOnly
-                                        className="w-3.5 h-3.5 cursor-pointer accent-blue-500 rounded-sm border-gray-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-blue-600 focus:ring-offset-gray-100 dark:focus:ring-offset-gray-800"
-                                    />
-                                </div>
-                                <img
-                                    src={tab.favIconUrl || "https://www.google.com/s2/favicons?domain=google.com&sz=32"}
-                                    className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100 bg-gray-100 dark:bg-white/10 rounded-sm flex-shrink-0"
-                                    onError={(e) => { (e.target as HTMLImageElement).src = "https://www.google.com/s2/favicons?domain=google.com"; }}
-                                    draggable={false}
-                                />
-                                <div className="flex-1 overflow-hidden flex flex-col justify-center">
-                                    <span 
-                                        onClick={(e) => { e.stopPropagation(); handleOpenTab(tab.url, e, idx); }}
-                                        className={`text-xs hover:text-blue-600 dark:hover:text-blue-400 font-medium select-none cursor-pointer transition-colors truncate block ${isArchived ? "text-gray-400 dark:text-gray-500 line-through decoration-gray-300 dark:decoration-gray-600" : "text-gray-600 dark:text-gray-400"}`}
-                                    >
-                                        {tab.title || "Untitled Tab"}
+                                {(session.name || "").match(/^(New Session|Saved tabs|Imported Session|Pinned Link|Session \d+)$/i) ? `${session.tabs.length} tabs` : (session.name || "Unnamed Session")}
+                                {!(session.name || "").match(/^(New Session|Saved tabs|Imported Session|Pinned Link|Session \d+)$/i) && (
+                                    <span className="text-[22px] font-normal text-gray-500 dark:text-[#777] ml-2">
+                                        {session.tabs.length} tabs
                                     </span>
-                                    {settings.urlDisplayOption !== "none" && (
-                                        <span className={`text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 ${
-                                            settings.urlDisplayOption === "full" ? "break-all whitespace-normal" : "truncate block"
-                                        }`}>
-                                            {settings.urlDisplayOption === "domain" 
-                                                ? (function() { try { return new URL(tab.url).hostname.replace("www.", ""); } catch { return tab.url; } })() 
-                                                : tab.url}
-                                        </span>
-                                    )}
-                                </div>
-                                <span className="text-[10px] text-gray-400 dark:text-gray-500 font-mono whitespace-nowrap">
-                                    {session.timestamp.includes(' ') ? session.timestamp.split(' ').pop() : session.timestamp}
-                                </span>
-                                <button
-                                    onClick={(e) => handlePinTabClick(e, tab)}
-                                    title={isPinned ? "Unpin dari sidebar" : "Pin ke sidebar"}
-                                    className={`transition-all p-1 rounded-sm flex-shrink-0 ${isPinned
-                                            ? "text-amber-500 dark:text-amber-400 opacity-100"
-                                            : "opacity-0 group-hover:opacity-100 text-gray-400 hover:text-amber-500 dark:hover:text-amber-400"
-                                        }`}
-                                >
-                                    {isPinned ? <PinOff size={13} /> : <Pin size={13} />}
-                                </button>
-                                {onDeleteTab && (
+                                )}
+                            </h3>
+                        )}
+
+                        {!editing && onRenameSession && (
+                            <button
+                                onClick={startEdit}
+                                title="Rename session"
+                                className="text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-300 transition-colors opacity-0 group-hover/header:opacity-100"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /></svg>
+                            </button>
+                        )}
+                    </div>
+
+                    <div className="flex items-center gap-1 opacity-0 group-hover/header:opacity-100 transition-opacity">
+                        <span className="text-[11px] text-gray-400 dark:text-gray-500 font-mono italic mr-2 whitespace-nowrap">
+                            {session.timestamp || "Just now"}
+                        </span>
+                        
+                        <div className="relative" ref={menuRef}>
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIsMenuOpen(!isMenuOpen);
+                                }}
+                                className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 p-1.5 rounded hover:bg-gray-200 dark:hover:bg-[#333] transition-colors"
+                            >
+                                <MoreHorizontal size={16} />
+                            </button>
+                            
+                            {isMenuOpen && (
+                                <div className="absolute right-0 top-full mt-1 w-52 bg-white dark:bg-[#252525] border border-gray-200 dark:border-[#333] rounded-lg shadow-xl z-50 py-1 text-left flex flex-col overflow-hidden">
                                     <button
-                                        onClick={(e) => { e.stopPropagation(); onDeleteTab(session.id, idx); }}
-                                        title="Hapus tab"
-                                        className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-500 dark:hover:text-red-400 flex-shrink-0"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setIsMenuOpen(false);
+                                            handleRestoreAll(e);
+                                        }}
+                                        className="flex items-center gap-3 px-3 py-2 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
                                     >
-                                        <X size={11} />
+                                        <ExternalLink size={14} /> Restore in new window
                                     </button>
-                                )}
-                            </li>
-                                {/* Tab reorder drop indicator – after last item */}
-                                {tabDropTarget?.idx === idx && tabDropTarget.pos === "after" && (
-                                    <div className="absolute left-2 right-2 h-0.5 bg-blue-500 rounded-full pointer-events-none z-10" />
-                                )}
-                            </React.Fragment>
-                        );
-                    })}
-                </ul>
-            )}
-        </div>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setIsMenuOpen(false);
+                                            session.tabs.forEach(tab => chrome.tabs.create({ url: tab.url, active: false }));
+                                        }}
+                                        className="flex items-center gap-3 px-3 py-2 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
+                                    >
+                                        <Monitor size={14} /> Restore in this window
+                                    </button>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setIsMenuOpen(false);
+                                            navigator.clipboard.writeText(session.tabs.map(t => t.url).join("\n"));
+                                        }}
+                                        className="flex items-center gap-3 px-3 py-2 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
+                                    >
+                                        <Copy size={14} /> Copy to clipboard
+                                    </button>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setIsMenuOpen(false);
+                                            startEdit(e as any);
+                                        }}
+                                        className="flex items-center gap-3 px-3 py-2 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
+                                    >
+                                        <Pencil size={14} /> Rename
+                                    </button>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setIsMenuOpen(false);
+                                            handleUpdateSession({ isStarred: !(session as any).isStarred });
+                                        }}
+                                        className="flex items-center gap-3 px-3 py-2 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
+                                    >
+                                        <Star size={14} className={(session as any).isStarred ? "fill-yellow-400 text-yellow-400" : ""} /> Stars
+                                    </button>
+                                    <button
+                                        onClick={async (e) => {
+                                            e.stopPropagation();
+                                            setIsMenuOpen(false);
+                                            try {
+                                                const text = await navigator.clipboard.readText();
+                                                const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                                                const newTabs = lines.map(line => {
+                                                    const isUrl = line.startsWith('http://') || line.startsWith('https://');
+                                                    const finalUrl = isUrl ? line : `https://${line}`;
+                                                    return {
+                                                        url: finalUrl,
+                                                        title: finalUrl,
+                                                        favIconUrl: `https://www.google.com/s2/favicons?domain=${finalUrl}&sz=32`
+                                                    };
+                                                });
+                                                if (newTabs.length > 0) {
+                                                    handleUpdateSession({ tabs: [...newTabs, ...session.tabs] as SavedTab[] });
+                                                }
+                                            } catch (err) { }
+                                        }}
+                                        className="flex items-center gap-3 px-3 py-2 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
+                                    >
+                                        <Link size={14} /> Paste link here
+                                    </button>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setIsMenuOpen(false);
+                                            const seen = new Set();
+                                            const uniqueTabs = session.tabs.filter(t => {
+                                                if (seen.has(t.url)) return false;
+                                                seen.add(t.url);
+                                                return true;
+                                            });
+                                            handleUpdateSession({ tabs: uniqueTabs });
+                                        }}
+                                        className="flex items-center gap-3 px-3 py-2 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
+                                    >
+                                        <Layers size={14} /> Remove duplicate
+                                    </button>
+                                    
+                                    <div className="h-px bg-gray-200 dark:bg-[#333] my-1" />
+                                    
+                                    <div className="px-3 py-1.5 text-[10px] uppercase font-bold text-gray-400 dark:text-gray-500 tracking-wider">Move to folder</div>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setIsMenuOpen(false);
+                                            onMoveFolder?.(session.id, null);
+                                        }}
+                                        className="flex items-center gap-3 px-3 py-2 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
+                                    >
+                                        <FolderPlus size={14} /> Uncategorized
+                                    </button>
+                                    {folders.map(folder => (
+                                        <button
+                                            key={folder.id}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setIsMenuOpen(false);
+                                                onMoveFolder?.(session.id, folder.id);
+                                            }}
+                                            className="flex items-center gap-3 px-3 py-2 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
+                                        >
+                                            <FolderPlus size={14} /> {folder.name}
+                                        </button>
+                                    ))}
+                                    
+                                    <div className="h-px bg-gray-200 dark:bg-[#333] my-1" />
+                                    
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setIsMenuOpen(false);
+                                            handleDelete(e);
+                                        }}
+                                        className="flex items-center gap-3 px-3 py-2 text-[12px] text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10"
+                                    >
+                                        <X size={14} /> Delete session
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Tab list */}
+                {isExpanded && (
+                    <>
+                        <hr className="mx-5 border-gray-100 dark:border-[#333]" />
+                        <ul className="py-1 px-3 bg-transparent">
+                            {session.tabs.map((tab, idx) => {
+                                const isPinned = pinnedLinks.some(p => p.url === tab.url);
+                                const isSelected = selectedTabs?.some(t => t.sessionId === session.id && t.tabIndex === idx) || false;
+                                const isArchived = tab.archived;
+
+                                return (
+                                    <React.Fragment key={idx}>
+                                        {/* Tab reorder drop indicator – before */}
+                                        {tabDropTarget?.idx === idx && tabDropTarget.pos === "before" && (
+                                            <div className="absolute left-2 right-2 h-0.5 bg-blue-500 rounded-full pointer-events-none z-10" />
+                                        )}
+                                        <li
+                                            draggable
+                                            onDragStart={(e) => {
+                                                e.stopPropagation();
+                                                handleDragStartTab(e, idx);
+                                                e.dataTransfer.setData("application/tabkeep-reorder-tab", JSON.stringify({ sessionId: session.id, tabIndex: idx }));
+                                            }}
+                                            onDragOver={(e) => {
+                                                if (e.dataTransfer.types.includes("application/tabkeep-reorder-tab") || e.dataTransfer.types.includes("application/json") || e.dataTransfer.types.includes("application/tabkeep-multi-tabs")) {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    const rect = e.currentTarget.getBoundingClientRect();
+                                                    const pos = e.clientY < rect.top + rect.height / 2 ? "before" : "after";
+                                                    setTabDropTarget({ idx, pos });
+                                                }
+                                            }}
+                                            onDragLeave={() => setTabDropTarget(null)}
+                                            onDrop={(e) => {
+                                                if (e.dataTransfer.types.includes("application/tabkeep-reorder-tab") || e.dataTransfer.types.includes("application/json") || e.dataTransfer.types.includes("application/tabkeep-multi-tabs")) {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    const pos = tabDropTarget?.pos || "after";
+                                                    const toIdx = pos === "before" ? idx : idx + 1;
+
+                                                    try {
+                                                        if (e.dataTransfer.types.includes("application/tabkeep-multi-tabs")) {
+                                                            const data = JSON.parse(e.dataTransfer.getData("application/tabkeep-multi-tabs"));
+                                                            if (Array.isArray(data) && data.length > 0) {
+                                                                onMoveMultiTabs?.(data, session.id, toIdx);
+                                                                if (!isExpanded) setIsExpanded(true);
+                                                            }
+                                                        } else if (e.dataTransfer.types.includes("application/tabkeep-reorder-tab") || e.dataTransfer.types.includes("application/json")) {
+                                                            let sourceSessionId = null, tabIndex = null;
+
+                                                            if (e.dataTransfer.types.includes("application/tabkeep-reorder-tab")) {
+                                                                const data = JSON.parse(e.dataTransfer.getData("application/tabkeep-reorder-tab"));
+                                                                sourceSessionId = data.sessionId;
+                                                                tabIndex = data.tabIndex;
+                                                            } else if (e.dataTransfer.types.includes("application/json")) {
+                                                                const data = JSON.parse(e.dataTransfer.getData("application/json"));
+                                                                sourceSessionId = data.sourceSessionId;
+                                                                tabIndex = data.tabIndex;
+                                                            }
+
+                                                            if (sourceSessionId && tabIndex !== null && tabIndex !== undefined) {
+                                                                if (sourceSessionId === session.id) {
+                                                                    if (tabIndex !== idx) {
+                                                                        onReorderTab?.(session.id, tabIndex, tabIndex < idx ? toIdx - 1 : toIdx);
+                                                                    }
+                                                                } else {
+                                                                    // Dropped from a different session
+                                                                    onMoveTab?.(sourceSessionId, session.id, tabIndex, toIdx);
+                                                                    if (!isExpanded) setIsExpanded(true);
+                                                                }
+                                                            }
+                                                        }
+                                                    } catch { }
+                                                    setTabDropTarget(null);
+                                                }
+                                            }}
+                                            onMouseEnter={() => onTabHover?.({ ...tab, sessionTimestamp: session.timestamp })}
+                                            className={`flex items-center gap-2.5 py-1 px-2 rounded cursor-grab active:cursor-grabbing group transition-colors ${isSelected
+                                                ? "bg-blue-50 dark:bg-blue-900/30"
+                                                : isArchived
+                                                    ? "bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(0,0,0,0.02)_10px,rgba(0,0,0,0.02)_20px)] dark:bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(255,255,255,0.02)_10px,rgba(255,255,255,0.02)_20px)] hover:bg-gray-100 dark:hover:bg-[#2a2a2a]"
+                                                    : "hover:bg-blue-50/50 dark:hover:bg-[#252525]"
+                                                }`}
+                                        >
+                                            <div className={`flex items-center justify-center transition-opacity ${isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    onToggleTabSelection?.(session.id, idx, tab.url, e.shiftKey);
+                                                }}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isSelected}
+                                                    readOnly
+                                                    className="w-3 h-3 cursor-pointer accent-blue-500 rounded-sm border-gray-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-blue-600 focus:ring-offset-gray-100 dark:focus:ring-offset-gray-800"
+                                                />
+                                            </div>
+                                            <img
+                                                src={tab.favIconUrl || "https://www.google.com/s2/favicons?domain=google.com&sz=32"}
+                                                className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100 bg-gray-100 dark:bg-white/10 rounded-sm flex-shrink-0"
+                                                onError={(e) => { (e.target as HTMLImageElement).src = "https://www.google.com/s2/favicons?domain=google.com"; }}
+                                                draggable={false}
+                                            />
+                                            <div className="flex-1 overflow-hidden flex flex-col justify-center">
+                                                <span
+                                                    onClick={(e) => { e.stopPropagation(); handleOpenTab(tab.url, e, idx); }}
+                                                    className={`text-[14px] font-normal select-none cursor-pointer transition-colors truncate block ${isArchived ? "text-gray-400 dark:text-gray-500 line-through decoration-gray-300 dark:decoration-gray-600" : "text-[#4a90e2] dark:text-[#58a6ff] hover:underline"}`}
+                                                >
+                                                    {tab.title || "Untitled Tab"}
+                                                </span>
+                                                {settings.urlDisplayOption !== "none" && (
+                                                    <span className={`text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 ${settings.urlDisplayOption === "full" ? "break-all whitespace-normal" : "truncate block"
+                                                        }`}>
+                                                        {settings.urlDisplayOption === "domain"
+                                                            ? (function () { try { return new URL(tab.url).hostname.replace("www.", ""); } catch { return tab.url; } })()
+                                                            : tab.url}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <span className="text-[10px] text-gray-400 dark:text-gray-500 font-mono whitespace-nowrap">
+                                                {session.timestamp.includes(' ') ? session.timestamp.split(' ').pop() : session.timestamp}
+                                            </span>
+                                            <button
+                                                onClick={(e) => handlePinTabClick(e, tab)}
+                                                title={isPinned ? "Unpin dari sidebar" : "Pin ke sidebar"}
+                                                className={`transition-all p-1 rounded-sm flex-shrink-0 ${isPinned
+                                                    ? "text-amber-500 dark:text-amber-400 opacity-100"
+                                                    : "opacity-0 group-hover:opacity-100 text-gray-400 hover:text-amber-500 dark:hover:text-amber-400"
+                                                    }`}
+                                            >
+                                                {isPinned ? <PinOff size={13} /> : <Pin size={13} />}
+                                            </button>
+                                            {onDeleteTab && (
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); onDeleteTab(session.id, idx); }}
+                                                    title="Hapus tab"
+                                                    className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-500 dark:hover:text-red-400 flex-shrink-0"
+                                                >
+                                                    <X size={11} />
+                                                </button>
+                                            )}
+                                        </li>
+                                        {/* Tab reorder drop indicator – after last item */}
+                                        {tabDropTarget?.idx === idx && tabDropTarget.pos === "after" && (
+                                            <div className="absolute left-2 right-2 h-0.5 bg-blue-500 rounded-full pointer-events-none z-10" />
+                                        )}
+                                    </React.Fragment>
+                                );
+                            })}
+                        </ul>
+                    </>
+                )}
+            </div>
             {/* Session reorder drop indicator – after */}
             {sessionDropPos === "after" && (
                 <div className="absolute bottom-[-2px] left-1 right-1 h-1 bg-blue-500 rounded-full pointer-events-none z-10" />

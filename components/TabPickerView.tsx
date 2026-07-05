@@ -36,11 +36,6 @@ export function TabPickerView() {
     }, []);
 
     const handleTabClick = (e: React.MouseEvent, clickedId: number, clickedIndex: number) => {
-        // Jika mengklik elemen link (A), jangan ubah status check/uncheck
-        if ((e.target as HTMLElement).tagName === "A") {
-            return;
-        }
-
         setSelected((prev) => {
             const next = new Set(prev);
             const isCurrentlyChecked = next.has(clickedId);
@@ -141,12 +136,12 @@ export function TabPickerView() {
     const noneSelected = selected.size === 0;
 
     return (
-        <div className="flex flex-col p-4 bg-[#111111] text-white rounded-lg select-none transition-colors" style={{ maxHeight: "560px" }}>
+        <div className="flex flex-col p-4 bg-transparent text-gray-900 dark:text-white rounded-lg select-none transition-colors" style={{ maxHeight: "560px" }}>
             {/* TOP BAR / HEADER */}
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                     <div>
-                        <h2 className="text-2xl font-black tracking-tight text-white leading-none">Tabkeep</h2>
+                        <h2 className="text-2xl font-black tracking-tight text-gray-900 dark:text-white leading-none">Tabkeep</h2>
                         <span className="text-[9px] text-gray-500 uppercase tracking-widest font-bold">TAB MANAGER</span>
                     </div>
                 </div>
@@ -159,18 +154,18 @@ export function TabPickerView() {
             </div>
 
             {/* SELECT ALL CHECKBOX */}
-            <label className="flex items-center gap-2.5 pb-2 mb-2 border-b border-white/5 cursor-pointer hover:opacity-85 select-none transition-colors">
+            <label className="flex items-center gap-2.5 pb-2 mb-2 border-b border-gray-200 dark:border-white/5 cursor-pointer hover:opacity-85 select-none transition-colors">
                 <input
                     type="checkbox"
                     checked={allSelected}
                     onChange={toggleAll}
-                    className="w-3.5 h-3.5 rounded border-gray-600 bg-transparent text-blue-500 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                    className="w-3.5 h-3.5 rounded border-gray-300 dark:border-gray-600 bg-transparent text-blue-500 focus:ring-0 focus:ring-offset-0 cursor-pointer"
                 />
-                <span className="text-xs text-gray-300 font-semibold">Select all</span>
+                <span className="text-xs text-gray-700 dark:text-gray-300 font-semibold">Select all</span>
             </label>
 
             {/* TAB LIST */}
-            <div className="overflow-y-auto flex-1 max-h-[320px] custom-scrollbar space-y-1 py-1">
+            <div className="overflow-y-auto flex-1 max-h-[320px] custom-scrollbar py-0.5">
                 {tabs.length === 0 ? (
                     <div className="py-8 text-center text-xs text-gray-500 italic">
                         Tidak ada tab aktif di window ini
@@ -182,31 +177,21 @@ export function TabPickerView() {
                             <div
                                 key={tab.id}
                                 onClick={(e) => handleTabClick(e, tab.id, idx)}
-                                className={`flex items-center gap-3 py-1.5 rounded transition-all group cursor-pointer ${isChecked ? "bg-white/5" : "hover:bg-white/[0.02]"}`}
+                                className={`flex items-center gap-2 py-0.5 px-1 rounded transition-all group cursor-pointer ${isChecked ? "bg-blue-100/50 dark:bg-blue-900/30" : "hover:bg-gray-100 dark:hover:bg-white/[0.02]"}`}
                             >
-                                <input
-                                    type="checkbox"
-                                    checked={isChecked}
-                                    readOnly
-                                    className="w-3.5 h-3.5 rounded border-gray-600 bg-transparent text-blue-500 focus:ring-0 focus:ring-offset-0 cursor-pointer ml-1 pointer-events-none"
-                                />
-
                                 <img
                                     src={tab.favIconUrl || "https://www.google.com/s2/favicons?domain=google.com&sz=32"}
-                                    className="w-3.5 h-3.5 flex-shrink-0 rounded-sm"
+                                    className="w-3.5 h-3.5 flex-shrink-0 rounded-sm ml-2"
                                     onError={(e) => { (e.target as HTMLImageElement).src = "https://www.google.com/s2/favicons?domain=google.com"; }}
                                 />
 
                                 <div className="flex-1 min-w-0 pr-2">
-                                    <a
-                                        href={tab.url}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="text-xs text-[#38bdf8] hover:text-[#7dd3fc] hover:underline font-semibold block truncate leading-tight"
+                                    <span
+                                        className="text-xs text-blue-500 hover:text-blue-400 dark:text-blue-400 dark:hover:text-blue-300 hover:underline font-semibold block truncate leading-tight"
                                         title={tab.title}
                                     >
                                         {tab.title || "Untitled"}
-                                    </a>
+                                    </span>
                                 </div>
                             </div>
                         );
@@ -220,7 +205,7 @@ export function TabPickerView() {
                     <button
                         onClick={handleSave}
                         disabled={noneSelected || saving}
-                        className={`font-black px-5 py-2.5 rounded-md transition-all shadow-md text-sm tracking-wide ${noneSelected || saving
+                        className={`font-bold px-3 py-2 rounded transition-all shadow-md text-xs tracking-wide ${noneSelected || saving
                             ? "bg-[#222] text-gray-600 cursor-not-allowed"
                             : "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white active:scale-95 shadow-blue-500/30"
                             }`}
@@ -241,7 +226,8 @@ export function TabPickerView() {
                     </button>
                     <button
                         onClick={handlePasteClipboard}
-                        className="bg-[#707530] hover:bg-[#616527] text-white text-xs font-bold px-3 py-2 rounded transition-all shadow-sm active:scale-95"
+                        style={{ backgroundColor: "white", color: "black" }}
+                        className="text-xs font-bold px-3 py-2 rounded transition-all shadow-sm active:scale-95 hover:bg-gray-200 hover:text-black"
                     >
                         Paste clipboard link
                     </button>

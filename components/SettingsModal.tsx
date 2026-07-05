@@ -24,7 +24,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             return {
                 id: `session-imported-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                 name: "Imported Session",
-                tabs: urls.map(url => ({ title: url, url: url })),
+                tabs: urls.map(url => ({ title: url, url: url, favIconUrl: "" })),
                 timestamp: new Date().toLocaleString(),
                 folderId: null
             };
@@ -63,11 +63,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                         <h3 className="font-bold mb-3 text-sm">When restoring tabs:</h3>
                         <div className="flex flex-col gap-3">
                             <label className="flex gap-3 cursor-pointer">
-                                <input 
-                                    type="radio" 
-                                    name="restoreOption" 
-                                    className="mt-1" 
-                                    checked={settings.restoreOption === "remove"} 
+                                <input
+                                    type="radio"
+                                    name="restoreOption"
+                                    className="mt-1"
+                                    checked={settings.restoreOption === "remove"}
                                     onChange={() => updateSettings({ ...settings, restoreOption: "remove" })}
                                 />
                                 <div>
@@ -76,11 +76,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                                 </div>
                             </label>
                             <label className="flex gap-3 cursor-pointer">
-                                <input 
-                                    type="radio" 
-                                    name="restoreOption" 
-                                    className="mt-1" 
-                                    checked={settings.restoreOption === "keep"} 
+                                <input
+                                    type="radio"
+                                    name="restoreOption"
+                                    className="mt-1"
+                                    checked={settings.restoreOption === "keep"}
                                     onChange={() => updateSettings({ ...settings, restoreOption: "keep" })}
                                 />
                                 <div>
@@ -89,11 +89,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                                 </div>
                             </label>
                             <label className="flex gap-3 cursor-pointer">
-                                <input 
-                                    type="radio" 
-                                    name="restoreOption" 
-                                    className="mt-1" 
-                                    checked={settings.restoreOption === "archived"} 
+                                <input
+                                    type="radio"
+                                    name="restoreOption"
+                                    className="mt-1"
+                                    checked={settings.restoreOption === "archived"}
                                     onChange={() => updateSettings({ ...settings, restoreOption: "archived" })}
                                 />
                                 <div>
@@ -109,11 +109,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                         <h3 className="font-bold mb-3 text-sm">Duplicates:</h3>
                         <div className="flex flex-col gap-3">
                             <label className="flex gap-3 cursor-pointer">
-                                <input 
-                                    type="radio" 
-                                    name="duplicateOption" 
-                                    className="mt-1" 
-                                    checked={settings.duplicateOption === "allow"} 
+                                <input
+                                    type="radio"
+                                    name="duplicateOption"
+                                    className="mt-1"
+                                    checked={settings.duplicateOption === "allow"}
                                     onChange={() => updateSettings({ ...settings, duplicateOption: "allow" })}
                                 />
                                 <div>
@@ -121,11 +121,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                                 </div>
                             </label>
                             <label className="flex gap-3 cursor-pointer">
-                                <input 
-                                    type="radio" 
-                                    name="duplicateOption" 
-                                    className="mt-1" 
-                                    checked={settings.duplicateOption === "reject"} 
+                                <input
+                                    type="radio"
+                                    name="duplicateOption"
+                                    className="mt-1"
+                                    checked={settings.duplicateOption === "reject"}
                                     onChange={() => updateSettings({ ...settings, duplicateOption: "reject" })}
                                 />
                                 <div>
@@ -144,11 +144,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
                             {/* None */}
                             <label className="flex gap-3 cursor-pointer">
-                                <input 
-                                    type="radio" 
-                                    name="urlDisplayOption" 
-                                    className="mt-1" 
-                                    checked={settings.urlDisplayOption === "none"} 
+                                <input
+                                    type="radio"
+                                    name="urlDisplayOption"
+                                    className="mt-1"
+                                    checked={settings.urlDisplayOption === "none"}
                                     onChange={() => updateSettings({ ...settings, urlDisplayOption: "none" })}
                                 />
                                 <div className="flex flex-col gap-2 w-full">
@@ -164,11 +164,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
                             {/* Domain only */}
                             <label className="flex gap-3 cursor-pointer">
-                                <input 
-                                    type="radio" 
-                                    name="urlDisplayOption" 
-                                    className="mt-1" 
-                                    checked={settings.urlDisplayOption === "domain"} 
+                                <input
+                                    type="radio"
+                                    name="urlDisplayOption"
+                                    className="mt-1"
+                                    checked={settings.urlDisplayOption === "domain"}
                                     onChange={() => updateSettings({ ...settings, urlDisplayOption: "domain" })}
                                 />
                                 <div className="flex flex-col gap-2 w-full">
@@ -185,11 +185,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
                             {/* Abbreviated */}
                             <label className="flex gap-3 cursor-pointer">
-                                <input 
-                                    type="radio" 
-                                    name="urlDisplayOption" 
-                                    className="mt-1" 
-                                    checked={settings.urlDisplayOption === "abbreviated"} 
+                                <input
+                                    type="radio"
+                                    name="urlDisplayOption"
+                                    className="mt-1"
+                                    checked={settings.urlDisplayOption === "abbreviated"}
                                     onChange={() => updateSettings({ ...settings, urlDisplayOption: "abbreviated" })}
                                 />
                                 <div className="flex flex-col gap-2 w-full">
@@ -206,11 +206,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
                             {/* Full */}
                             <label className="flex gap-3 cursor-pointer">
-                                <input 
-                                    type="radio" 
-                                    name="urlDisplayOption" 
-                                    className="mt-1" 
-                                    checked={settings.urlDisplayOption === "full"} 
+                                <input
+                                    type="radio"
+                                    name="urlDisplayOption"
+                                    className="mt-1"
+                                    checked={settings.urlDisplayOption === "full"}
                                     onChange={() => updateSettings({ ...settings, urlDisplayOption: "full" })}
                                 />
                                 <div className="flex flex-col gap-2 w-full">

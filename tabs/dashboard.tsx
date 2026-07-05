@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react"
 import "~style.css"
 import {
-    FolderOpen, LayoutGrid, Search, X,
-    Trash2, FolderPlus,
-    Sun, Moon, RotateCcw, Settings
+    FolderOpen, Archive, Search, X,
+    Trash2, FolderPlus, LayoutGrid, Library,
+    Sun, Moon, RotateCcw, Settings,
+    MoreHorizontal, Copy, Link, Layers
 } from "lucide-react"
 import { useTabkeepStorage } from "~hooks/useTabkeepStorage"
 import { updateSessions, updateFolders, updateDeletedSessions, updatePinnedLinks } from "~lib/storage"
@@ -29,9 +30,23 @@ export default function TabkeepDashboard() {
     const [isAllSessionsDragOver, setIsAllSessionsDragOver] = useState(false);
     const [isMainDragOver, setIsMainDragOver] = useState(false);
     
+    // Header Menu State
+    const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
+    const headerMenuRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (headerMenuRef.current && !headerMenuRef.current.contains(e.target as Node)) {
+                setIsHeaderMenuOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
     // Selection state
     const [selectedTabs, setSelectedTabs] = useState<SelectedTab[]>([]);
-    const [lastClickedTab, setLastClickedTab] = useState<{sessionId: string, tabIndex: number} | null>(null);
+    const [lastClickedTab, setLastClickedTab] = useState<{ sessionId: string, tabIndex: number } | null>(null);
 
     const [theme, setTheme] = useState<"light" | "dark">(() => {
         if (typeof window !== "undefined") {
@@ -105,6 +120,52 @@ export default function TabkeepDashboard() {
         setActiveFolderId(newFolder.id);
     };
 
+    useEffect(() => {
+        const handlePasteToFolder = (e: Event) => {
+            const customEvent = e as CustomEvent;
+            const { folderId, tabs } = customEvent.detail;
+            const newSession: Session = {
+                id: crypto.randomUUID(),
+                name: "Pasted Links",
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                tabs: tabs,
+                folderId: folderId
+            };
+            setSessions(prev => {
+                const updated = [newSession, ...prev];
+                updateSessions(updated);
+                return updated;
+            });
+        };
+
+        const handleDedupFolder = (e: Event) => {
+            const customEvent = e as CustomEvent;
+            const { folderId } = customEvent.detail;
+            setSessions(prev => {
+                const seen = new Set();
+                const updated = prev.map(s => {
+                    if (s.folderId !== folderId) return s;
+                    const uniqueTabs = s.tabs.filter(t => {
+                        if (seen.has(t.url)) return false;
+                        seen.add(t.url);
+                        return true;
+                    });
+                    return { ...s, tabs: uniqueTabs };
+                });
+                updateSessions(updated);
+                return updated;
+            });
+        };
+
+        document.addEventListener('tabkeep-paste-to-folder', handlePasteToFolder);
+        document.addEventListener('tabkeep-dedup-folder', handleDedupFolder);
+        
+        return () => {
+            document.removeEventListener('tabkeep-paste-to-folder', handlePasteToFolder);
+            document.removeEventListener('tabkeep-dedup-folder', handleDedupFolder);
+        };
+    }, []);
+
     const handleRenameFolder = async (id: string, newName: string) => {
         const updated = folders.map(f => f.id === id ? { ...f, name: newName } : f);
         setFolders(updated);
@@ -127,6 +188,13 @@ export default function TabkeepDashboard() {
         setSessions(updated);
         await updateSessions(updated);
     };
+
+    const handleUpdateSession = async (id: string, updates: Partial<Session>) => {
+        const updated = sessions.map(s => s.id === id ? { ...s, ...updates } : s);
+        setSessions(updated);
+        await updateSessions(updated);
+    };
+
     const handleDeleteSession = async (id: string) => {
         const sessionToDelete = sessions.find(s => s.id === id);
         if (sessionToDelete) {
@@ -257,13 +325,13 @@ export default function TabkeepDashboard() {
 
         let updatedSessions = [...sessions];
         let updatedPins = [...pinnedLinks];
-        
+
         // Group by session
         const bySession: Record<string, number[]> = {};
         for (const tab of tabsToMove) {
             // Ignore if moving to same session
             if (tab.sessionId === targetSessionId) continue;
-            
+
             if (!bySession[tab.sessionId]) bySession[tab.sessionId] = [];
             bySession[tab.sessionId].push(tab.tabIndex);
         }
@@ -281,12 +349,12 @@ export default function TabkeepDashboard() {
             for (const idx of indices) {
                 const tab = newTabs[idx];
                 extractedTabs.unshift(tab);
-                
+
                 // Update pin folder if needed
                 if (session.folderId !== targetSession.folderId) {
                     updatedPins = updatedPins.map(p => p.url === tab.url ? { ...p, folderId: targetSession.folderId } : p);
                 }
-                
+
                 newTabs.splice(idx, 1);
             }
 
@@ -295,7 +363,7 @@ export default function TabkeepDashboard() {
                 return s;
             });
         }
-        
+
         if (extractedTabs.length === 0) return;
 
         updatedSessions = updatedSessions.map(s => {
@@ -316,12 +384,12 @@ export default function TabkeepDashboard() {
 
         setSessions(updatedSessions);
         await updateSessions(updatedSessions);
-        
+
         if (JSON.stringify(updatedPins) !== JSON.stringify(pinnedLinks)) {
             setPinnedLinks(updatedPins);
             await updatePinnedLinks(updatedPins);
         }
-        
+
         setSelectedTabs([]); // Clear selection after moving
     };
 
@@ -329,7 +397,7 @@ export default function TabkeepDashboard() {
         if (tabsToMove.length === 0) return;
         let updatedSessions = [...sessions];
         let updatedPins = [...pinnedLinks];
-        
+
         const bySession: Record<string, number[]> = {};
         for (const tab of tabsToMove) {
             if (!bySession[tab.sessionId]) bySession[tab.sessionId] = [];
@@ -348,11 +416,11 @@ export default function TabkeepDashboard() {
             for (const idx of indices) {
                 const tab = newTabs[idx];
                 extractedTabs.unshift(tab);
-                
+
                 if (session.folderId !== folderId) {
                     updatedPins = updatedPins.map(p => p.url === tab.url ? { ...p, folderId } : p);
                 }
-                
+
                 newTabs.splice(idx, 1);
             }
 
@@ -361,7 +429,7 @@ export default function TabkeepDashboard() {
                 return s;
             });
         }
-        
+
         if (extractedTabs.length === 0) return;
 
         const newSession: Session = {
@@ -388,12 +456,12 @@ export default function TabkeepDashboard() {
 
         setSessions(updatedSessions);
         await updateSessions(updatedSessions);
-        
+
         if (JSON.stringify(updatedPins) !== JSON.stringify(pinnedLinks)) {
             setPinnedLinks(updatedPins);
             await updatePinnedLinks(updatedPins);
         }
-        
+
         setSelectedTabs([]);
     };
 
@@ -455,7 +523,7 @@ export default function TabkeepDashboard() {
 
         setSessions(updatedSessions);
         await updateSessions(updatedSessions);
-        
+
         // Remove from selection if deleted
         setSelectedTabs(prev => prev.filter(t => !(t.sessionId === sessionId && t.tabIndex === tabIndex)));
     };
@@ -463,23 +531,23 @@ export default function TabkeepDashboard() {
     const handleToggleTabSelection = (sessionId: string, tabIndex: number, url: string, isShift: boolean) => {
         const session = sessions.find(s => s.id === sessionId);
         if (!session) return;
-        
+
         setSelectedTabs(prev => {
             const exists = prev.some(t => t.sessionId === sessionId && t.tabIndex === tabIndex);
-            
+
             if (isShift && lastClickedTab && lastClickedTab.sessionId === sessionId) {
                 // Range selection within the same session
                 const start = Math.min(lastClickedTab.tabIndex, tabIndex);
                 const end = Math.max(lastClickedTab.tabIndex, tabIndex);
-                
+
                 // We'll figure out if we are checking or unchecking based on whether the clicked item currently exists
                 const targetCheckedState = !exists;
-                
+
                 let next = [...prev];
                 for (let i = start; i <= end; i++) {
                     const tabUrl = session.tabs[i].url;
                     const itemExists = next.some(t => t.sessionId === sessionId && t.tabIndex === i);
-                    
+
                     if (targetCheckedState && !itemExists) {
                         next.push({ sessionId, tabIndex: i, url: tabUrl });
                     } else if (!targetCheckedState && itemExists) {
@@ -496,7 +564,7 @@ export default function TabkeepDashboard() {
                 }
             }
         });
-        
+
         setLastClickedTab({ sessionId, tabIndex });
     };
 
@@ -507,7 +575,7 @@ export default function TabkeepDashboard() {
 
     const handleRestoreSelected = async () => {
         if (selectedTabs.length === 0) return;
-        
+
         for (const sel of selectedTabs) {
             const session = sessions.find(s => s.id === sel.sessionId);
             if (session) {
@@ -522,32 +590,32 @@ export default function TabkeepDashboard() {
 
     const handleDeleteSelected = async () => {
         if (selectedTabs.length === 0) return;
-        
+
         let updatedSessions = [...sessions];
         let updatedPins = [...pinnedLinks];
         let newDeleted: Session[] = [...deletedSessions];
-        
+
         // Group by session to make removal easier (remove from back to front to avoid index shift)
         const bySession: Record<string, number[]> = {};
         for (const tab of selectedTabs) {
             if (!bySession[tab.sessionId]) bySession[tab.sessionId] = [];
             bySession[tab.sessionId].push(tab.tabIndex);
         }
-        
+
         for (const sessionId of Object.keys(bySession)) {
             const session = updatedSessions.find(s => s.id === sessionId);
             if (!session) continue;
-            
+
             // Sort descending so index doesn't shift when splicing
             const indices = bySession[sessionId].sort((a, b) => b - a);
             const newTabs = [...session.tabs];
-            
+
             for (const idx of indices) {
                 const tabToDelete = newTabs[idx];
-                
+
                 // Add to history
                 newDeleted.unshift({
-                    id: `session-del-${Date.now()}-${Math.random().toString(36).substr(2,9)}`,
+                    id: `session-del-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                     name: session.name || "Deleted Tab",
                     tabs: [tabToDelete],
                     timestamp: session.timestamp,
@@ -555,35 +623,35 @@ export default function TabkeepDashboard() {
                     deletedAt: new Date().toLocaleString(),
                     originalSessionId: session.id
                 });
-                
+
                 // Remove pins
                 updatedPins = updatedPins.filter(p => p.url !== tabToDelete.url);
-                
+
                 // Splice
                 newTabs.splice(idx, 1);
             }
-            
+
             // Update session
             updatedSessions = updatedSessions.map(s => {
                 if (s.id === sessionId) return { ...s, tabs: newTabs };
                 return s;
             });
         }
-        
+
         // Auto delete empty sessions
         updatedSessions = updatedSessions.filter(s => s.tabs.length > 0);
-        
+
         setSessions(updatedSessions);
         await updateSessions(updatedSessions);
-        
+
         if (updatedPins.length !== pinnedLinks.length) {
             setPinnedLinks(updatedPins);
             await updatePinnedLinks(updatedPins);
         }
-        
+
         setDeletedSessions(newDeleted);
         await updateDeletedSessions(newDeleted);
-        
+
         setSelectedTabs([]);
     };
 
@@ -613,7 +681,7 @@ export default function TabkeepDashboard() {
                 timestamp: new Date().toLocaleString(),
                 folderId
             };
-            
+
             let newSessions = [...sessions];
             if (targetSessionId && insertPosition) {
                 const tIndex = newSessions.findIndex(s => s.id === targetSessionId);
@@ -730,6 +798,73 @@ export default function TabkeepDashboard() {
         await updateDeletedSessions([]);
     };
 
+    const handleCopyAllSessions = () => {
+        const allUrls = sessions.flatMap(s => s.tabs.map(t => t.url));
+        if (allUrls.length > 0) {
+            navigator.clipboard.writeText(allUrls.join("\n"));
+            alert(`${allUrls.length} links copied to clipboard!`);
+        }
+        setIsHeaderMenuOpen(false);
+    };
+
+    const handlePasteToNewSession = async () => {
+        try {
+            const text = await navigator.clipboard.readText();
+            if (!text) return;
+            const urls = text.split(/\r?\n/).filter(line => line.trim().startsWith("http"));
+            if (urls.length > 0) {
+                const newTabs: SavedTab[] = urls.map((url) => {
+                    let domain = "";
+                    try { domain = new URL(url).hostname; } catch(e) {}
+                    return {
+                        title: url,
+                        url: url,
+                        favIconUrl: domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=32` : ""
+                    };
+                });
+                const newSession: Session = {
+                    id: `session-${Date.now()}`,
+                    name: "Pasted Links",
+                    tabs: newTabs,
+                    timestamp: new Date().toLocaleString(),
+                    folderId: null
+                };
+                const updated = [newSession, ...sessions];
+                setSessions(updated);
+                await updateSessions(updated);
+            } else {
+                alert("Tidak ada link valid yang ditemukan di clipboard.");
+            }
+        } catch (err) {
+            console.error("Failed to read clipboard", err);
+            alert("Gagal membaca clipboard. Pastikan izin akses clipboard aktif.");
+        }
+        setIsHeaderMenuOpen(false);
+    };
+
+    const handleRemoveAllDuplicates = async () => {
+        const seenUrls = new Set<string>();
+        const updatedSessions = sessions.map(session => {
+            const uniqueTabs = session.tabs.filter(tab => {
+                if (seenUrls.has(tab.url)) return false;
+                seenUrls.add(tab.url);
+                return true;
+            });
+            return { ...session, tabs: uniqueTabs };
+        }).filter(session => session.tabs.length > 0);
+
+        const removedCount = sessions.reduce((acc, s) => acc + s.tabs.length, 0) - updatedSessions.reduce((acc, s) => acc + s.tabs.length, 0);
+
+        if (removedCount > 0) {
+            setSessions(updatedSessions);
+            await updateSessions(updatedSessions);
+            alert(`${removedCount} duplikat berhasil dihapus!`);
+        } else {
+            alert("Tidak ada tab duplikat yang ditemukan.");
+        }
+        setIsHeaderMenuOpen(false);
+    };
+
     const handleMoveFolder = async (sessionId: string, folderId: string | null) => {
         const movedSession = sessions.find(s => s.id === sessionId);
         const updated = sessions.map(s => s.id === sessionId ? { ...s, folderId } : s);
@@ -790,7 +925,7 @@ export default function TabkeepDashboard() {
         <div className="bg-[#f5f5f7] dark:bg-[#171717] text-gray-700 dark:text-gray-300 font-sans h-screen flex flex-col overflow-hidden transition-colors duration-200">
             {/* NAVBAR */}
             <header className="flex items-center justify-between px-6 h-16 bg-white dark:bg-[#1e1e1e] border-b border-gray-200 dark:border-[#333] shrink-0 z-20 shadow-md transition-colors duration-200">
-                <h1 className="text-2xl font-black text-gray-900 dark:text-white italic tracking-tighter">Tabkeep</h1>
+                <h1 className="text-2xl font-black text-gray-900 dark:text-white tracking-tighter" style={{ fontFamily: "'BBH Hegarty', sans-serif" }}>Tabkeep</h1>
 
                 <div className="flex-1 max-w-xl mx-8 relative">
                     {/* Search bar removed */}
@@ -831,6 +966,8 @@ export default function TabkeepDashboard() {
                             onRenameFolder={handleRenameFolder}
                             onDeleteFolder={handleDeleteFolder}
                             onRenameSession={handleRenameSession}
+                            onUpdateSession={handleUpdateSession}
+                            onDeleteSession={handleDeleteSession}
                             onMoveFolder={handleMoveFolder}
                             onMoveTabToFolder={handleMoveTabToFolder}
                             onMoveMultiTabsToFolder={handleMoveMultiTabsToFolder}
@@ -939,19 +1076,55 @@ export default function TabkeepDashboard() {
                     }}
                 >
                     <div className="max-w-4xl mx-auto">
-                        <div className="flex items-center gap-3 mb-10 border-b border-gray-200 dark:border-[#333] pb-6">
-                            <div className="p-2 bg-white dark:bg-white/5 rounded-lg border border-gray-200 dark:border-white/10 shadow-sm dark:shadow-none">
-                                {activeFolderId === "all"
-                                    ? <LayoutGrid className="text-gray-800 dark:text-white" size={24} />
-                                    : <FolderOpen className="text-blue-500 dark:text-blue-400" size={24} />
-                                }
-                            </div>
+                        <div className="flex items-center gap-4 mb-10 border-b border-gray-200 dark:border-[#333] pb-6">
+                            {activeFolderId === "all"
+                                ? <Archive className="text-gray-800 dark:text-white mt-1" size={32} strokeWidth={2.5} />
+                                : <FolderOpen className="text-blue-500 dark:text-blue-400 mt-1" size={32} strokeWidth={2.5} />
+                            }
                             <div>
-                                <h2 className="text-3xl font-black text-gray-900 dark:text-white italic tracking-tighter">{mainTitle}</h2>
-                                <p className="text-[10px] text-gray-400 dark:text-gray-600 uppercase tracking-[0.3em] font-bold mt-1">
-                                    {activeFolderId === "trash" ? `${deletedSessions.length} deleted sessions` : `${filteredSessions.length} sessions`}
-                                </p>
+                                <h2 className="text-3xl font-black text-gray-900 dark:text-white">{mainTitle}</h2>
                             </div>
+
+                            {/* Dropdown for All Sessions */}
+                            {activeFolderId === "all" && (
+                                <div className="ml-auto relative" ref={headerMenuRef}>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setIsHeaderMenuOpen(!isHeaderMenuOpen);
+                                        }}
+                                        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-[#333] transition-colors"
+                                    >
+                                        <MoreHorizontal size={24} />
+                                    </button>
+                                    
+                                    {isHeaderMenuOpen && (
+                                        <div className="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-[#252525] border border-gray-200 dark:border-[#333] rounded-lg shadow-xl py-1 z-30">
+                                            <button
+                                                onClick={handleCopyAllSessions}
+                                                className="w-full text-left flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333] transition-colors"
+                                            >
+                                                <Copy size={16} />
+                                                Copy all to clipboard
+                                            </button>
+                                            <button
+                                                onClick={handlePasteToNewSession}
+                                                className="w-full text-left flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333] transition-colors"
+                                            >
+                                                <Link size={16} />
+                                                Paste link
+                                            </button>
+                                            <button
+                                                onClick={handleRemoveAllDuplicates}
+                                                className="w-full text-left flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors font-medium"
+                                            >
+                                                <Layers size={16} />
+                                                Remove all duplicate
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
                             {activeFolderId === "trash" && deletedSessions.length > 0 && (
                                 <button
@@ -967,7 +1140,7 @@ export default function TabkeepDashboard() {
                         <div className="space-y-4">
                             {activeFolderId === "trash" ? (
                                 deletedSessions.length > 0 ? (
-                                    <div className="space-y-3">
+                                    <div className="space-y-1.5">
                                         {deletedSessions.map(s => (
                                             <DeletedSessionBox
                                                 key={s.id}
@@ -990,9 +1163,9 @@ export default function TabkeepDashboard() {
                                 activeFolderId === "all" ? (
                                     <>
                                         {/* Uncategorized Sessions Dropzone */}
-                                        <div className={`space-y-3 mb-8 transition-all ${isMainDragOver && sessions.filter(s => s.folderId === null).length > 0 ? "p-2 rounded-xl border-2 border-blue-500 border-dashed bg-blue-50/30 dark:bg-blue-500/10" : ""}`}>
+                                        <div className={`space-y-1.5 mb-1.5 transition-all ${isMainDragOver && sessions.filter(s => s.folderId === null).length > 0 ? "p-2 rounded-xl border-2 border-blue-500 border-dashed bg-blue-50/30 dark:bg-blue-500/10" : ""}`}>
                                             {sessions.filter(s => s.folderId === null).length === 0 && isMainDragOver && (
-                                                <div className="py-12 text-center text-blue-500 dark:text-blue-400 text-sm font-bold uppercase tracking-widest border-2 border-dashed border-blue-500 bg-blue-50/50 dark:bg-blue-900/20 rounded-xl">
+                                                <div className="py-24 flex items-center justify-center text-center text-blue-500 dark:text-blue-400 text-sm font-bold uppercase tracking-widest border-2 border-dashed border-blue-500 bg-blue-50/50 dark:bg-blue-900/20 rounded-xl pointer-events-none">
                                                     Drop here to Uncategorize
                                                 </div>
                                             )}
@@ -1049,7 +1222,7 @@ export default function TabkeepDashboard() {
                                                 onPinTab={handlePinLink}
                                                 onUnpinTab={handleUnpinLink}
                                                 onDropPinnedLinkToFolder={(link, folderId) => handleDropPinnedLink(link, null, folderId)}
-                                                onDropPinnedLinkToSession={(link, sId) => handleDropPinnedLink(link, sId, f.id)}
+                                                onDropPinnedLinkToSession={(link, sId, targetId, pos) => handleDropPinnedLink(link, pos ? null : sId, f.id, targetId, pos)}
                                                 onReorderTab={handleReorderTabs}
                                                 onReorderSession={handleReorderSessions}
                                                 onReorderFolder={handleReorderFolders}
@@ -1058,7 +1231,7 @@ export default function TabkeepDashboard() {
                                         ))}
                                     </>
                                 ) : (
-                                    <div className="space-y-3">
+                                    <div className="space-y-1.5">
                                         {filteredSessions.map(s => (
                                             <SessionBox
                                                 key={s.id}
@@ -1088,10 +1261,10 @@ export default function TabkeepDashboard() {
                                     </div>
                                 )
                             ) : (
-                                <div className="flex flex-col items-center justify-center py-32 border-2 border-dashed border-gray-300 dark:border-[#222] rounded-[2rem] bg-white dark:bg-[#1a1a1a]/30 shadow-sm dark:shadow-none">
+                                <div className="flex flex-col items-center justify-center py-32 border-2 border-dashed border-gray-300 dark:border-[#222] rounded-[2rem] bg-white dark:bg-[#1a1a1a]/30 shadow-sm dark:shadow-none pointer-events-none">
                                     <div className="w-16 h-16 bg-gray-100 dark:bg-[#222] rounded-full flex items-center justify-center mb-4">
                                         {activeFolderId === "all"
-                                            ? <LayoutGrid size={24} className="text-gray-400 dark:text-gray-700" />
+                                            ? <Library size={24} className="text-gray-400 dark:text-gray-700" />
                                             : <FolderOpen size={24} className="text-gray-400 dark:text-gray-700" />
                                         }
                                     </div>
@@ -1114,7 +1287,7 @@ export default function TabkeepDashboard() {
 
                 {/* RIGHT SIDEBAR */}
                 <RightSidebar hoveredTab={hoveredTab} allSessions={sessions} theme={theme} />
-                
+
                 {/* FLOATING ACTION BAR FOR MULTI-SELECTION */}
                 {selectedTabs.length > 0 && (
                     <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-6 py-3 rounded-xl shadow-2xl flex items-center gap-6 animate-in slide-in-from-bottom-10 fade-in duration-300 z-50">

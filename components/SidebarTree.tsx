@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
     ChevronDown, ChevronRight, Folder, FolderOpen,
-    Layers, Pin, Pencil, X, Clock
+    Layers, Pin, Pencil, X, Clock, Archive, Library,
+    MoreHorizontal, Copy, ExternalLink, Monitor, Link, Star, Trash2
 } from "lucide-react";
 import type { Folder as FolderType, Session, PinnedLink } from "~types";
 
@@ -14,19 +15,36 @@ interface SessionRowProps {
     onRenameSession?: (id: string, newName: string) => void;
     onMoveTabToSession?: (sourceSessionId: string, targetSessionId: string, tabIndex: number) => void;
     onMoveMultiTabsToSession?: (tabsToMove: any[], targetSessionId: string) => void;
-    onDropPinnedLinkToSession?: (link: any, sessionId: string) => void;
+    onDropPinnedLinkToSession?: (link: any, targetSessionId: string, position?: "before" | "after") => void;
     onReorderSession?: (draggedId: string, targetId: string, position: "before" | "after") => void;
+    onUpdateSession?: (id: string, updates: Partial<Session>) => void;
+    onDeleteSession?: (id: string) => void;
 }
 
 function SessionRow({
     session, pinnedLinks, depth,
-    onRenameSession, onMoveTabToSession, onMoveMultiTabsToSession, onDropPinnedLinkToSession, onReorderSession
+    onRenameSession, onMoveTabToSession, onMoveMultiTabsToSession, onDropPinnedLinkToSession, onReorderSession,
+    onUpdateSession, onDeleteSession
 }: SessionRowProps) {
     const [isOpen, setIsOpen] = useState(true);
     const [editing, setEditing] = useState(false);
     const [editValue, setEditValue] = useState(session.name || "");
     const [isDropOver, setIsDropOver] = useState(false);
     const [sessionDropPos, setSessionDropPos] = useState<"before" | "after" | null>(null);
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+                setIsMenuOpen(false);
+            }
+        };
+        if (isMenuOpen) {
+            document.addEventListener("mousedown", handleClickOutside);
+        }
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [isMenuOpen]);
 
     const pins = session.tabs
         .filter(tab => pinnedLinks.some(p => p.url === tab.url))
@@ -52,16 +70,22 @@ function SessionRow({
                     e.dataTransfer.effectAllowed = "move";
                 }}
                 onDragOver={(e) => {
-                    if (e.dataTransfer.types.includes("application/json") || e.dataTransfer.types.includes("application/tabkeep-multi-tabs") || e.dataTransfer.types.includes("application/tabkeep-reorder-session")) {
+                    if (e.dataTransfer.types.includes("application/json") || e.dataTransfer.types.includes("application/tabkeep-multi-tabs") || e.dataTransfer.types.includes("application/tabkeep-reorder-session") || e.dataTransfer.types.includes("application/tabkeep-pinned-link")) {
                         e.preventDefault();
                         e.stopPropagation();
                         e.dataTransfer.dropEffect = "move";
-                        if (!e.dataTransfer.types.includes("application/tabkeep-reorder-session")) {
-                            setIsDropOver(true);
-                        }
-                        if (e.dataTransfer.types.includes("application/tabkeep-reorder-session")) {
-                            const rect = e.currentTarget.getBoundingClientRect();
-                            setSessionDropPos(e.clientY < rect.top + rect.height / 2 ? "before" : "after");
+                        
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const relativeY = e.clientY - rect.top;
+                        if (relativeY < rect.height * 0.25) {
+                            setSessionDropPos("before");
+                            if (isDropOver) setIsDropOver(false);
+                        } else if (relativeY > rect.height * 0.75) {
+                            setSessionDropPos("after");
+                            if (isDropOver) setIsDropOver(false);
+                        } else {
+                            setSessionDropPos(null);
+                            if (!isDropOver) setIsDropOver(true);
                         }
                     }
                 }}
@@ -96,6 +120,14 @@ function SessionRow({
                             if (tabs?.length > 0 && onMoveMultiTabsToSession)
                                 onMoveMultiTabsToSession(tabs, session.id);
                         } catch { }
+                    } else if (e.dataTransfer.types.includes("application/tabkeep-pinned-link")) {
+                        e.preventDefault(); e.stopPropagation();
+                        try {
+                            const link = JSON.parse(e.dataTransfer.getData("application/tabkeep-pinned-link"));
+                            if (link && onDropPinnedLinkToSession) {
+                                onDropPinnedLinkToSession(link, session.id, sessionDropPos || undefined);
+                            }
+                        } catch { }
                     }
                 }}
                 className={`group flex flex-col cursor-grab active:cursor-grabbing rounded-md transition-all select-none ${isDropOver
@@ -115,7 +147,7 @@ function SessionRow({
                         {pins.length > 0 ? (isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />) : <span className="w-2.5" />}
                     </button>
 
-                    <Clock size={14} className="flex-shrink-0 text-gray-400 dark:text-gray-600" />
+                    <Layers size={14} className="flex-shrink-0 text-gray-400 dark:text-gray-600" />
 
                     {editing ? (
                         <input
@@ -128,18 +160,140 @@ function SessionRow({
                             className="flex-1 bg-gray-100 dark:bg-[#333] text-gray-900 dark:text-white text-[14px] rounded px-1 py-0 outline-none border border-blue-500/50 min-w-0"
                         />
                     ) : (
-                        <span className="flex-1 text-[14px] text-gray-600 dark:text-gray-400 truncate leading-tight">
+                        <span
+                            onDoubleClick={(e) => { e.stopPropagation(); setEditing(true); setEditValue(session.name || ""); }}
+                            className={`flex-1 text-[14px] truncate leading-tight transition-colors ${session.isStarred ? "text-amber-600 dark:text-amber-500 font-medium" : "text-gray-600 dark:text-gray-400"}`}
+                        >
                             {session.name || `Session ${session.timestamp}`}
                         </span>
                     )}
 
                     {!editing && (
-                        <button
-                            onClick={(e) => { e.stopPropagation(); setEditing(true); setEditValue(session.name || ""); }}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-300"
-                        >
-                            <Pencil size={9} />
-                        </button>
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (confirm("Are you sure you want to delete this session?")) {
+                                        onDeleteSession?.(session.id);
+                                    }
+                                }}
+                                className="flex-shrink-0 text-red-400 hover:text-red-600 dark:text-red-500/70 dark:hover:text-red-500 p-0.5 rounded"
+                                title="Delete session"
+                            >
+                                <X size={11} />
+                            </button>
+                            
+                            <div className="relative" ref={menuRef}>
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); setIsMenuOpen(!isMenuOpen); }}
+                                    className="flex-shrink-0 text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-300 p-0.5 rounded"
+                                    title="More options"
+                                >
+                                    <MoreHorizontal size={13} />
+                                </button>
+                                
+                                {isMenuOpen && (
+                                    <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-[#252525] border border-gray-200 dark:border-[#333] rounded-lg shadow-lg z-50 py-1 flex flex-col overflow-hidden">
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setIsMenuOpen(false);
+                                                chrome.windows.create({ url: session.tabs.map(t => t.url) });
+                                            }}
+                                            className="flex items-center gap-2 px-3 py-1.5 text-[12px] text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
+                                        >
+                                            <ExternalLink size={12} /> Restore in new window
+                                        </button>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setIsMenuOpen(false);
+                                                session.tabs.forEach(t => chrome.tabs.create({ url: t.url, active: false }));
+                                            }}
+                                            className="flex items-center gap-2 px-3 py-1.5 text-[12px] text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
+                                        >
+                                            <Monitor size={12} /> Restore in this window
+                                        </button>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setIsMenuOpen(false);
+                                                navigator.clipboard.writeText(session.tabs.map(t => t.url).join("\n"));
+                                            }}
+                                            className="flex items-center gap-2 px-3 py-1.5 text-[12px] text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
+                                        >
+                                            <Copy size={12} /> Copy to clipboard
+                                        </button>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setIsMenuOpen(false);
+                                                setEditing(true); setEditValue(session.name || "");
+                                            }}
+                                            className="flex items-center gap-2 px-3 py-1.5 text-[12px] text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
+                                        >
+                                            <Pencil size={12} /> Rename
+                                        </button>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setIsMenuOpen(false);
+                                                onUpdateSession?.(session.id, { isStarred: !session.isStarred });
+                                            }}
+                                            className="flex items-center gap-2 px-3 py-1.5 text-[12px] text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
+                                        >
+                                            <Star size={12} className={session.isStarred ? "fill-amber-500 text-amber-500" : ""} /> {session.isStarred ? "Unstar" : "Stars"}
+                                        </button>
+                                        <button
+                                            onClick={async (e) => {
+                                                e.stopPropagation();
+                                                setIsMenuOpen(false);
+                                                try {
+                                                    const text = await navigator.clipboard.readText();
+                                                    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                                                    const newTabs = lines.map(line => {
+                                                        const isUrl = line.startsWith('http://') || line.startsWith('https://');
+                                                        const finalUrl = isUrl ? line : `https://${line}`;
+                                                        return {
+                                                            url: finalUrl,
+                                                            title: finalUrl,
+                                                            favIconUrl: `https://www.google.com/s2/favicons?domain=${finalUrl}&sz=32`
+                                                        };
+                                                    });
+                                                    if (newTabs.length > 0 && onUpdateSession) {
+                                                        onUpdateSession(session.id, { tabs: [...session.tabs, ...newTabs] });
+                                                    }
+                                                } catch (err) {
+                                                    console.error("Paste failed", err);
+                                                }
+                                            }}
+                                            className="flex items-center gap-2 px-3 py-1.5 text-[12px] text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
+                                        >
+                                            <Link size={12} /> Paste link here
+                                        </button>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setIsMenuOpen(false);
+                                                if (!onUpdateSession) return;
+                                                const seen = new Set();
+                                                const uniqueTabs = session.tabs.filter(t => {
+                                                    if (seen.has(t.url)) return false;
+                                                    seen.add(t.url);
+                                                    return true;
+                                                });
+                                                if (uniqueTabs.length !== session.tabs.length) {
+                                                    onUpdateSession(session.id, { tabs: uniqueTabs });
+                                                }
+                                            }}
+                                            className="flex items-center gap-2 px-3 py-1.5 text-[12px] text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
+                                        >
+                                            <Layers size={12} /> Remove duplicate
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     )}
                 </div>
                 {sessionDropPos === "after" && (
@@ -195,10 +349,12 @@ interface FolderRowProps {
     onMoveTabToSession?: (sourceSessionId: string, targetSessionId: string, tabIndex: number) => void;
     onMoveMultiTabsToSession?: (tabsToMove: any[], targetSessionId: string) => void;
     onDropPinnedLinkToFolder?: (link: any, folderId: string) => void;
-    onDropPinnedLinkToSession?: (link: any, sessionId: string) => void;
+    onDropPinnedLinkToSession?: (link: any, targetSessionId: string, position?: "before" | "after") => void;
     onRenameSession?: (id: string, newName: string) => void;
     onReorderFolder?: (draggedId: string, targetId: string, position: "before" | "after") => void;
     onReorderSession?: (draggedId: string, targetId: string, position: "before" | "after") => void;
+    onUpdateSession?: (id: string, updates: Partial<Session>) => void;
+    onDeleteSession?: (id: string) => void;
 }
 
 function FolderRow({
@@ -206,13 +362,28 @@ function FolderRow({
     onClick, onRename, onDelete,
     onMoveSessionToFolder, onMoveTabToFolder, onMoveMultiTabsToFolder,
     onMoveTabToSession, onMoveMultiTabsToSession,
-    onDropPinnedLinkToFolder, onDropPinnedLinkToSession, onRenameSession, onReorderFolder, onReorderSession
+    onDropPinnedLinkToFolder, onDropPinnedLinkToSession, onRenameSession, onReorderFolder, onReorderSession,
+    onUpdateSession, onDeleteSession
 }: FolderRowProps) {
     const [isOpen, setIsOpen] = useState(true);
     const [editing, setEditing] = useState(false);
     const [editValue, setEditValue] = useState(folder.name);
     const [isDragOver, setIsDragOver] = useState(false);
     const [folderDropPos, setFolderDropPos] = useState<"before" | "after" | null>(null);
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+                setIsMenuOpen(false);
+            }
+        };
+        if (isMenuOpen) {
+            document.addEventListener("mousedown", handleClickOutside);
+        }
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [isMenuOpen]);
 
     const indentPx = depth * 16;
 
@@ -344,7 +515,10 @@ function FolderRow({
                                 className="flex-1 bg-gray-100 dark:bg-[#333] text-gray-900 dark:text-white text-[15px] rounded px-1 py-0 outline-none border border-blue-500/50 min-w-0"
                             />
                         ) : (
-                            <span className={`flex-1 text-[15px] font-medium truncate text-left leading-tight ${isActive || isDragOver ? "text-blue-600 dark:text-blue-400" : ""}`}>
+                            <span
+                                onDoubleClick={(e) => { e.stopPropagation(); setEditing(true); setEditValue(folder.name); }}
+                                className={`flex-1 text-[15px] font-medium truncate text-left leading-tight transition-colors ${isActive || isDragOver ? "text-blue-600 dark:text-blue-400" : ""}`}
+                            >
                                 {folder.name}
                             </span>
                         )}
@@ -355,13 +529,109 @@ function FolderRow({
                     </span>
 
                     {!editing && (
-                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                            <button onClick={e => { e.stopPropagation(); setEditing(true); setEditValue(folder.name); }} title="Rename" className="w-4 h-4 flex items-center justify-center text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
-                                <Pencil size={9} />
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                            <button
+                                onClick={e => { e.stopPropagation(); onDelete(folder.id); }}
+                                title="Delete folder"
+                                className="flex-shrink-0 text-red-400 hover:text-red-600 dark:text-red-500/70 dark:hover:text-red-500 p-0.5 rounded transition-colors"
+                            >
+                                <X size={11} />
                             </button>
-                            <button onClick={e => { e.stopPropagation(); onDelete(folder.id); }} title="Hapus" className="w-4 h-4 flex items-center justify-center text-gray-400 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400 transition-colors">
-                                <X size={9} />
-                            </button>
+
+                            <div className="relative" ref={menuRef}>
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); setIsMenuOpen(!isMenuOpen); }}
+                                    className="flex-shrink-0 text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-300 p-0.5 rounded transition-colors"
+                                    title="More options"
+                                >
+                                    <MoreHorizontal size={13} />
+                                </button>
+                                
+                                {isMenuOpen && (
+                                    <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-[#252525] border border-gray-200 dark:border-[#333] rounded-lg shadow-lg z-50 py-1 flex flex-col overflow-hidden text-left">
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setIsMenuOpen(false);
+                                                const allUrls = sessions.flatMap(s => s.tabs.map(t => t.url));
+                                                if (allUrls.length > 0) chrome.windows.create({ url: allUrls });
+                                            }}
+                                            className="flex items-center gap-2 px-3 py-1.5 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
+                                        >
+                                            <ExternalLink size={12} /> Restore all in new window
+                                        </button>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setIsMenuOpen(false);
+                                                const allUrls = sessions.flatMap(s => s.tabs.map(t => t.url));
+                                                allUrls.forEach(url => chrome.tabs.create({ url, active: false }));
+                                            }}
+                                            className="flex items-center gap-2 px-3 py-1.5 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
+                                        >
+                                            <Monitor size={12} /> Restore all in this window
+                                        </button>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setIsMenuOpen(false);
+                                                const allUrls = sessions.flatMap(s => s.tabs.map(t => t.url));
+                                                navigator.clipboard.writeText(allUrls.join("\n"));
+                                            }}
+                                            className="flex items-center gap-2 px-3 py-1.5 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
+                                        >
+                                            <Copy size={12} /> Copy to clipboard
+                                        </button>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setIsMenuOpen(false);
+                                                setEditing(true); setEditValue(folder.name);
+                                            }}
+                                            className="flex items-center gap-2 px-3 py-1.5 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
+                                        >
+                                            <Pencil size={12} /> Rename
+                                        </button>
+                                        <button
+                                            onClick={async (e) => {
+                                                e.stopPropagation();
+                                                setIsMenuOpen(false);
+                                                try {
+                                                    const text = await navigator.clipboard.readText();
+                                                    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                                                    const newTabs = lines.map(line => {
+                                                        const isUrl = line.startsWith('http://') || line.startsWith('https://');
+                                                        const finalUrl = isUrl ? line : `https://${line}`;
+                                                        return {
+                                                            url: finalUrl,
+                                                            title: finalUrl,
+                                                            favIconUrl: `https://www.google.com/s2/favicons?domain=${finalUrl}&sz=32`
+                                                        };
+                                                    });
+                                                    if (newTabs.length > 0) {
+                                                        const event = new CustomEvent('tabkeep-paste-to-folder', { detail: { folderId: folder.id, tabs: newTabs } });
+                                                        document.dispatchEvent(event);
+                                                    }
+                                                } catch (err) { }
+                                            }}
+                                            className="flex items-center gap-2 px-3 py-1.5 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
+                                        >
+                                            <Link size={12} /> Paste link here
+                                        </button>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setIsMenuOpen(false);
+                                                const event = new CustomEvent('tabkeep-dedup-folder', { detail: { folderId: folder.id } });
+                                                document.dispatchEvent(event);
+                                            }}
+                                            className="flex items-center gap-2 px-3 py-1.5 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
+                                        >
+                                            <Layers size={12} /> Remove duplicate
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
                 </div>
@@ -393,6 +663,8 @@ function FolderRow({
                                     onMoveMultiTabsToSession={onMoveMultiTabsToSession}
                                     onDropPinnedLinkToSession={onDropPinnedLinkToSession}
                                     onReorderSession={onReorderSession}
+                                    onUpdateSession={onUpdateSession}
+                                    onDeleteSession={onDeleteSession}
                                 />
                             ))
                         )}
@@ -423,9 +695,11 @@ interface SidebarTreeProps {
     onMoveMultiTabsToFolder: (tabsToMove: any[], folderId: string | null) => void;
     onMoveTab?: (sourceSessionId: string, targetSessionId: string, tabIndex: number, insertIndex?: number) => void;
     onMoveMultiTabs?: (tabsToMove: any[], targetSessionId: string, insertIndex?: number) => void;
-    onDropPinnedLink: (link: any, sessionId: string | null, folderId: string | null) => void;
+    onDropPinnedLink: (link: any, sessionId: string | null, folderId: string | null, targetSessionId?: string, position?: "before" | "after") => void;
     onReorderFolder?: (draggedId: string, targetId: string, position: "before" | "after") => void;
     onReorderSession?: (draggedId: string, targetId: string, position: "before" | "after") => void;
+    onUpdateSession?: (id: string, updates: Partial<Session>) => void;
+    onDeleteSession?: (id: string) => void;
 }
 
 export function SidebarTree({
@@ -433,7 +707,8 @@ export function SidebarTree({
     onSetActive, onRenameFolder, onDeleteFolder, onRenameSession,
     onMoveFolder, onMoveTabToFolder, onMoveMultiTabsToFolder,
     onMoveTab, onMoveMultiTabs, onDropPinnedLink,
-    onReorderFolder, onReorderSession
+    onReorderFolder, onReorderSession,
+    onUpdateSession, onDeleteSession
 }: SidebarTreeProps) {
     const [rootOpen, setRootOpen] = useState(true);
     const [isRootDragOver, setIsRootDragOver] = useState(false);
@@ -477,7 +752,7 @@ export function SidebarTree({
                         e.preventDefault();
                         try {
                             const link = JSON.parse(e.dataTransfer.getData("application/tabkeep-pinned-link"));
-                            if (link) onDropPinnedLink(link, null, null);
+                            if (link) onDropPinnedLink(link, null, null, null, null);
                         } catch { }
                     }
                 }}
@@ -499,7 +774,7 @@ export function SidebarTree({
                     </button>
 
                     <button onClick={() => onSetActive("all")} className="flex items-center gap-1.5 flex-1 min-w-0">
-                        <Layers size={16} className={`flex-shrink-0 ${isRootDragOver ? "text-blue-500" : activeFolderId === "all" ? "text-blue-500 dark:text-blue-400" : "text-gray-400 dark:text-gray-500"}`} />
+                        <Library size={16} className={`flex-shrink-0 ${isRootDragOver ? "text-blue-500" : activeFolderId === "all" ? "text-blue-500 dark:text-blue-400" : "text-gray-400 dark:text-gray-500"}`} />
                         <span className={`text-[15px] font-semibold flex-1 text-left leading-tight tracking-tight ${activeFolderId === "all" ? "text-blue-600 dark:text-blue-400" : ""}`}>
                             All Sessions
                         </span>
@@ -526,8 +801,10 @@ export function SidebarTree({
                                 onRenameSession={onRenameSession}
                                 onMoveTabToSession={onMoveTab}
                                 onMoveMultiTabsToSession={onMoveMultiTabs}
-                                onDropPinnedLinkToSession={(link, sId) => onDropPinnedLink(link, sId, null)}
+                                onDropPinnedLinkToSession={(link, sId, pos) => onDropPinnedLink(link, pos ? null : sId, null, sId, pos)}
                                 onReorderSession={onReorderSession}
+                                onUpdateSession={onUpdateSession}
+                                onDeleteSession={onDeleteSession}
                             />
                         ))}
 
@@ -549,10 +826,12 @@ export function SidebarTree({
                                 onMoveTabToSession={onMoveTab}
                                 onMoveMultiTabsToSession={onMoveMultiTabs}
                                 onDropPinnedLinkToFolder={(link, fId) => onDropPinnedLink(link, null, fId)}
-                                onDropPinnedLinkToSession={(link, sId) => onDropPinnedLink(link, sId, folder.id)}
+                                onDropPinnedLinkToSession={(link, sId, pos) => onDropPinnedLink(link, pos ? null : sId, folder.id, sId, pos)}
                                 onRenameSession={onRenameSession}
                                 onReorderFolder={onReorderFolder}
                                 onReorderSession={onReorderSession}
+                                onUpdateSession={onUpdateSession}
+                                onDeleteSession={onDeleteSession}
                             />
                         ))}
 

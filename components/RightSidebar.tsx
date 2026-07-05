@@ -18,9 +18,9 @@ export function RightSidebar({ hoveredTab, allSessions, theme }: RightSidebarPro
     // Reset image state whenever the hovered tab URL changes
     useEffect(() => {
         setImgState("loading");
-        
+
         let objectUrl: string | null = null;
-        
+
         const fetchImage = async () => {
             if (hoveredTab?.url) {
                 const blob = await getThumbnail(hoveredTab.url);
@@ -34,9 +34,9 @@ export function RightSidebar({ hoveredTab, allSessions, theme }: RightSidebarPro
                 setIdbImage(null);
             }
         };
-        
+
         fetchImage();
-        
+
         return () => {
             if (objectUrl) {
                 URL.revokeObjectURL(objectUrl);
@@ -256,7 +256,7 @@ export function RightSidebar({ hoveredTab, allSessions, theme }: RightSidebarPro
     return (
         <aside className="w-80 bg-white dark:bg-[#1e1e1e] border-l border-gray-200 dark:border-[#333] p-5 overflow-y-auto shrink-0 flex flex-col gap-6 z-10 shadow-lg transition-colors duration-200">
             {/* LAST VIEW TAB PANEL (BLUE BOX) */}
-            <div className="border border-gray-200 dark:border-blue-500/30 bg-gray-50 dark:bg-[#252525]/60 rounded-xl p-4 flex flex-col shadow-inner select-none transition-all">
+            <div className="bg-transparent rounded-xl p-4 flex flex-col select-none transition-all">
                 <div className="flex items-center justify-between mb-3">
                     <span className="text-[10px] text-blue-500 dark:text-blue-400 font-bold uppercase tracking-widest">Last View Tab</span>
                     <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
@@ -304,7 +304,7 @@ export function RightSidebar({ hoveredTab, allSessions, theme }: RightSidebarPro
             </div>
 
             {/* SYSTEM ANALYTICS PANEL (RED BOX) */}
-            <div className="border border-gray-200 dark:border-red-500/20 bg-gray-50 dark:bg-[#252525]/30 rounded-xl p-4 flex flex-col shadow-sm">
+            <div className="bg-transparent rounded-xl p-4 flex flex-col">
                 <div className="flex items-center justify-between mb-4 border-b border-gray-200 dark:border-[#333] pb-2">
                     <div className="flex items-center gap-2">
                         <Activity className="text-red-500 dark:text-red-400" size={16} />
@@ -383,11 +383,10 @@ export function RightSidebar({ hoveredTab, allSessions, theme }: RightSidebarPro
                             <div key={idx} className="flex flex-col items-center flex-1 gap-1">
                                 <div
                                     style={{ height: `${day.heightPct ? Math.max(day.heightPct * 0.4, 4) : 4}px` }}
-                                    className={`w-4 rounded-t-sm transition-all duration-500 ${
-                                        day.isToday
+                                    className={`w-4 rounded-t-sm transition-all duration-500 ${day.isToday
                                             ? "bg-gradient-to-t from-blue-600 to-blue-400 shadow-md shadow-blue-500/20"
                                             : "bg-gray-200 dark:bg-[#2b2b2b] hover:bg-gray-300 dark:hover:bg-[#3b3b3b]"
-                                    }`}
+                                        }`}
                                     title={`${day.count} tabs saved on ${day.label}`}
                                 ></div>
                                 <span className="text-[8px] font-bold text-gray-500 dark:text-gray-600 font-mono">{day.label}</span>
