@@ -34,6 +34,8 @@ export default function TabkeepDashboard() {
     const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
     const headerMenuRef = useRef<HTMLDivElement>(null);
 
+    const [searchQuery, setSearchQuery] = useState("");
+
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
             if (headerMenuRef.current && !headerMenuRef.current.contains(e.target as Node)) {
@@ -908,10 +910,45 @@ export default function TabkeepDashboard() {
     };
 
     // --- Computed ---
+    const searchedSessions = useMemo(() => {
+        if (!searchQuery.trim()) return sessions;
+        
+        const query = searchQuery.toLowerCase().trim();
+        return sessions
+            .map(session => {
+                const sessionTitleMatches = session.id.toLowerCase().includes(query) || 
+                    (session.timestamp && new Date(session.timestamp).toLocaleDateString().toLowerCase().includes(query));
+                
+                const matchedTabs = session.tabs.filter(tab => 
+                    tab.title.toLowerCase().includes(query) || 
+                    tab.url.toLowerCase().includes(query)
+                );
+                
+                if (sessionTitleMatches || matchedTabs.length > 0) {
+                    return {
+                        ...session,
+                        tabs: matchedTabs.length > 0 ? matchedTabs : session.tabs
+                    };
+                }
+                return null;
+            })
+            .filter((s): s is Session => s !== null);
+    }, [sessions, searchQuery]);
+
     const filteredSessions = useMemo(() => {
-        if (activeFolderId === "all") return sessions;
-        return sessions.filter(s => s.folderId === activeFolderId);
-    }, [sessions, activeFolderId]);
+        if (activeFolderId === "all") return searchedSessions;
+        return searchedSessions.filter(s => s.folderId === activeFolderId);
+    }, [searchedSessions, activeFolderId]);
+
+    const displayedTabsCount = useMemo(() => {
+        if (activeFolderId === "trash") {
+            return deletedSessions.reduce((acc, s) => acc + s.tabs.length, 0);
+        }
+        const activeSessions = activeFolderId === "all"
+            ? searchedSessions
+            : searchedSessions.filter(s => s.folderId === activeFolderId);
+        return activeSessions.reduce((acc, s) => acc + s.tabs.length, 0);
+    }, [searchedSessions, activeFolderId, deletedSessions]);
 
     const totalTabs = sessions.reduce((acc, s) => acc + s.tabs.length, 0);
     const activeFolder = folders.find(f => f.id === activeFolderId);
@@ -928,7 +965,26 @@ export default function TabkeepDashboard() {
                 <h1 className="text-2xl font-black text-gray-900 dark:text-white tracking-tighter" style={{ fontFamily: "'BBH Hegarty', sans-serif" }}>Tabkeep</h1>
 
                 <div className="flex-1 max-w-xl mx-8 relative">
-                    {/* Search bar removed */}
+                    <div className="relative w-full">
+                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                            <Search size={16} className="text-gray-400 dark:text-gray-500" />
+                        </span>
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Search tabs.."
+                            className="w-full pl-10 pr-10 py-2 bg-gray-50 dark:bg-[#121212]/80 text-gray-950 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-600 rounded-lg border border-gray-200 dark:border-[#2a2a2a] focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm transition-all shadow-inner"
+                        />
+                        {searchQuery && (
+                            <button
+                                onClick={() => setSearchQuery("")}
+                                className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                            >
+                                <X size={16} />
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 <div className="flex items-center gap-4">
@@ -1083,6 +1139,7 @@ export default function TabkeepDashboard() {
                             }
                             <div>
                                 <h2 className="text-3xl font-black text-gray-900 dark:text-white">{mainTitle}</h2>
+                                <p className="text-sm font-semibold text-gray-400 dark:text-gray-500 mt-1 select-none">{displayedTabsCount} tabs</p>
                             </div>
 
                             {/* Dropdown for All Sessions */}
@@ -1159,17 +1216,25 @@ export default function TabkeepDashboard() {
                                         <p className="text-gray-500 dark:text-gray-600 italic text-sm font-medium">Histori hapus kosong</p>
                                     </div>
                                 )
+                            ) : searchQuery.trim() && filteredSessions.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center py-32 border-2 border-dashed border-gray-300 dark:border-[#222] rounded-[2rem] bg-white dark:bg-[#1a1a1a]/30 shadow-sm dark:shadow-none pointer-events-none">
+                                    <div className="w-16 h-16 bg-gray-100 dark:bg-[#222] rounded-full flex items-center justify-center mb-4">
+                                        <Search size={24} className="text-gray-400 dark:text-gray-700" />
+                                    </div>
+                                    <p className="text-gray-500 dark:text-gray-600 italic text-sm font-medium">Tidak ada tab yang cocok dengan "{searchQuery}"</p>
+                                    <p className="text-[10px] text-gray-400 dark:text-gray-700 uppercase mt-2 tracking-widest font-black">No Search Results</p>
+                                </div>
                             ) : (filteredSessions.length > 0 || (activeFolderId === "all" && folders.length > 0)) ? (
                                 activeFolderId === "all" ? (
                                     <>
                                         {/* Uncategorized Sessions Dropzone */}
-                                        <div className={`space-y-1.5 mb-1.5 transition-all ${isMainDragOver && sessions.filter(s => s.folderId === null).length > 0 ? "p-2 rounded-xl border-2 border-blue-500 border-dashed bg-blue-50/30 dark:bg-blue-500/10" : ""}`}>
-                                            {sessions.filter(s => s.folderId === null).length === 0 && isMainDragOver && (
+                                        <div className={`space-y-1.5 mb-1.5 transition-all ${isMainDragOver && searchedSessions.filter(s => s.folderId === null).length > 0 ? "p-2 rounded-xl border-2 border-blue-500 border-dashed bg-blue-50/30 dark:bg-blue-500/10" : ""}`}>
+                                            {searchedSessions.filter(s => s.folderId === null).length === 0 && isMainDragOver && (
                                                 <div className="py-24 flex items-center justify-center text-center text-blue-500 dark:text-blue-400 text-sm font-bold uppercase tracking-widest border-2 border-dashed border-blue-500 bg-blue-50/50 dark:bg-blue-900/20 rounded-xl pointer-events-none">
                                                     Drop here to Uncategorize
                                                 </div>
                                             )}
-                                            {sessions.filter(s => s.folderId === null).map(s => (
+                                            {searchedSessions.filter(s => s.folderId === null).map(s => (
                                                 <SessionBox
                                                     key={s.id}
                                                     session={s}
@@ -1198,37 +1263,41 @@ export default function TabkeepDashboard() {
                                         </div>
 
                                         {/* Folders rendered as Accordions */}
-                                        {folders.map(f => (
-                                            <MainFolderAccordion
-                                                key={f.id}
-                                                folder={f}
-                                                sessions={sessions.filter(s => s.folderId === f.id)}
-                                                allFolders={folders}
-                                                onDeleteSession={handleDeleteSession}
-                                                onRenameSession={handleRenameSession}
-                                                onRenameFolder={handleRenameFolder}
-                                                onDeleteFolder={handleDeleteFolder}
-                                                onMoveFolder={handleMoveFolder}
-                                                onMoveTab={handleMoveTab}
-                                                onMoveTabToFolder={handleMoveTabToFolder}
-                                                onMoveMultiTabs={handleMoveMultiTabs}
-                                                onMoveMultiTabsToFolder={handleMoveMultiTabsToFolder}
-                                                onMergeSessions={handleMergeSessions}
-                                                onDeleteTab={handleDeleteTab}
-                                                onTabHover={setHoveredTab}
-                                                selectedTabs={selectedTabs}
-                                                onToggleTabSelection={handleToggleTabSelection}
-                                                pinnedLinks={pinnedLinks}
-                                                onPinTab={handlePinLink}
-                                                onUnpinTab={handleUnpinLink}
-                                                onDropPinnedLinkToFolder={(link, folderId) => handleDropPinnedLink(link, null, folderId)}
-                                                onDropPinnedLinkToSession={(link, sId, targetId, pos) => handleDropPinnedLink(link, pos ? null : sId, f.id, targetId, pos)}
-                                                onReorderTab={handleReorderTabs}
-                                                onReorderSession={handleReorderSessions}
-                                                onReorderFolder={handleReorderFolders}
-                                                theme={theme}
-                                            />
-                                        ))}
+                                        {folders.map(f => {
+                                            const folderSessions = searchedSessions.filter(s => s.folderId === f.id);
+                                            if (searchQuery.trim() && folderSessions.length === 0) return null;
+                                            return (
+                                                <MainFolderAccordion
+                                                    key={f.id}
+                                                    folder={f}
+                                                    sessions={folderSessions}
+                                                    allFolders={folders}
+                                                    onDeleteSession={handleDeleteSession}
+                                                    onRenameSession={handleRenameSession}
+                                                    onRenameFolder={handleRenameFolder}
+                                                    onDeleteFolder={handleDeleteFolder}
+                                                    onMoveFolder={handleMoveFolder}
+                                                    onMoveTab={handleMoveTab}
+                                                    onMoveTabToFolder={handleMoveTabToFolder}
+                                                    onMoveMultiTabs={handleMoveMultiTabs}
+                                                    onMoveMultiTabsToFolder={handleMoveMultiTabsToFolder}
+                                                    onMergeSessions={handleMergeSessions}
+                                                    onDeleteTab={handleDeleteTab}
+                                                    onTabHover={setHoveredTab}
+                                                    selectedTabs={selectedTabs}
+                                                    onToggleTabSelection={handleToggleTabSelection}
+                                                    pinnedLinks={pinnedLinks}
+                                                    onPinTab={handlePinLink}
+                                                    onUnpinTab={handleUnpinLink}
+                                                    onDropPinnedLinkToFolder={(link, folderId) => handleDropPinnedLink(link, null, folderId)}
+                                                    onDropPinnedLinkToSession={(link, sId, targetId, pos) => handleDropPinnedLink(link, pos ? null : sId, f.id, targetId, pos)}
+                                                    onReorderTab={handleReorderTabs}
+                                                    onReorderSession={handleReorderSessions}
+                                                    onReorderFolder={handleReorderFolders}
+                                                    theme={theme}
+                                                />
+                                            );
+                                        })}
                                     </>
                                 ) : (
                                     <div className="space-y-1.5">
