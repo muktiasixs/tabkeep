@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
-import { ChevronDown, ChevronRight, Folder, X, MoreHorizontal, ExternalLink, Pencil, Monitor, Copy, Link, Layers } from "lucide-react";
+import { ChevronDown, ChevronRight, Folder, X, MoreHorizontal, ExternalLink, Pencil, Monitor, Copy, Link, Layers, Globe } from "lucide-react";
 import { SessionBox } from "./SessionBox";
 import type { Folder as FolderType, Session, SavedTab, PinnedLink, SelectedTab } from "~types";
+import { parseImportedLines } from "~lib/linkParser";
 
 interface Props {
     folder: FolderType;
@@ -162,10 +163,15 @@ export function MainFolderAccordion({ folder, sessions, allFolders, onDeleteSess
                 }}
                 onDragOver={handleDragOver}
                 onDrop={handleDrop}
-                className={`flex items-center gap-3 cursor-pointer group p-4 transition-all rounded-t-2xl ${!isExpanded ? "rounded-b-2xl" : ""}`}
-                onClick={() => setIsExpanded(!isExpanded)}
+                className={`flex items-center gap-3 group p-4 transition-all rounded-t-2xl ${!isExpanded ? "rounded-b-2xl" : ""}`}
             >
-                <div className="p-1 rounded-md bg-gray-200 dark:bg-[#333] group-hover:bg-gray-300 dark:group-hover:bg-[#444] transition-colors">
+                <div 
+                    className="p-1 rounded-md bg-gray-200 dark:bg-[#333] hover:bg-gray-300 dark:hover:bg-[#444] transition-colors cursor-pointer"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setIsExpanded(!isExpanded);
+                    }}
+                >
                     {isExpanded ? <ChevronDown size={14} className="text-gray-600 dark:text-gray-400" /> : <ChevronRight size={14} className="text-gray-600 dark:text-gray-400" />}
                 </div>
                 <Folder size={18} className="text-blue-500 dark:text-blue-400 flex-shrink-0" />
@@ -182,8 +188,7 @@ export function MainFolderAccordion({ folder, sessions, allFolders, onDeleteSess
                     />
                 ) : (
                     <h3
-                        className="text-lg font-bold text-gray-900 dark:text-white tracking-tight flex-1 truncate hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                        onClick={(e) => e.stopPropagation()}
+                        className="text-lg font-bold text-gray-900 dark:text-white tracking-tight flex-1 truncate hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-text"
                         onDoubleClick={(e) => {
                             e.stopPropagation();
                             startEdit(e);
@@ -259,16 +264,7 @@ export function MainFolderAccordion({ folder, sessions, allFolders, onDeleteSess
                                     setIsMenuOpen(false);
                                     try {
                                         const text = await navigator.clipboard.readText();
-                                        const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-                                        const newTabs = lines.map(line => {
-                                            const isUrl = line.startsWith('http://') || line.startsWith('https://');
-                                            const finalUrl = isUrl ? line : `https://${line}`;
-                                            return {
-                                                url: finalUrl,
-                                                title: finalUrl,
-                                                favIconUrl: `https://www.google.com/s2/favicons?domain=${finalUrl}&sz=32`
-                                            };
-                                        });
+                                        const newTabs = parseImportedLines(text);
                                         if (newTabs.length > 0) {
                                             const event = new CustomEvent('tabkeep-paste-to-folder', { detail: { folderId: folder.id, tabs: newTabs } });
                                             document.dispatchEvent(event);
@@ -289,6 +285,17 @@ export function MainFolderAccordion({ folder, sessions, allFolders, onDeleteSess
                                 className="flex items-center gap-2 px-3 py-1.5 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
                             >
                                 <Layers size={12} /> Remove duplicate
+                            </button>
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIsMenuOpen(false);
+                                    const event = new CustomEvent('tabkeep-groupby-web', { detail: { folderId: folder.id } });
+                                    document.dispatchEvent(event);
+                                }}
+                                className="flex items-center gap-2 px-3 py-1.5 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
+                            >
+                                <Globe size={12} /> Group by web
                             </button>
                             <div className="h-px bg-gray-200 dark:bg-[#333] my-1" />
                             <button

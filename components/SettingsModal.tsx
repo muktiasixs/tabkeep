@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { X, Upload, Download, Globe } from "lucide-react";
 import { useTabkeepStorage } from "~hooks/useTabkeepStorage";
 import { updateSessions, updateSettings } from "~lib/storage";
+import { parseImportedLines } from "~lib/linkParser";
 import type { Session, Settings } from "~types";
 
 interface SettingsModalProps {
@@ -20,11 +21,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         if (!importData.trim()) return;
         const sessionBlocks = importData.split(/\n\s*\n/);
         const newSessions: Session[] = sessionBlocks.map(block => {
-            const urls = block.split("\n").map(line => line.trim()).filter(line => line.length > 0);
+            const newTabs = parseImportedLines(block);
             return {
                 id: `session-imported-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                 name: "Imported Session",
-                tabs: urls.map(url => ({ title: url, url: url, favIconUrl: "" })),
+                tabs: newTabs,
                 timestamp: new Date().toLocaleString(),
                 folderId: null
             };

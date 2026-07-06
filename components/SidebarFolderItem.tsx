@@ -146,7 +146,16 @@ export function SidebarFolderItem({ folder, isActive, sessions, pinnedLinks, onC
                         className="flex-1 bg-gray-50 dark:bg-[#333] text-gray-900 dark:text-white text-sm rounded px-1 py-0 outline-none border border-blue-500/50 min-w-0"
                     />
                 ) : (
-                    <span className="flex-1 text-sm truncate">{folder.name}</span>
+                    <span 
+                        className="flex-1 text-sm truncate cursor-text"
+                        onDoubleClick={(e) => {
+                            e.stopPropagation();
+                            startEdit(e);
+                        }}
+                        title="Double click to rename"
+                    >
+                        {folder.name}
+                    </span>
                 )}
 
                 <span className={`text-[10px] font-mono flex-shrink-0 ${isActive ? "text-blue-600/70 dark:text-blue-400/60" : "text-gray-400 dark:text-gray-600"}`}>
@@ -155,9 +164,6 @@ export function SidebarFolderItem({ folder, isActive, sessions, pinnedLinks, onC
 
                 {!editing && (
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                        <button onClick={startEdit} title="Rename folder" className="text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
-                            <Pencil size={11} />
-                        </button>
                         <button
                             onClick={(e) => { e.stopPropagation(); onDelete(folder.id); }}
                             title="Hapus folder"

@@ -4,10 +4,11 @@ import {
     FolderOpen, Archive, Search, X,
     Trash2, FolderPlus, LayoutGrid, Library,
     Sun, Moon, RotateCcw, Settings,
-    MoreHorizontal, Copy, Link, Layers
+    MoreHorizontal, Copy, Link, Layers, Globe
 } from "lucide-react"
 import { useTabkeepStorage } from "~hooks/useTabkeepStorage"
 import { updateSessions, updateFolders, updateDeletedSessions, updatePinnedLinks } from "~lib/storage"
+import { parseImportedLines } from "~lib/linkParser"
 import { SessionBox } from "~components/SessionBox"
 import { DeletedSessionBox } from "~components/DeletedSessionBox"
 import { SidebarTree } from "~components/SidebarTree"
@@ -159,12 +160,58 @@ export default function TabkeepDashboard() {
             });
         };
 
-        document.addEventListener('tabkeep-paste-to-folder', handlePasteToFolder);
-        document.addEventListener('tabkeep-dedup-folder', handleDedupFolder);
+        const handleGroupByWeb = (e: CustomEvent) => {
+            const folderId = e.detail.folderId;
+            setSessions(prev => {
+                let newSessions = [...prev];
+                const targetFolders = folderId === 'all' 
+                    ? [...new Set(prev.map(s => s.folderId))] 
+                    : [folderId];
+        
+                targetFolders.forEach(fId => {
+                    const sessionsInFolder = newSessions.filter(s => s.folderId === fId);
+                    if (sessionsInFolder.length === 0) return;
+        
+                    const allTabs = sessionsInFolder.flatMap(s => s.tabs);
+                    const grouped: Record<string, SavedTab[]> = {};
+                    
+                    allTabs.forEach(tab => {
+                        let domain = "other";
+                        try {
+                            const url = new URL(tab.url);
+                            domain = url.hostname.replace(/^www\./, '');
+                        } catch(err) {}
+                        if (!grouped[domain]) grouped[domain] = [];
+                        grouped[domain].push(tab);
+                    });
+        
+                    newSessions = newSessions.filter(s => s.folderId !== fId);
+        
+                    const createdSessions = Object.entries(grouped).map(([domain, tabs]) => ({
+                        id: crypto.randomUUID(),
+                        name: domain,
+                        tabs,
+                        timestamp: new Date().toLocaleString(),
+                        isStarred: false,
+                        folderId: fId
+                    }));
+        
+                    newSessions.push(...createdSessions);
+                });
+        
+                updateSessions(newSessions);
+                return newSessions;
+            });
+        };
+
+        document.addEventListener('tabkeep-paste-to-folder', handlePasteToFolder as EventListener);
+        document.addEventListener('tabkeep-dedup-folder', handleDedupFolder as EventListener);
+        document.addEventListener('tabkeep-groupby-web', handleGroupByWeb as EventListener);
         
         return () => {
-            document.removeEventListener('tabkeep-paste-to-folder', handlePasteToFolder);
-            document.removeEventListener('tabkeep-dedup-folder', handleDedupFolder);
+            document.removeEventListener('tabkeep-paste-to-folder', handlePasteToFolder as EventListener);
+            document.removeEventListener('tabkeep-dedup-folder', handleDedupFolder as EventListener);
+            document.removeEventListener('tabkeep-groupby-web', handleGroupByWeb as EventListener);
         };
     }, []);
 
@@ -813,17 +860,8 @@ export default function TabkeepDashboard() {
         try {
             const text = await navigator.clipboard.readText();
             if (!text) return;
-            const urls = text.split(/\r?\n/).filter(line => line.trim().startsWith("http"));
-            if (urls.length > 0) {
-                const newTabs: SavedTab[] = urls.map((url) => {
-                    let domain = "";
-                    try { domain = new URL(url).hostname; } catch(e) {}
-                    return {
-                        title: url,
-                        url: url,
-                        favIconUrl: domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=32` : ""
-                    };
-                });
+            const newTabs = parseImportedLines(text);
+            if (newTabs.length > 0) {
                 const newSession: Session = {
                     id: `session-${Date.now()}`,
                     name: "Pasted Links",
@@ -1177,6 +1215,18 @@ export default function TabkeepDashboard() {
                                             >
                                                 <Layers size={16} />
                                                 Remove all duplicate
+                                            </button>
+                                            <div className="h-px bg-gray-200 dark:bg-[#333] my-1 mx-2" />
+                                            <button
+                                                onClick={() => {
+                                                    setIsHeaderMenuOpen(false);
+                                                    const event = new CustomEvent('tabkeep-groupby-web', { detail: { folderId: 'all' } });
+                                                    document.dispatchEvent(event);
+                                                }}
+                                                className="w-full text-left flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333] transition-colors"
+                                            >
+                                                <Globe size={16} />
+                                                Group by web
                                             </button>
                                         </div>
                                     )}

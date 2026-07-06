@@ -3,6 +3,7 @@ import { ChevronDown, ChevronRight, GripVertical, RotateCcw, X, Pin, PinOff, Mor
 import type { Session, Folder, SavedTab, PinnedLink, SelectedTab } from "~types";
 import { useTabkeepStorage } from "~hooks/useTabkeepStorage";
 import { updateSessions } from "~lib/storage";
+import { parseImportedLines } from "~lib/linkParser";
 
 interface Props {
     session: Session;
@@ -40,6 +41,7 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
     const inputRef = useRef<HTMLInputElement>(null);
 
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [menuView, setMenuView] = useState<'main' | 'sort' | 'move'>('main');
     const menuRef = useRef<HTMLDivElement>(null);
 
     const handleUpdateSession = (updates: Partial<Session>) => {
@@ -52,6 +54,7 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
         const handleClickOutside = (e: MouseEvent) => {
             if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
                 setIsMenuOpen(false);
+                setMenuView('main');
             }
         };
         if (isMenuOpen) {
@@ -319,15 +322,20 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
             >
                 {/* Header */}
                 <div
-                    className={`group/header px-5 pt-4 pb-2 bg-transparent flex justify-between items-center cursor-pointer hover:bg-gray-50/50 dark:hover:bg-white/[0.02] rounded-t-lg ${!isExpanded ? 'rounded-b-lg' : ''}`}
-                    onClick={() => setIsExpanded(!isExpanded)}
+                    className={`group/header px-5 pt-4 pb-2 bg-transparent flex justify-between items-center hover:bg-gray-50/50 dark:hover:bg-white/[0.02] rounded-t-lg ${!isExpanded ? 'rounded-b-lg' : ''}`}
                 >
                     <div className="flex items-center gap-2">
-                        {/* Hide chevron unless hovered for a cleaner look */}
-                        <div className="opacity-0 group-hover/header:opacity-100 transition-opacity">
+                        {/* Chevron button to toggle expand/collapse */}
+                        <div 
+                            className="p-1 rounded-md hover:bg-gray-200 dark:hover:bg-[#333] transition-colors cursor-pointer"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setIsExpanded(!isExpanded);
+                            }}
+                        >
                             {isExpanded
-                                ? <ChevronDown size={16} className="text-gray-400 dark:text-gray-500" />
-                                : <ChevronRight size={16} className="text-gray-400 dark:text-gray-500" />
+                                ? <ChevronDown size={16} className="text-gray-500 dark:text-gray-400" />
+                                : <ChevronRight size={16} className="text-gray-500 dark:text-gray-400" />
                             }
                         </div>
                         {editing ? (
@@ -342,10 +350,12 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                             />
                         ) : (
                             <h3
-                                className="text-[22px] font-normal text-gray-700 dark:text-[#a0a0a0] tracking-tight flex items-center gap-2 transition-colors ml-1"
-                                onClick={(e) => {
-                                    if (e.detail === 2) startEdit(e); // double click to edit
+                                className="text-[22px] font-normal text-gray-700 dark:text-[#a0a0a0] tracking-tight flex items-center gap-2 transition-colors ml-1 cursor-text"
+                                onDoubleClick={(e) => {
+                                    e.stopPropagation();
+                                    startEdit(e);
                                 }}
+                                title="Double click to rename"
                             >
                                 {(session.name || "").match(/^(New Session|Saved tabs|Imported Session|Pinned Link|Session \d+)$/i) ? `${session.tabs.length} tabs` : (session.name || "Unnamed Session")}
                                 {!(session.name || "").match(/^(New Session|Saved tabs|Imported Session|Pinned Link|Session \d+)$/i) && (
@@ -353,17 +363,10 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                                         {session.tabs.length} tabs
                                     </span>
                                 )}
+                                {(session as any).isStarred && (
+                                    <Star size={18} className="fill-amber-500 text-amber-500 ml-1 flex-shrink-0" />
+                                )}
                             </h3>
-                        )}
-
-                        {!editing && onRenameSession && (
-                            <button
-                                onClick={startEdit}
-                                title="Rename session"
-                                className="text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-300 transition-colors opacity-0 group-hover/header:opacity-100"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /></svg>
-                            </button>
                         )}
                     </div>
 
@@ -377,6 +380,7 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     setIsMenuOpen(!isMenuOpen);
+                                    if (isMenuOpen) setMenuView('main');
                                 }}
                                 className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 p-1.5 rounded hover:bg-gray-200 dark:hover:bg-[#333] transition-colors"
                             >
@@ -385,137 +389,224 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                             
                             {isMenuOpen && (
                                 <div className="absolute right-0 top-full mt-1 w-52 bg-white dark:bg-[#252525] border border-gray-200 dark:border-[#333] rounded-lg shadow-xl z-50 py-1 text-left flex flex-col overflow-hidden">
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setIsMenuOpen(false);
-                                            handleRestoreAll(e);
-                                        }}
-                                        className="flex items-center gap-3 px-3 py-2 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
-                                    >
-                                        <ExternalLink size={14} /> Restore in new window
-                                    </button>
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setIsMenuOpen(false);
-                                            session.tabs.forEach(tab => chrome.tabs.create({ url: tab.url, active: false }));
-                                        }}
-                                        className="flex items-center gap-3 px-3 py-2 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
-                                    >
-                                        <Monitor size={14} /> Restore in this window
-                                    </button>
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setIsMenuOpen(false);
-                                            navigator.clipboard.writeText(session.tabs.map(t => t.url).join("\n"));
-                                        }}
-                                        className="flex items-center gap-3 px-3 py-2 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
-                                    >
-                                        <Copy size={14} /> Copy to clipboard
-                                    </button>
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setIsMenuOpen(false);
-                                            startEdit(e as any);
-                                        }}
-                                        className="flex items-center gap-3 px-3 py-2 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
-                                    >
-                                        <Pencil size={14} /> Rename
-                                    </button>
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setIsMenuOpen(false);
-                                            handleUpdateSession({ isStarred: !(session as any).isStarred });
-                                        }}
-                                        className="flex items-center gap-3 px-3 py-2 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
-                                    >
-                                        <Star size={14} className={(session as any).isStarred ? "fill-yellow-400 text-yellow-400" : ""} /> Stars
-                                    </button>
-                                    <button
-                                        onClick={async (e) => {
-                                            e.stopPropagation();
-                                            setIsMenuOpen(false);
-                                            try {
-                                                const text = await navigator.clipboard.readText();
-                                                const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-                                                const newTabs = lines.map(line => {
-                                                    const isUrl = line.startsWith('http://') || line.startsWith('https://');
-                                                    const finalUrl = isUrl ? line : `https://${line}`;
-                                                    return {
-                                                        url: finalUrl,
-                                                        title: finalUrl,
-                                                        favIconUrl: `https://www.google.com/s2/favicons?domain=${finalUrl}&sz=32`
-                                                    };
-                                                });
-                                                if (newTabs.length > 0) {
-                                                    handleUpdateSession({ tabs: [...newTabs, ...session.tabs] as SavedTab[] });
-                                                }
-                                            } catch (err) { }
-                                        }}
-                                        className="flex items-center gap-3 px-3 py-2 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
-                                    >
-                                        <Link size={14} /> Paste link here
-                                    </button>
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setIsMenuOpen(false);
-                                            const seen = new Set();
-                                            const uniqueTabs = session.tabs.filter(t => {
-                                                if (seen.has(t.url)) return false;
-                                                seen.add(t.url);
-                                                return true;
-                                            });
-                                            handleUpdateSession({ tabs: uniqueTabs });
-                                        }}
-                                        className="flex items-center gap-3 px-3 py-2 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
-                                    >
-                                        <Layers size={14} /> Remove duplicate
-                                    </button>
-                                    
-                                    <div className="h-px bg-gray-200 dark:bg-[#333] my-1" />
-                                    
-                                    <div className="px-3 py-1.5 text-[10px] uppercase font-bold text-gray-400 dark:text-gray-500 tracking-wider">Move to folder</div>
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setIsMenuOpen(false);
-                                            onMoveFolder?.(session.id, null);
-                                        }}
-                                        className="flex items-center gap-3 px-3 py-2 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
-                                    >
-                                        <FolderPlus size={14} /> Uncategorized
-                                    </button>
-                                    {folders.map(folder => (
-                                        <button
-                                            key={folder.id}
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setIsMenuOpen(false);
-                                                onMoveFolder?.(session.id, folder.id);
-                                            }}
-                                            className="flex items-center gap-3 px-3 py-2 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
-                                        >
-                                            <FolderPlus size={14} /> {folder.name}
-                                        </button>
-                                    ))}
-                                    
-                                    <div className="h-px bg-gray-200 dark:bg-[#333] my-1" />
-                                    
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setIsMenuOpen(false);
-                                            handleDelete(e);
-                                        }}
-                                        className="flex items-center gap-3 px-3 py-2 text-[12px] text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10"
-                                    >
-                                        <X size={14} /> Delete session
-                                    </button>
+                                    {menuView === 'main' && (
+                                        <>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setIsMenuOpen(false);
+                                                    setMenuView('main');
+                                                    handleRestoreAll(e);
+                                                }}
+                                                className="flex items-center gap-3 px-3 py-2 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
+                                            >
+                                                <ExternalLink size={14} /> Restore in new window
+                                            </button>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setIsMenuOpen(false);
+                                                    setMenuView('main');
+                                                    session.tabs.forEach(tab => chrome.tabs.create({ url: tab.url, active: false }));
+                                                }}
+                                                className="flex items-center gap-3 px-3 py-2 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
+                                            >
+                                                <Monitor size={14} /> Restore in this window
+                                            </button>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setIsMenuOpen(false);
+                                                    setMenuView('main');
+                                                    navigator.clipboard.writeText(session.tabs.map(t => t.url).join("\n"));
+                                                }}
+                                                className="flex items-center gap-3 px-3 py-2 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
+                                            >
+                                                <Copy size={14} /> Copy to clipboard
+                                            </button>
+                                            
+                                            <div className="h-px bg-gray-200 dark:bg-[#333] my-1" />
+                                            
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setMenuView('sort');
+                                                }}
+                                                className="flex items-center justify-between px-3 py-2 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333] w-full"
+                                            >
+                                                <div className="flex items-center gap-3"><Layers size={14} /> Sort session</div>
+                                                <ChevronRight size={14} />
+                                            </button>
+                                            
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setMenuView('move');
+                                                }}
+                                                className="flex items-center justify-between px-3 py-2 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333] w-full"
+                                            >
+                                                <div className="flex items-center gap-3"><FolderPlus size={14} /> Move to folder</div>
+                                                <ChevronRight size={14} />
+                                            </button>
+                                            
+                                            <div className="h-px bg-gray-200 dark:bg-[#333] my-1" />
+                                            
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setIsMenuOpen(false);
+                                                    setMenuView('main');
+                                                    startEdit(e as any);
+                                                }}
+                                                className="flex items-center gap-3 px-3 py-2 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
+                                            >
+                                                <Pencil size={14} /> Rename
+                                            </button>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setIsMenuOpen(false);
+                                                    setMenuView('main');
+                                                    handleUpdateSession({ isStarred: !(session as any).isStarred });
+                                                }}
+                                                className="flex items-center gap-3 px-3 py-2 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
+                                            >
+                                                <Star size={14} className={(session as any).isStarred ? "fill-amber-500 text-amber-500" : ""} /> {(session as any).isStarred ? "Unstar" : "Star"}
+                                            </button>
+                                            <button
+                                                onClick={async (e) => {
+                                                    e.stopPropagation();
+                                                    setIsMenuOpen(false);
+                                                    setMenuView('main');
+                                                    try {
+                                                        const text = await navigator.clipboard.readText();
+                                                        const newTabs = parseImportedLines(text);
+                                                        if (newTabs.length > 0) {
+                                                            handleUpdateSession({ tabs: [...newTabs, ...session.tabs] as SavedTab[] });
+                                                        }
+                                                    } catch (err) { }
+                                                }}
+                                                className="flex items-center gap-3 px-3 py-2 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
+                                            >
+                                                <Link size={14} /> Paste link here
+                                            </button>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setIsMenuOpen(false);
+                                                    setMenuView('main');
+                                                    const seen = new Set();
+                                                    const uniqueTabs = session.tabs.filter(t => {
+                                                        if (seen.has(t.url)) return false;
+                                                        seen.add(t.url);
+                                                        return true;
+                                                    });
+                                                    handleUpdateSession({ tabs: uniqueTabs });
+                                                }}
+                                                className="flex items-center gap-3 px-3 py-2 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
+                                            >
+                                                <Layers size={14} /> Remove duplicate
+                                            </button>
+                                            
+                                            <div className="h-px bg-gray-200 dark:bg-[#333] my-1" />
+                                            
+                                            <button
+                                                onClick={handleDelete}
+                                                className="flex items-center gap-3 px-3 py-2 text-[12px] text-red-500 hover:bg-gray-100 dark:hover:bg-[#333]"
+                                            >
+                                                <X size={14} /> Delete Session
+                                            </button>
+                                        </>
+                                    )}
+
+                                    {menuView === 'sort' && (
+                                        <>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setMenuView('main');
+                                                }}
+                                                className="flex items-center gap-2 px-3 py-1.5 text-[12px] text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 border-b border-gray-100 dark:border-[#333] mb-1"
+                                            >
+                                                <ChevronDown size={14} className="rotate-90" /> Back
+                                            </button>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setIsMenuOpen(false);
+                                                    setMenuView('main');
+                                                    const sortedTabs = [...session.tabs].sort((a, b) => (a.title || "").localeCompare(b.title || ""));
+                                                    handleUpdateSession({ tabs: sortedTabs });
+                                                }}
+                                                className="flex items-center gap-3 px-3 py-2 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
+                                            >
+                                                Sort by Title
+                                            </button>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setIsMenuOpen(false);
+                                                    setMenuView('main');
+                                                    const sortedTabs = [...session.tabs].sort((a, b) => (a.url || "").localeCompare(b.url || ""));
+                                                    handleUpdateSession({ tabs: sortedTabs });
+                                                }}
+                                                className="flex items-center gap-3 px-3 py-2 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
+                                            >
+                                                Sort by Web
+                                            </button>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setIsMenuOpen(false);
+                                                    setMenuView('main');
+                                                    const sortedTabs = [...session.tabs].reverse();
+                                                    handleUpdateSession({ tabs: sortedTabs });
+                                                }}
+                                                className="flex items-center gap-3 px-3 py-2 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
+                                            >
+                                                Sort Reverse
+                                            </button>
+                                        </>
+                                    )}
+
+                                    {menuView === 'move' && (
+                                        <>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setMenuView('main');
+                                                }}
+                                                className="flex items-center gap-2 px-3 py-1.5 text-[12px] text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 border-b border-gray-100 dark:border-[#333] mb-1"
+                                            >
+                                                <ChevronDown size={14} className="rotate-90" /> Back
+                                            </button>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setIsMenuOpen(false);
+                                                    setMenuView('main');
+                                                    onMoveFolder?.(session.id, null);
+                                                }}
+                                                className="flex items-center gap-3 px-3 py-2 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
+                                            >
+                                                <FolderPlus size={14} /> Uncategorized
+                                            </button>
+                                            {folders.map(folder => (
+                                                <button
+                                                    key={folder.id}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setIsMenuOpen(false);
+                                                        setMenuView('main');
+                                                        onMoveFolder?.(session.id, folder.id);
+                                                    }}
+                                                    className="flex items-center gap-3 px-3 py-2 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333] truncate"
+                                                >
+                                                    <FolderPlus size={14} className="flex-shrink-0" /> <span className="truncate">{folder.name}</span>
+                                                </button>
+                                            ))}
+                                        </>
+                                    )}
                                 </div>
                             )}
                         </div>

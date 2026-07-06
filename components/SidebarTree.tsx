@@ -5,6 +5,7 @@ import {
     MoreHorizontal, Copy, ExternalLink, Monitor, Link, Star, Trash2
 } from "lucide-react";
 import type { Folder as FolderType, Session, PinnedLink } from "~types";
+import { parseImportedLines } from "~lib/linkParser";
 
 // ─── Session Row ──────────────────────────────────────────────────────────────
 
@@ -162,9 +163,10 @@ function SessionRow({
                     ) : (
                         <span
                             onDoubleClick={(e) => { e.stopPropagation(); setEditing(true); setEditValue(session.name || ""); }}
-                            className={`flex-1 text-[14px] truncate leading-tight transition-colors ${session.isStarred ? "text-amber-600 dark:text-amber-500 font-medium" : "text-gray-600 dark:text-gray-400"}`}
+                            className={`flex-1 text-[14px] truncate leading-tight transition-colors flex items-center gap-1.5 ${session.isStarred ? "text-amber-600 dark:text-amber-500 font-medium" : "text-gray-600 dark:text-gray-400"}`}
                         >
-                            {session.name || `Session ${session.timestamp}`}
+                            <span className="truncate">{session.name || `Session ${session.timestamp}`}</span>
+                            {session.isStarred && <Star size={12} className="fill-amber-500 text-amber-500 flex-shrink-0" />}
                         </span>
                     )}
 
@@ -250,16 +252,7 @@ function SessionRow({
                                                 setIsMenuOpen(false);
                                                 try {
                                                     const text = await navigator.clipboard.readText();
-                                                    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-                                                    const newTabs = lines.map(line => {
-                                                        const isUrl = line.startsWith('http://') || line.startsWith('https://');
-                                                        const finalUrl = isUrl ? line : `https://${line}`;
-                                                        return {
-                                                            url: finalUrl,
-                                                            title: finalUrl,
-                                                            favIconUrl: `https://www.google.com/s2/favicons?domain=${finalUrl}&sz=32`
-                                                        };
-                                                    });
+                                                    const newTabs = parseImportedLines(text);
                                                     if (newTabs.length > 0 && onUpdateSession) {
                                                         onUpdateSession(session.id, { tabs: [...session.tabs, ...newTabs] });
                                                     }
@@ -598,16 +591,7 @@ function FolderRow({
                                                 setIsMenuOpen(false);
                                                 try {
                                                     const text = await navigator.clipboard.readText();
-                                                    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-                                                    const newTabs = lines.map(line => {
-                                                        const isUrl = line.startsWith('http://') || line.startsWith('https://');
-                                                        const finalUrl = isUrl ? line : `https://${line}`;
-                                                        return {
-                                                            url: finalUrl,
-                                                            title: finalUrl,
-                                                            favIconUrl: `https://www.google.com/s2/favicons?domain=${finalUrl}&sz=32`
-                                                        };
-                                                    });
+                                                    const newTabs = parseImportedLines(text);
                                                     if (newTabs.length > 0) {
                                                         const event = new CustomEvent('tabkeep-paste-to-folder', { detail: { folderId: folder.id, tabs: newTabs } });
                                                         document.dispatchEvent(event);
