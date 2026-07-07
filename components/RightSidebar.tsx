@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Globe, Tv, Briefcase, BookOpen, Database, HelpCircle, Activity } from "lucide-react";
+import { Globe, Tv, Briefcase, BookOpen, Database, HelpCircle, Activity, ChevronRight, ChevronLeft } from "lucide-react";
 import type { Session, SavedTab } from "~types";
 import { getThumbnail } from "~lib/db";
 
@@ -14,6 +14,7 @@ export function RightSidebar({ hoveredTab, allSessions, theme }: RightSidebarPro
     const [imgState, setImgState] = useState<"loading" | "loaded" | "error">("loading");
     // State to hold the object URL from IndexedDB
     const [idbImage, setIdbImage] = useState<string | null>(null);
+    const [isMinimized, setIsMinimized] = useState(false);
 
     // Reset image state whenever the hovered tab URL changes
     useEffect(() => {
@@ -155,29 +156,31 @@ export function RightSidebar({ hoveredTab, allSessions, theme }: RightSidebarPro
         };
 
         const now = new Date();
+        now.setHours(0, 0, 0, 0); // Start of today for accurate calendar day difference
+
         const dailyCounts = Array(7).fill(0);
         const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-        const last7Days = Array.from({ length: 7 }, (_, i) => {
-            const d = new Date();
-            d.setDate(now.getDate() - (6 - i));
-            return d;
-        });
 
         allSessions.forEach(session => {
             const sessionDate = getSessionDate(session);
-            const diffDays = Math.floor((now.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24));
+            const sd = new Date(sessionDate);
+            sd.setHours(0, 0, 0, 0);
+
+            const diffDays = Math.round((now.getTime() - sd.getTime()) / (1000 * 60 * 60 * 24));
+
             if (diffDays >= 0 && diffDays < 7) {
-                const index = 6 - diffDays;
-                dailyCounts[index] += session.tabs.length;
+                // Fixed order from Sunday (0) to Saturday (6)
+                const dayOfWeek = sd.getDay();
+                dailyCounts[dayOfWeek] += session.tabs.length;
             }
         });
 
         const maxCount = Math.max(...dailyCounts, 1);
-        const chartData = last7Days.map((date, idx) => ({
-            label: dayNames[date.getDay()],
+        const chartData = dayNames.map((label, idx) => ({
+            label,
             count: dailyCounts[idx],
             heightPct: Math.round((dailyCounts[idx] / maxCount) * 100),
-            isToday: idx === 6
+            isToday: now.getDay() === idx
         }));
 
         return {
@@ -254,13 +257,24 @@ export function RightSidebar({ hoveredTab, allSessions, theme }: RightSidebarPro
     };
 
     return (
-        <aside className="w-80 bg-white dark:bg-[#1e1e1e] border-l border-gray-200 dark:border-[#333] p-5 overflow-y-auto shrink-0 flex flex-col gap-6 z-10 shadow-lg transition-colors duration-200">
-            {/* LAST VIEW TAB PANEL (BLUE BOX) */}
-            <div className="bg-transparent rounded-xl p-4 flex flex-col select-none transition-all">
-                <div className="flex items-center justify-between mb-3">
-                    <span className="text-[10px] text-blue-500 dark:text-blue-400 font-bold uppercase tracking-widest">Last View Tab</span>
-                    <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
-                </div>
+        <div className="relative h-full flex shrink-0">
+            {/* Fixed Top-Right Toggle Button */}
+            <button
+                onClick={() => setIsMinimized(!isMinimized)}
+                className="absolute top-4 right-4 z-50 p-2 rounded-lg bg-white/80 dark:bg-[#252525]/80 backdrop-blur-sm border border-gray-200 dark:border-[#333] shadow-sm hover:bg-gray-100 dark:hover:bg-[#333] text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-all cursor-pointer"
+                title={isMinimized ? "Open Sidebar" : "Close Sidebar"}
+            >
+                {isMinimized ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
+            </button>
+
+            <aside className={`${isMinimized ? "w-0" : "w-80"} bg-white dark:bg-[#1e1e1e] h-full shrink-0 overflow-hidden z-10 shadow-lg dark:shadow-none transition-all duration-300`}>
+                <div className="w-80 h-full p-5 flex flex-col gap-6 overflow-y-auto custom-scrollbar">
+                    {/* LAST VIEW TAB PANEL (BLUE BOX) */}
+                    <div className="bg-transparent rounded-xl p-4 flex flex-col select-none transition-all">
+                        <div className="flex items-center justify-between mb-3">
+                            <span className="text-[10px] text-blue-500 dark:text-blue-400 font-bold uppercase tracking-widest">Last View Tab</span>
+                            <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                        </div>
 
                 {hoveredTab ? (
                     <div className="flex flex-col gap-3">
@@ -384,8 +398,8 @@ export function RightSidebar({ hoveredTab, allSessions, theme }: RightSidebarPro
                                 <div
                                     style={{ height: `${day.heightPct ? Math.max(day.heightPct * 0.4, 4) : 4}px` }}
                                     className={`w-4 rounded-t-sm transition-all duration-500 ${day.isToday
-                                            ? "bg-gradient-to-t from-blue-600 to-blue-400 shadow-md shadow-blue-500/20"
-                                            : "bg-gray-200 dark:bg-[#2b2b2b] hover:bg-gray-300 dark:hover:bg-[#3b3b3b]"
+                                        ? "bg-gradient-to-t from-blue-600 to-blue-400 shadow-md shadow-blue-500/20"
+                                        : "bg-gray-200 dark:bg-[#2b2b2b] hover:bg-gray-300 dark:hover:bg-[#3b3b3b]"
                                         }`}
                                     title={`${day.count} tabs saved on ${day.label}`}
                                 ></div>
@@ -395,6 +409,8 @@ export function RightSidebar({ hoveredTab, allSessions, theme }: RightSidebarPro
                     </div>
                 </div>
             </div>
-        </aside>
+                </div>
+            </aside>
+        </div>
     );
 }

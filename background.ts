@@ -86,7 +86,7 @@ chrome.runtime.onInstalled.addListener(() => {
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     if (info.menuItemId === "send-to-tabkeep") {
         const selectedTabs = await chrome.tabs.query({ highlighted: true, currentWindow: true });
-        const tabsToSave = selectedTabs.filter(t => !t.url.includes("dashboard.html"));
+        const tabsToSave = selectedTabs.filter(t => t.url && !t.url.includes("dashboard.html") && !t.pinned);
 
         if (tabsToSave.length > 0) {
             const savedTabs = tabsToSave.map(t => {

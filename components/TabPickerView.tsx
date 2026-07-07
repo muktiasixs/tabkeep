@@ -27,7 +27,7 @@ export function TabPickerView() {
     useEffect(() => {
         chrome.tabs.query({ currentWindow: true }).then((allTabs) => {
             const filtered = allTabs.filter(
-                (t) => t.url && !t.url.includes("dashboard.html")
+                (t) => t.url && !t.url.includes("dashboard.html") && !t.pinned
             ) as TabItem[];
             setTabs(filtered);
             // Default: semua dipilih
