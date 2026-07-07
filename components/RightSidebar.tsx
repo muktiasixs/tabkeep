@@ -261,7 +261,7 @@ export function RightSidebar({ hoveredTab, allSessions, theme }: RightSidebarPro
             {/* Fixed Top-Right Toggle Button */}
             <button
                 onClick={() => setIsMinimized(!isMinimized)}
-                className="absolute top-4 right-4 z-50 p-2 rounded-lg bg-white/80 dark:bg-[#252525]/80 backdrop-blur-sm border border-gray-200 dark:border-[#333] shadow-sm hover:bg-gray-100 dark:hover:bg-[#333] text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-all cursor-pointer"
+                className="absolute top-4 right-4 z-50 p-2 rounded-none bg-white/80 dark:bg-[#252525]/80 backdrop-blur-sm border border-gray-200 dark:border-[#333] shadow-sm hover:bg-gray-100 dark:hover:bg-[#333] text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-all cursor-pointer"
                 title={isMinimized ? "Open Sidebar" : "Close Sidebar"}
             >
                 {isMinimized ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
@@ -270,7 +270,7 @@ export function RightSidebar({ hoveredTab, allSessions, theme }: RightSidebarPro
             <aside className={`${isMinimized ? "w-0" : "w-80"} bg-white dark:bg-[#1e1e1e] h-full shrink-0 overflow-hidden z-10 shadow-lg dark:shadow-none transition-all duration-300`}>
                 <div className="w-80 h-full p-5 flex flex-col gap-6 overflow-y-auto custom-scrollbar">
                     {/* LAST VIEW TAB PANEL (BLUE BOX) */}
-                    <div className="bg-transparent rounded-xl p-4 flex flex-col select-none transition-all">
+                    <div className="bg-transparent rounded-none p-4 flex flex-col select-none transition-all">
                         <div className="flex items-center justify-between mb-3">
                             <span className="text-[10px] text-blue-500 dark:text-blue-400 font-bold uppercase tracking-widest">Last View Tab</span>
                             <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
@@ -293,7 +293,7 @@ export function RightSidebar({ hoveredTab, allSessions, theme }: RightSidebarPro
                         </div>
 
                         {/* Image Preview Container */}
-                        <div className="relative aspect-video w-full rounded-lg overflow-hidden bg-gray-100 dark:bg-[#121212] border border-gray-200 dark:border-[#2a2a2a] flex items-center justify-center">
+                        <div className="relative aspect-video w-full rounded-none overflow-hidden bg-gray-100 dark:bg-[#121212] border border-gray-200 dark:border-[#2a2a2a] flex items-center justify-center">
                             {localScreenshot ? (
                                 <img
                                     src={localScreenshot}
@@ -318,14 +318,14 @@ export function RightSidebar({ hoveredTab, allSessions, theme }: RightSidebarPro
             </div>
 
             {/* SYSTEM ANALYTICS PANEL (RED BOX) */}
-            <div className="bg-transparent rounded-xl p-4 flex flex-col">
+            <div className="bg-transparent rounded-none p-4 flex flex-col">
                 <div className="flex items-center justify-between mb-4 border-b border-gray-200 dark:border-[#333] pb-2">
                     <div className="flex items-center gap-2">
                         <Activity className="text-red-500 dark:text-red-400" size={16} />
                         <span className="text-[10px] text-gray-700 dark:text-gray-200 font-black uppercase tracking-widest">System Analytics</span>
                     </div>
                     <span className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-tighter">
-                        {allSessions.length} sessions · {analytics.totalTabsCount} tabs
+                        {allSessions.length} sessions Â· {analytics.totalTabsCount} tabs
                     </span>
                 </div>
 
@@ -381,7 +381,7 @@ export function RightSidebar({ hoveredTab, allSessions, theme }: RightSidebarPro
                 </div>
 
                 {/* Memory Impact Card */}
-                <div className="bg-white dark:bg-[#171717] rounded-lg p-3 border border-gray-200 dark:border-[#2a2a2a] flex justify-between items-center mb-5 hover:border-red-500/20 transition-colors shadow-sm dark:shadow-none">
+                <div className="bg-white dark:bg-[#171717] rounded-none p-3 border border-gray-200 dark:border-[#2a2a2a] flex justify-between items-center mb-5 hover:border-red-500/20 transition-colors shadow-sm dark:shadow-none">
                     <div className="flex items-center gap-2">
                         <Database className="text-gray-400 dark:text-gray-500" size={14} />
                         <span className="text-[11px] text-gray-600 dark:text-gray-400 font-semibold">Memory Saved</span>
@@ -392,7 +392,7 @@ export function RightSidebar({ hoveredTab, allSessions, theme }: RightSidebarPro
                 {/* Activity Trend (7d) */}
                 <div className="flex flex-col gap-2">
                     <span className="text-xs font-bold text-gray-500 dark:text-gray-400">Activity Trend (7d)</span>
-                    <div className="h-20 flex items-end justify-between px-1 bg-white dark:bg-[#171717]/60 rounded-lg p-2 border border-gray-200 dark:border-[#2a2a2a]/40 pt-4 shadow-sm dark:shadow-none">
+                    <div className="h-20 flex items-end justify-between px-1 bg-white dark:bg-[#171717]/60 rounded-none p-2 border border-gray-200 dark:border-[#2a2a2a]/40 pt-4 shadow-sm dark:shadow-none">
                         {analytics.chartData.map((day, idx) => (
                             <div key={idx} className="flex flex-col items-center flex-1 gap-1">
                                 <div

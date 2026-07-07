@@ -136,7 +136,7 @@ export function TabPickerView() {
     const noneSelected = selected.size === 0;
 
     return (
-        <div className="flex flex-col p-4 bg-transparent text-gray-900 dark:text-white rounded-lg select-none transition-colors" style={{ maxHeight: "560px" }}>
+        <div className="flex flex-col p-4 bg-transparent text-gray-900 dark:text-white rounded-none select-none transition-colors" style={{ maxHeight: "560px" }}>
             {/* TOP BAR / HEADER */}
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
@@ -147,7 +147,7 @@ export function TabPickerView() {
                 </div>
                 <button
                     onClick={openOrFocusDashboard}
-                    className="bg-[#4f46e5] hover:bg-[#4338ca] text-white text-[11px] px-3.5 py-1.5 rounded font-bold transition-all shadow-md active:scale-95"
+                    className="bg-[#4f46e5] hover:bg-[#4338ca] text-white text-[11px] px-3.5 py-1.5 rounded-none font-bold transition-all shadow-md active:scale-95"
                 >
                     Open Keep
                 </button>
@@ -159,7 +159,7 @@ export function TabPickerView() {
                     type="checkbox"
                     checked={allSelected}
                     onChange={toggleAll}
-                    className="w-3.5 h-3.5 rounded border-gray-300 dark:border-gray-600 bg-transparent text-blue-500 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                    className="w-3.5 h-3.5 rounded-none border-gray-300 dark:border-gray-600 bg-transparent text-blue-500 focus:ring-0 focus:ring-offset-0 cursor-pointer"
                 />
                 <span className="text-xs text-gray-700 dark:text-gray-300 font-semibold">Select all</span>
             </label>
@@ -177,11 +177,11 @@ export function TabPickerView() {
                             <div
                                 key={tab.id}
                                 onClick={(e) => handleTabClick(e, tab.id, idx)}
-                                className={`flex items-center gap-2 py-0.5 px-1 rounded transition-all group cursor-pointer ${isChecked ? "bg-blue-100/50 dark:bg-blue-900/30" : "hover:bg-gray-100 dark:hover:bg-white/[0.02]"}`}
+                                className={`flex items-center gap-2 py-0.5 px-1 rounded-none transition-all group cursor-pointer ${isChecked ? "bg-blue-100/50 dark:bg-blue-900/30" : "hover:bg-gray-100 dark:hover:bg-white/[0.02]"}`}
                             >
                                 <img
                                     src={tab.favIconUrl || "https://www.google.com/s2/favicons?domain=google.com&sz=32"}
-                                    className="w-3.5 h-3.5 flex-shrink-0 rounded-sm ml-2"
+                                    className="w-3.5 h-3.5 flex-shrink-0 rounded-none ml-2"
                                     onError={(e) => { (e.target as HTMLImageElement).src = "https://www.google.com/s2/favicons?domain=google.com"; }}
                                 />
 
@@ -205,7 +205,7 @@ export function TabPickerView() {
                     <button
                         onClick={handleSave}
                         disabled={noneSelected || saving}
-                        className={`font-bold px-3 py-2 rounded transition-all shadow-md text-xs tracking-wide ${noneSelected || saving
+                        className={`font-bold px-3 py-2 rounded-none transition-all shadow-md text-xs tracking-wide ${noneSelected || saving
                             ? "bg-[#222] text-gray-600 cursor-not-allowed"
                             : "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white active:scale-95 shadow-blue-500/30"
                             }`}
@@ -217,7 +217,7 @@ export function TabPickerView() {
                     <button
                         onClick={handleCopy}
                         disabled={noneSelected}
-                        className={`text-xs font-bold px-3 py-2 rounded transition-all shadow-sm ${noneSelected
+                        className={`text-xs font-bold px-3 py-2 rounded-none transition-all shadow-sm ${noneSelected
                             ? "bg-[#222] text-gray-600 cursor-not-allowed"
                             : "bg-white/10 hover:bg-white/20 text-white active:scale-95"
                             }`}
@@ -227,7 +227,7 @@ export function TabPickerView() {
                     <button
                         onClick={handlePasteClipboard}
                         style={{ backgroundColor: "white", color: "black" }}
-                        className="text-xs font-bold px-3 py-2 rounded transition-all shadow-sm active:scale-95 hover:bg-gray-200 hover:text-black"
+                        className="text-xs font-bold px-3 py-2 rounded-none transition-all shadow-sm active:scale-95 hover:bg-gray-200 hover:text-black"
                     >
                         Paste clipboard link
                     </button>

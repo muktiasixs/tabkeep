@@ -25,7 +25,7 @@ export function DeletedSessionBox({ session, onRestore, onPermanentDelete, theme
     };
 
     return (
-        <div className="bg-white dark:bg-[#1e1e1e] rounded-lg mb-4 overflow-hidden shadow-md dark:shadow-none transition-all duration-300">
+        <div className="bg-white dark:bg-[#1e1e1e] rounded-none mb-4 overflow-hidden shadow-md dark:shadow-none transition-all duration-300">
             {/* Header */}
             <div
                 className="p-4 bg-gray-50 dark:bg-[#252525] border-b border-gray-200 dark:border-[#333] flex justify-between items-center cursor-pointer hover:bg-gray-100 dark:hover:bg-[#2a2a2a] transition-colors"
@@ -45,7 +45,7 @@ export function DeletedSessionBox({ session, onRestore, onPermanentDelete, theme
                     <button
                         onClick={handleRestore}
                         title={session.folderId ? "Pulihkan session ke folder asalnya" : "Pulihkan session ke Uncategorized"}
-                        className="flex items-center gap-1 text-[11px] text-blue-600 dark:text-blue-500 font-bold hover:text-blue-500 dark:hover:text-blue-400 transition-colors px-2 py-1 rounded bg-blue-50 dark:bg-blue-500/10"
+                        className="flex items-center gap-1 text-[11px] text-blue-600 dark:text-blue-500 font-bold hover:text-blue-500 dark:hover:text-blue-400 transition-colors px-2 py-1 rounded-none bg-blue-50 dark:bg-blue-500/10"
                     >
                         <RotateCcw size={12} />
                         Restore
@@ -53,7 +53,7 @@ export function DeletedSessionBox({ session, onRestore, onPermanentDelete, theme
                     <button
                         onClick={handlePermanentDelete}
                         title="Hapus permanen"
-                        className="flex items-center gap-1 text-[11px] text-red-600 dark:text-red-500 font-bold hover:text-red-500 dark:hover:text-red-400 transition-colors px-2 py-1 rounded bg-red-50 dark:bg-red-500/10"
+                        className="flex items-center gap-1 text-[11px] text-red-600 dark:text-red-500 font-bold hover:text-red-500 dark:hover:text-red-400 transition-colors px-2 py-1 rounded-none bg-red-50 dark:bg-red-500/10"
                     >
                         <Trash2 size={12} />
                         Delete Forever
@@ -67,7 +67,7 @@ export function DeletedSessionBox({ session, onRestore, onPermanentDelete, theme
                     {session.tabs.map((tab, idx) => (
                         <li
                             key={idx}
-                            className="flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-[#252525] p-2 rounded group transition-colors opacity-60"
+                            className="flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-[#252525] p-2 rounded-none group transition-colors opacity-60"
                         >
                             <img
                                 src={tab.favIconUrl || "https://www.google.com/s2/favicons?domain=google.com&sz=32"}

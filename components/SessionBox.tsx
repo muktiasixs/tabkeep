@@ -26,10 +26,11 @@ interface Props {
     onReorderSession?: (draggedId: string, targetId: string, position: "before" | "after") => void;
     selectedTabs?: SelectedTab[];
     onToggleTabSelection?: (sessionId: string, tabIndex: number, url: string, isShift: boolean) => void;
+    viewMode?: "list" | "grid" | "graph";
     theme?: string;
 }
 
-export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSession, onMoveFolder, onMoveTab, onMoveMultiTabs, onMoveTabToFolder, onMoveMultiTabsToFolder, onMergeSessions, onDeleteTab, onTabHover, onPinTab, onUnpinTab, onDropPinnedLinkToSession, onReorderTab, onReorderSession, selectedTabs, onToggleTabSelection, theme }: Props) {
+export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSession, onMoveFolder, onMoveTab, onMoveMultiTabs, onMoveTabToFolder, onMoveMultiTabsToFolder, onMergeSessions, onDeleteTab, onTabHover, onPinTab, onUnpinTab, onDropPinnedLinkToSession, onReorderTab, onReorderSession, selectedTabs, onToggleTabSelection, viewMode = "list", theme }: Props) {
     const [isExpanded, setIsExpanded] = useState(true);
     const [isDragOver, setIsDragOver] = useState(false);
     const [sessionDropPos, setSessionDropPos] = useState<"before" | "after" | null>(null);
@@ -339,14 +340,14 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
 
     return (
         <div className="relative pb-4">
-            {/* Session reorder drop indicator – before */}
+            {/* Session reorder drop indicator ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ before */}
             {sessionDropPos === "before" && (
                 <div className="absolute top-[-2px] left-1 right-1 h-1 bg-blue-500 rounded-full pointer-events-none z-10" />
             )}
             <div
                 draggable
                 onDragStart={handleSessionDragStart}
-                className={`bg-white dark:bg-[#1a1a1a] rounded-lg shadow-sm dark:shadow-none transition-all animate-in fade-in duration-300 ${isDragOver ? "ring-2 ring-blue-500/50 shadow-blue-500/20" : ""
+                className={`bg-white dark:bg-[#1a1a1a] rounded-none shadow-sm dark:shadow-none transition-all animate-in fade-in duration-300 ${isDragOver ? "ring-2 ring-blue-500/50 shadow-blue-500/20" : ""
                     }`}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
@@ -354,12 +355,12 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
             >
                 {/* Header */}
                 <div
-                    className={`group/header p-4 bg-transparent flex justify-between items-center hover:bg-gray-50/50 dark:hover:bg-white/[0.02] rounded-t-lg ${!isExpanded ? 'rounded-b-lg' : ''}`}
+                    className={`group/header p-4 bg-transparent flex justify-between items-center hover:bg-gray-50/50 dark:hover:bg-white/[0.02] rounded-none ${!isExpanded ? 'rounded-none' : ''}`}
                 >
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                         {/* Chevron button to toggle expand/collapse */}
                         <div 
-                            className="p-1 rounded-md hover:bg-gray-200 dark:hover:bg-[#333] transition-colors cursor-pointer"
+                            className="p-1 rounded-none hover:bg-gray-200 dark:hover:bg-[#333] transition-colors cursor-pointer"
                             onClick={(e) => {
                                 e.stopPropagation();
                                 setIsExpanded(!isExpanded);
@@ -379,7 +380,7 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                                 onBlur={commitEdit}
                                 onKeyDown={handleKeyDown}
                                 onClick={(e) => e.stopPropagation()}
-                                className="bg-white dark:bg-[#1a1a1a] border border-blue-500 rounded px-2 py-0.5 text-lg font-bold text-gray-900 dark:text-white outline-none flex-1 min-w-0"
+                                className="bg-white dark:bg-[#1a1a1a] border border-blue-500 rounded-none px-2 py-0.5 text-lg font-bold text-gray-900 dark:text-white outline-none flex-1 min-w-0"
                             />
                         ) : (
                             <h3
@@ -414,13 +415,13 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                                     setIsMenuOpen(!isMenuOpen);
                                     if (isMenuOpen) setMenuView('main');
                                 }}
-                                className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 p-1.5 rounded hover:bg-gray-200 dark:hover:bg-[#333] transition-colors"
+                                className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 p-1.5 rounded-none hover:bg-gray-200 dark:hover:bg-[#333] transition-colors"
                             >
                                 <MoreHorizontal size={16} />
                             </button>
                             
                             {isMenuOpen && (
-                                <div className="absolute right-0 top-full mt-1 w-52 bg-white dark:bg-[#252525] border border-gray-200 dark:border-[#333] rounded-lg shadow-xl z-50 py-1 text-left flex flex-col overflow-hidden">
+                                <div className="absolute right-0 top-full mt-1 w-52 bg-white dark:bg-[#252525] border border-gray-200 dark:border-[#333] rounded-none shadow-xl z-50 py-1 text-left flex flex-col overflow-hidden">
                                     {menuView === 'main' && (
                                         <>
                                             <button
@@ -655,7 +656,7 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                 {isExpanded && (
                     <>
                         <hr className="mx-5 border-gray-100 dark:border-[#333]" />
-                        <ul className="py-1 px-3 bg-transparent">
+                        <ul className={`py-1 px-3 bg-transparent ${viewMode === "grid" ? "flex flex-wrap gap-1" : ""}`}>
                             {session.tabs.map((tab, idx) => {
                                 const isPinned = pinnedLinks.some(p => p.url === tab.url);
                                 const isSelected = selectedTabs?.some(t => t.sessionId === session.id && t.tabIndex === idx) || false;
@@ -663,7 +664,7 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
 
                                 return (
                                     <React.Fragment key={idx}>
-                                        {/* Tab reorder drop indicator – before */}
+                                        {/* Tab reorder drop indicator ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ before */}
                                         {tabDropTarget?.idx === idx && tabDropTarget.pos === "before" && (
                                             <div className="absolute left-2 right-2 h-0.5 bg-blue-500 rounded-full pointer-events-none z-10" />
                                         )}
@@ -728,15 +729,17 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                                                 }
                                             }}
                                             onMouseEnter={() => onTabHover?.({ ...tab, sessionTimestamp: session.timestamp })}
-                                            className={`flex items-center gap-2.5 py-1 px-2 rounded cursor-grab active:cursor-grabbing group transition-colors ${isSelected
+                                            title={viewMode === "grid" ? tab.title || "Untitled Tab" : undefined}
+                                            className={`flex items-center cursor-grab active:cursor-grabbing group transition-colors ${viewMode === "grid" ? "justify-center p-1 rounded-none w-7 h-7 relative" : "gap-2.5 py-1 px-2 rounded-none"} ${isSelected
                                                 ? "bg-blue-50 dark:bg-blue-900/30"
                                                 : isArchived
                                                     ? "bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(0,0,0,0.02)_10px,rgba(0,0,0,0.02)_20px)] dark:bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(255,255,255,0.02)_10px,rgba(255,255,255,0.02)_20px)] hover:bg-gray-100 dark:hover:bg-[#2a2a2a]"
                                                     : "hover:bg-blue-50/50 dark:hover:bg-[#252525]"
                                                 }`}
                                         >
-                                            <div className={`flex items-center justify-center transition-opacity ${isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
-                                                onClick={(e) => {
+                                            {viewMode !== "grid" && (
+                                                <div className={`flex items-center justify-center transition-opacity ${isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+                                                    onClick={(e) => {
                                                     e.stopPropagation();
                                                     onToggleTabSelection?.(session.id, idx, tab.url, e.shiftKey);
                                                 }}
@@ -745,20 +748,23 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                                                     type="checkbox"
                                                     checked={isSelected}
                                                     readOnly
-                                                    className="w-3 h-3 cursor-pointer accent-blue-500 rounded-sm border-gray-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-blue-600 focus:ring-offset-gray-100 dark:focus:ring-offset-gray-800"
+                                                    className="w-3 h-3 cursor-pointer accent-blue-500 rounded-none border-gray-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-blue-600 focus:ring-offset-gray-100 dark:focus:ring-offset-gray-800"
                                                 />
-                                            </div>
+                                                </div>
+                                            )}
                                             <img
                                                 src={tab.favIconUrl || "https://www.google.com/s2/favicons?domain=google.com&sz=32"}
-                                                className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100 bg-gray-100 dark:bg-white/10 rounded-sm flex-shrink-0"
+                                                className={`${viewMode === "grid" ? "w-4 h-4" : "w-3.5 h-3.5"} opacity-60 group-hover:opacity-100 flex-shrink-0`}
                                                 onError={(e) => { (e.target as HTMLImageElement).src = "https://www.google.com/s2/favicons?domain=google.com"; }}
                                                 draggable={false}
                                             />
-                                            <div className="flex-1 overflow-hidden flex flex-col justify-center">
-                                                <span
-                                                    onClick={(e) => { e.stopPropagation(); handleOpenTab(tab.url, e, idx); }}
-                                                    className={`text-[14px] font-normal select-none cursor-pointer transition-colors truncate block ${isArchived ? "text-gray-400 dark:text-gray-500 line-through decoration-gray-300 dark:decoration-gray-600" : "text-[#4a90e2] dark:text-[#58a6ff] hover:underline"}`}
-                                                >
+                                            {viewMode !== "grid" && (
+                                                <>
+                                                <div className="flex-1 overflow-hidden flex flex-col justify-center">
+                                                    <span
+                                                        onClick={(e) => { e.stopPropagation(); handleOpenTab(tab.url, e, idx); }}
+                                                        className={`text-[14px] font-normal select-none cursor-pointer transition-colors truncate block ${isArchived ? "text-gray-400 dark:text-gray-500 line-through decoration-gray-300 dark:decoration-gray-600" : "text-[#4a90e2] dark:text-[#58a6ff] hover:underline"}`}
+                                                    >
                                                     {tab.title || "Untitled Tab"}
                                                 </span>
                                                 {settings.urlDisplayOption !== "none" && (
@@ -776,7 +782,7 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                                             <button
                                                 onClick={(e) => handlePinTabClick(e, tab)}
                                                 title={isPinned ? "Unpin dari sidebar" : "Pin ke sidebar"}
-                                                className={`transition-all p-1 rounded-sm flex-shrink-0 ${isPinned
+                                                className={`transition-all p-1 rounded-none flex-shrink-0 ${isPinned
                                                     ? "text-amber-500 dark:text-amber-400 opacity-100"
                                                     : "opacity-0 group-hover:opacity-100 text-gray-400 hover:text-amber-500 dark:hover:text-amber-400"
                                                     }`}
@@ -790,10 +796,12 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                                                     className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-500 dark:hover:text-red-400 flex-shrink-0"
                                                 >
                                                     <X size={11} />
-                                                </button>
+                                                    </button>
+                                                )}
+                                                </>
                                             )}
                                         </li>
-                                        {/* Tab reorder drop indicator – after last item */}
+                                        {/* Tab reorder drop indicator ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ after last item */}
                                         {tabDropTarget?.idx === idx && tabDropTarget.pos === "after" && (
                                             <div className="absolute left-2 right-2 h-0.5 bg-blue-500 rounded-full pointer-events-none z-10" />
                                         )}
@@ -804,7 +812,7 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                     </>
                 )}
             </div>
-            {/* Session reorder drop indicator – after */}
+            {/* Session reorder drop indicator ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ after */}
             {sessionDropPos === "after" && (
                 <div className="absolute bottom-[-2px] left-1 right-1 h-1 bg-blue-500 rounded-full pointer-events-none z-10" />
             )}

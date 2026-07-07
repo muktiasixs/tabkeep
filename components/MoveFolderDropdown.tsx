@@ -33,14 +33,14 @@ export function MoveFolderDropdown({ sessionId, currentFolderId, folders, onMove
             <button
                 onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
                 title="Pindah ke folder"
-                className="flex items-center gap-1 text-[11px] text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 font-bold transition-colors px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-white/5"
+                className="flex items-center gap-1 text-[11px] text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 font-bold transition-colors px-2 py-1 rounded-none hover:bg-gray-100 dark:hover:bg-white/5"
             >
                 <MoveRight size={11} />
                 Pindahkan
             </button>
 
             {open && (
-                <div className="absolute right-0 top-7 z-50 bg-white dark:bg-[#252525] border border-gray-200 dark:border-[#444] rounded-lg shadow-2xl py-1 w-48 animate-in fade-in duration-100 transition-colors">
+                <div className="absolute right-0 top-7 z-50 bg-white dark:bg-[#252525] border border-gray-200 dark:border-[#444] rounded-none shadow-2xl py-1 w-48 animate-in fade-in duration-100 transition-colors">
                     <div className="px-3 py-1.5 text-[10px] text-gray-400 dark:text-gray-600 font-bold uppercase tracking-wider border-b border-gray-100 dark:border-[#333] mb-1">
                         Pindah ke folder
                     </div>
