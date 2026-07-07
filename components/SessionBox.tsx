@@ -65,6 +65,38 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
 
     if (!session || !session.tabs) return null;
 
+    const handleSwitchSession = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setIsMenuOpen(false);
+        setMenuView('main');
+
+        const currentTabs = await new Promise<chrome.tabs.Tab[]>((resolve) => {
+            chrome.tabs.query({ currentWindow: true }, resolve);
+        });
+
+        const tabsToSave = currentTabs.filter(t => t.url && !t.url.includes("dashboard.html") && !t.pinned);
+        const newSavedTabs = tabsToSave.map(t => ({
+            title: t.title || "No Title",
+            url: t.url || "",
+            favIconUrl: t.favIconUrl || "",
+            id: crypto.randomUUID()
+        }));
+
+        const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        handleUpdateSession({ tabs: newSavedTabs, timestamp: now });
+
+        for (const tab of session.tabs) {
+            if (tab.url) {
+                await chrome.tabs.create({ url: tab.url, active: false });
+            }
+        }
+
+        const tabIdsToRemove = tabsToSave.map(t => t.id).filter(id => id !== undefined) as number[];
+        if (tabIdsToRemove.length > 0) {
+            await chrome.tabs.remove(tabIdsToRemove);
+        }
+    };
+
     const handleRestoreAll = async (e: React.MouseEvent) => {
         e.stopPropagation();
 
@@ -314,7 +346,7 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
             <div
                 draggable
                 onDragStart={handleSessionDragStart}
-                className={`bg-white dark:bg-[#242424] rounded-lg border shadow-sm transition-all animate-in fade-in duration-300 ${isDragOver ? "border-blue-500 shadow-blue-500/20" : "border-gray-200 dark:border-[#333]"
+                className={`bg-white dark:bg-[#1a1a1a] rounded-lg shadow-sm dark:shadow-none transition-all animate-in fade-in duration-300 ${isDragOver ? "ring-2 ring-blue-500/50 shadow-blue-500/20" : ""
                     }`}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
@@ -322,9 +354,9 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
             >
                 {/* Header */}
                 <div
-                    className={`group/header px-5 pt-4 pb-2 bg-transparent flex justify-between items-center hover:bg-gray-50/50 dark:hover:bg-white/[0.02] rounded-t-lg ${!isExpanded ? 'rounded-b-lg' : ''}`}
+                    className={`group/header p-4 bg-transparent flex justify-between items-center hover:bg-gray-50/50 dark:hover:bg-white/[0.02] rounded-t-lg ${!isExpanded ? 'rounded-b-lg' : ''}`}
                 >
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
                         {/* Chevron button to toggle expand/collapse */}
                         <div 
                             className="p-1 rounded-md hover:bg-gray-200 dark:hover:bg-[#333] transition-colors cursor-pointer"
@@ -334,48 +366,48 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                             }}
                         >
                             {isExpanded
-                                ? <ChevronDown size={16} className="text-gray-500 dark:text-gray-400" />
-                                : <ChevronRight size={16} className="text-gray-500 dark:text-gray-400" />
+                                ? <ChevronDown size={14} className="text-gray-600 dark:text-gray-400" />
+                                : <ChevronRight size={14} className="text-gray-600 dark:text-gray-400" />
                             }
                         </div>
                         {editing ? (
                             <input
                                 ref={inputRef}
+                                autoFocus
                                 value={editValue}
                                 onChange={(e) => setEditValue(e.target.value)}
                                 onBlur={commitEdit}
                                 onKeyDown={handleKeyDown}
                                 onClick={(e) => e.stopPropagation()}
-                                className="bg-white dark:bg-[#1a1a1a] border border-blue-500 rounded px-2 py-0.5 text-sm text-gray-900 dark:text-white outline-none w-48"
+                                className="bg-white dark:bg-[#1a1a1a] border border-blue-500 rounded px-2 py-0.5 text-lg font-bold text-gray-900 dark:text-white outline-none flex-1 min-w-0"
                             />
                         ) : (
                             <h3
-                                className="text-[22px] font-normal text-gray-700 dark:text-[#a0a0a0] tracking-tight flex items-center gap-2 transition-colors ml-1 cursor-text"
+                                className="text-lg font-bold text-gray-900 dark:text-white tracking-tight flex-1 truncate hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-text flex items-center gap-2"
                                 onDoubleClick={(e) => {
                                     e.stopPropagation();
                                     startEdit(e);
                                 }}
                                 title="Double click to rename"
                             >
-                                {(session.name || "").match(/^(New Session|Saved tabs|Imported Session|Pinned Link|Session \d+)$/i) ? `${session.tabs.length} tabs` : (session.name || "Unnamed Session")}
-                                {!(session.name || "").match(/^(New Session|Saved tabs|Imported Session|Pinned Link|Session \d+)$/i) && (
-                                    <span className="text-[22px] font-normal text-gray-500 dark:text-[#777] ml-2">
-                                        {session.tabs.length} tabs
-                                    </span>
-                                )}
+                                {(session.name || "Unnamed Session")}
                                 {(session as any).isStarred && (
-                                    <Star size={18} className="fill-amber-500 text-amber-500 ml-1 flex-shrink-0" />
+                                    <Star size={16} className="fill-amber-500 text-amber-500 flex-shrink-0" />
                                 )}
                             </h3>
                         )}
                     </div>
 
-                    <div className="flex items-center gap-1 opacity-0 group-hover/header:opacity-100 transition-opacity">
-                        <span className="text-[11px] text-gray-400 dark:text-gray-500 font-mono italic mr-2 whitespace-nowrap">
+                    <div className="flex items-center gap-3 shrink-0 ml-4">
+                        <span className="text-[11px] text-gray-400 dark:text-gray-500 font-mono italic whitespace-nowrap">
                             {session.timestamp || "Just now"}
                         </span>
                         
-                        <div className="relative" ref={menuRef}>
+                        <span className="text-xs font-mono font-bold text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-white/10 px-2 py-0.5 rounded-full">
+                            {session.tabs.length} tabs
+                        </span>
+                        
+                        <div className="relative opacity-0 group-hover/header:opacity-100 transition-opacity" ref={menuRef}>
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
@@ -412,6 +444,12 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                                                 className="flex items-center gap-3 px-3 py-2 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
                                             >
                                                 <Monitor size={14} /> Restore in this window
+                                            </button>
+                                            <button
+                                                onClick={handleSwitchSession}
+                                                className="flex items-center gap-3 px-3 py-2 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
+                                            >
+                                                <RotateCcw size={14} /> Switch session
                                             </button>
                                             <button
                                                 onClick={(e) => {

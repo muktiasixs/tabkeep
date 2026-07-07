@@ -148,9 +148,9 @@ export function MainFolderAccordion({ folder, sessions, allFolders, onDeleteSess
     };
 
     return (
-        <div className={`relative mb-1.5 last:mb-0 bg-white dark:bg-[#1a1a1a] rounded-2xl border transition-all ${isDragOver && !folderDropPos
-            ? "border-blue-500 ring-2 ring-blue-500/20"
-            : "border-gray-200 dark:border-[#333]"
+        <div className={`relative mb-1.5 last:mb-0 bg-white dark:bg-[#1a1a1a] rounded-lg shadow-sm dark:shadow-none transition-all ${isDragOver && !folderDropPos
+            ? "ring-2 ring-blue-500/50"
+            : ""
             }`}>
             {folderDropPos === "before" && (
                 <div className="absolute -top-3 left-0 right-0 h-1 bg-blue-500 rounded-full pointer-events-none z-10" />
@@ -163,7 +163,7 @@ export function MainFolderAccordion({ folder, sessions, allFolders, onDeleteSess
                 }}
                 onDragOver={handleDragOver}
                 onDrop={handleDrop}
-                className={`flex items-center gap-3 group p-4 transition-all rounded-t-2xl ${!isExpanded ? "rounded-b-2xl" : ""}`}
+                className={`flex items-center gap-3 group p-4 transition-all rounded-t-lg ${!isExpanded ? "rounded-b-lg" : ""}`}
             >
                 <div 
                     className="p-1 rounded-md bg-gray-200 dark:bg-[#333] hover:bg-gray-300 dark:hover:bg-[#444] transition-colors cursor-pointer"

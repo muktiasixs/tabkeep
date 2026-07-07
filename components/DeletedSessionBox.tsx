@@ -25,7 +25,7 @@ export function DeletedSessionBox({ session, onRestore, onPermanentDelete, theme
     };
 
     return (
-        <div className="bg-white dark:bg-[#1e1e1e] rounded-lg border border-gray-200 dark:border-[#333] mb-4 overflow-hidden shadow-sm dark:shadow-lg transition-all duration-300">
+        <div className="bg-white dark:bg-[#1e1e1e] rounded-lg mb-4 overflow-hidden shadow-md dark:shadow-none transition-all duration-300">
             {/* Header */}
             <div
                 className="p-4 bg-gray-50 dark:bg-[#252525] border-b border-gray-200 dark:border-[#333] flex justify-between items-center cursor-pointer hover:bg-gray-100 dark:hover:bg-[#2a2a2a] transition-colors"

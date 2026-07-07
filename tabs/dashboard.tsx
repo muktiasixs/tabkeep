@@ -999,10 +999,10 @@ export default function TabkeepDashboard() {
     return (
         <div className="bg-[#f5f5f7] dark:bg-[#171717] text-gray-700 dark:text-gray-300 font-sans h-screen flex flex-col overflow-hidden transition-colors duration-200">
             {/* NAVBAR */}
-            <header className="flex items-center justify-between px-6 h-16 bg-white dark:bg-[#1e1e1e] border-b border-gray-200 dark:border-[#333] shrink-0 z-20 shadow-md transition-colors duration-200">
+            <header className="flex items-center justify-between px-6 h-16 bg-white dark:bg-[#1e1e1e] shrink-0 z-20 shadow-md transition-colors duration-200">
                 <h1 className="text-2xl font-black text-gray-900 dark:text-white tracking-tighter" style={{ fontFamily: "'BBH Hegarty', sans-serif" }}>Tabkeep</h1>
 
-                <div className="flex-1 max-w-xl mx-8 relative">
+                <div className="flex-1 max-w-5xl mx-8 relative">
                     <div className="relative w-full">
                         <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                             <Search size={16} className="text-gray-400 dark:text-gray-500" />
@@ -1012,7 +1012,7 @@ export default function TabkeepDashboard() {
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder="Search tabs.."
-                            className="w-full pl-10 pr-10 py-2 bg-gray-50 dark:bg-[#121212]/80 text-gray-950 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-600 rounded-lg border border-gray-200 dark:border-[#2a2a2a] focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm transition-all shadow-inner"
+                            className="w-full pl-10 pr-10 py-2 bg-gray-50 dark:bg-[#121212]/80 text-gray-950 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-sm transition-all shadow-inner"
                         />
                         {searchQuery && (
                             <button
@@ -1028,14 +1028,14 @@ export default function TabkeepDashboard() {
                 <div className="flex items-center gap-4">
                     <button
                         onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                        className="p-1.5 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-gray-200 dark:border-white/10 transition-colors"
+                        className="p-1.5 rounded-lg text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
                         title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
                     >
                         {theme === "dark" ? <Sun size={14} /> : <Moon size={14} />}
                     </button>
                     <button
                         onClick={() => setIsSettingsOpen(true)}
-                        className="p-1.5 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-gray-200 dark:border-white/10 transition-colors"
+                        className="p-1.5 rounded-lg text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
                         title="Settings"
                     >
                         <Settings size={14} />
@@ -1045,7 +1045,7 @@ export default function TabkeepDashboard() {
 
             <div className="flex flex-1 overflow-hidden">
                 {/* SIDEBAR */}
-                <aside className="w-64 bg-white dark:bg-[#1e1e1e] border-r border-gray-200 dark:border-[#333] flex flex-col p-4 shrink-0 overflow-y-auto custom-scrollbar transition-colors duration-200">
+                <aside className="w-64 bg-white dark:bg-[#1e1e1e] flex flex-col p-4 shrink-0 overflow-y-auto custom-scrollbar transition-colors duration-200 z-10 shadow-lg dark:shadow-none">
                     <div className="mb-3 px-1 text-sm font-bold text-gray-400 dark:text-gray-600 uppercase tracking-[0.2em] opacity-60">
                         Workspace
                     </div>
@@ -1169,16 +1169,13 @@ export default function TabkeepDashboard() {
                         }
                     }}
                 >
-                    <div className="max-w-4xl mx-auto">
+                    <div className="w-full max-w-5xl mx-auto transition-all duration-300">
                         <div className="flex items-center gap-4 mb-10 border-b border-gray-200 dark:border-[#333] pb-6">
                             {activeFolderId === "all"
-                                ? <Archive className="text-gray-800 dark:text-white mt-1" size={32} strokeWidth={2.5} />
-                                : <FolderOpen className="text-blue-500 dark:text-blue-400 mt-1" size={32} strokeWidth={2.5} />
+                                ? <Archive className="text-gray-800 dark:text-white" size={32} strokeWidth={2.5} />
+                                : <FolderOpen className="text-blue-500 dark:text-blue-400" size={32} strokeWidth={2.5} />
                             }
-                            <div>
-                                <h2 className="text-3xl font-black text-gray-900 dark:text-white">{mainTitle}</h2>
-                                <p className="text-sm font-semibold text-gray-400 dark:text-gray-500 mt-1 select-none">{displayedTabsCount} tabs</p>
-                            </div>
+                            <h2 className="text-3xl font-black text-gray-900 dark:text-white">{mainTitle}</h2>
 
                             {/* Dropdown for All Sessions */}
                             {activeFolderId === "all" && (
