@@ -3,7 +3,16 @@ import { X, Upload, Download, Globe } from "lucide-react";
 import { useTabkeepStorage } from "~hooks/useTabkeepStorage";
 import { updateSessions, updateSettings } from "~lib/storage";
 import { parseImportedLines } from "~lib/linkParser";
+import { uploadToGDrive, downloadFromGDrive } from "~lib/gdrive";
 import type { Session, Settings } from "~types";
+
+const GoogleDriveIcon = ({ size = 16 }: { size?: number }) => (
+    <svg width={size} height={size} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0">
+        <path fill="#0F9D58" d="M18.3 8.8L0 40.5 10.7 59 29 27.3z" />
+        <path fill="#FFC107" d="M61 35.3L42.7 3.6H21.3l18.3 31.7H61z" />
+        <path fill="#4285F4" d="M28.7 40.5L18 59h35.3L64 40.5H28.7z" />
+    </svg>
+);
 
 interface SettingsModalProps {
     isOpen: boolean;
@@ -16,6 +25,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     const [importData, setImportData] = useState("");
     const [isRendered, setIsRendered] = useState(isOpen);
     const [isVisible, setIsVisible] = useState(isOpen);
+
+    // Google Drive Sync States
+    const [gdriveSyncState, setGdriveSyncState] = useState<"idle" | "syncing" | "success" | "error">("idle");
+    const [gdriveImportState, setGdriveImportState] = useState<"idle" | "loading" | "success" | "error">("idle");
+    const [gdriveErrorMsg, setGdriveErrorMsg] = useState("");
 
     useEffect(() => {
         let renderTimer: ReturnType<typeof setTimeout>;
@@ -38,6 +52,53 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     }, [isOpen]);
 
     const exportData = sessions.map(session => session.tabs.map(tab => tab.url).join("\n")).join("\n\n");
+
+    const handleDownloadTxt = () => {
+        try {
+            const blob = new Blob([exportData], { type: "text/plain;charset=utf-8" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = `tabkeep-backup-${new Date().toISOString().slice(0, 10)}.txt`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            alert("Gagal mengunduh file TXT.");
+        }
+    };
+
+    const handleSyncToGDrive = async () => {
+        setGdriveSyncState("syncing");
+        setGdriveErrorMsg("");
+        try {
+            await uploadToGDrive(exportData);
+            setGdriveSyncState("success");
+            setTimeout(() => setGdriveSyncState("idle"), 3000);
+        } catch (err: any) {
+            console.error(err);
+            setGdriveSyncState("error");
+            setGdriveErrorMsg(err.message || "Gagal sinkronisasi ke Google Drive.");
+            alert(err.message || "Gagal sinkronisasi ke Google Drive.");
+        }
+    };
+
+    const handleImportFromGDrive = async () => {
+        setGdriveImportState("loading");
+        setGdriveErrorMsg("");
+        try {
+            const backupContent = await downloadFromGDrive();
+            setImportData(backupContent);
+            setGdriveImportState("success");
+            setTimeout(() => setGdriveImportState("idle"), 3000);
+        } catch (err: any) {
+            console.error(err);
+            setGdriveImportState("error");
+            setGdriveErrorMsg(err.message || "Gagal mengunduh backup dari Google Drive.");
+            alert(err.message || "Gagal mengunduh backup dari Google Drive.");
+        }
+    };
 
     const handleImport = async () => {
         if (!importData.trim()) return;
@@ -259,10 +320,33 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                             readOnly
                             value={exportData}
                         />
-                        <div className="flex justify-end">
+                        <div className="flex justify-end gap-2.5">
+                            <button
+                                onClick={handleDownloadTxt}
+                                className="bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 border border-black/10 dark:border-white/20 text-gray-900 dark:text-white font-bold py-1.5 px-4 rounded-none transition-colors text-sm flex items-center gap-2"
+                            >
+                                <Download size={14} />
+                                Download TXT
+                            </button>
+                            <button
+                                onClick={handleSyncToGDrive}
+                                disabled={gdriveSyncState === "syncing"}
+                                className={`font-bold py-1.5 px-4 rounded-none transition-colors text-sm flex items-center gap-2 border ${
+                                    gdriveSyncState === "syncing"
+                                        ? "bg-gray-100 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-400 cursor-not-allowed"
+                                        : gdriveSyncState === "success"
+                                        ? "bg-green-50 dark:bg-green-500/10 border-green-200 dark:border-green-500/20 text-green-600 dark:text-green-400"
+                                        : gdriveSyncState === "error"
+                                        ? "bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400"
+                                        : "bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 border border-black/10 dark:border-white/20 text-gray-900 dark:text-white"
+                                }`}
+                            >
+                                <GoogleDriveIcon size={16} />
+                                {gdriveSyncState === "syncing" ? "Syncing..." : gdriveSyncState === "success" ? "Synced!" : gdriveSyncState === "error" ? "Failed" : "Sync to Google Drive"}
+                            </button>
                             <button
                                 onClick={() => navigator.clipboard.writeText(exportData)}
-                                className="bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 border border-black/10 dark:border-white/20 text-gray-900 dark:text-white font-bold py-1.5 px-6 rounded-none transition-colors text-sm"
+                                className="bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 border border-black/10 dark:border-white/20 text-gray-900 dark:text-white font-bold py-1.5 px-4 rounded-none transition-colors text-sm"
                             >
                                 Copy all
                             </button>
@@ -284,12 +368,30 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                                 <span className="text-[10px] text-gray-500 dark:text-white/50 text-center px-2">Upload JSON file here</span>
                                 <input type="file" className="hidden" accept=".json" />
                             </label>
-                            <button
-                                onClick={handleImport}
-                                className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-bold py-2 px-8 rounded-none transition-colors h-fit text-sm"
-                            >
-                                Import
-                            </button>
+                            <div className="flex items-center gap-2.5">
+                                <button
+                                    onClick={handleImportFromGDrive}
+                                    disabled={gdriveImportState === "loading"}
+                                    className={`font-bold py-2 px-6 rounded-none transition-colors h-fit text-sm flex items-center gap-2 border ${
+                                        gdriveImportState === "loading"
+                                            ? "bg-gray-100 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-400 cursor-not-allowed"
+                                            : gdriveImportState === "success"
+                                            ? "bg-green-50 dark:bg-green-500/10 border-green-200 dark:border-green-500/20 text-green-600 dark:text-green-400"
+                                            : gdriveImportState === "error"
+                                            ? "bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400"
+                                            : "bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 border border-black/10 dark:border-white/20 text-gray-900 dark:text-white"
+                                    }`}
+                                >
+                                    <GoogleDriveIcon size={16} />
+                                    {gdriveImportState === "loading" ? "Loading..." : gdriveImportState === "success" ? "Loaded!" : gdriveImportState === "error" ? "Failed" : "Import from Google Drive"}
+                                </button>
+                                <button
+                                    onClick={handleImport}
+                                    className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-bold py-2 px-8 rounded-none transition-colors h-fit text-sm"
+                                >
+                                    Import
+                                </button>
+                            </div>
                         </div>
                     </div>
 
