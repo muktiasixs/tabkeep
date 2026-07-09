@@ -2,20 +2,44 @@
  * Helper untuk integrasi Google Drive REST API menggunakan chrome.identity.
  */
 
-// 1. Fungsi untuk mendapatkan Token Akses Google OAuth2
+// 1. Fungsi untuk mendapatkan Token Akses Google OAuth2 (Mendukung semua browser Chromium: Chrome, Edge, Brave, dll)
 export function getAuthToken(interactive = true): Promise<string> {
-    console.log("GDrive Debug: Memanggil chrome.identity.getAuthToken dengan interactive =", interactive);
+    console.log("GDrive Debug: Memanggil chrome.identity.launchWebAuthFlow dengan interactive =", interactive);
+    
+    const manifest = chrome.runtime.getManifest();
+    const clientId = manifest.oauth2?.client_id;
+    if (!clientId) {
+        return Promise.reject(new Error("Client ID tidak ditemukan di manifest (package.json)."));
+    }
+
+    const extensionId = chrome.runtime.id;
+    const redirectUri = `https://${extensionId}.chromiumapp.org/`;
+    const scope = encodeURIComponent("https://www.googleapis.com/auth/drive.file");
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}`;
+
     return new Promise((resolve, reject) => {
         try {
-            chrome.identity.getAuthToken({ interactive }, (token) => {
-                console.log("GDrive Debug: Callback dipanggil!");
+            chrome.identity.launchWebAuthFlow({
+                url: authUrl,
+                interactive: interactive
+            }, (redirectUrl) => {
+                console.log("GDrive Debug: Callback launchWebAuthFlow dipanggil!");
                 if (chrome.runtime.lastError) {
                     console.error("GDrive Debug: lastError ditemukan:", chrome.runtime.lastError);
                     return reject(new Error(chrome.runtime.lastError.message));
                 }
-                console.log("GDrive Debug: Token didapatkan:", token ? "ADA (Disamarkan)" : "TIDAK ADA");
+                if (!redirectUrl) {
+                    return reject(new Error("Otentikasi dibatalkan atau gagal."));
+                }
+
+                // Parse access_token dari hash URL pengalihan
+                const url = new URL(redirectUrl);
+                const params = new URLSearchParams(url.hash.substring(1));
+                const token = params.get("access_token");
+
+                console.log("GDrive Debug: Token didapatkan dari WebAuthFlow:", token ? "ADA (Disamarkan)" : "TIDAK ADA");
                 if (!token) {
-                    return reject(new Error("Gagal mendapatkan Google OAuth token."));
+                    return reject(new Error("Token tidak ditemukan dalam URL pengalihan."));
                 }
                 resolve(token);
             });
