@@ -40,15 +40,10 @@
       "<all_urls>"
     ],
     "oauth2": {
-      "client_id": "1010499260088-oij43jtl16rh03qkgnn2ne1tv5il5ad1.apps.googleusercontent.com",
+      "client_id": "1010499260088-4brb4qpmqa9km7ek16og7snojqptuoce.apps.googleusercontent.com",
       "scopes": [
         "https://www.googleapis.com/auth/drive.file"
       ]
-    },
-    "__gdrive_client_ids_template": {
-      "keanu": "1010499260088-oij43jtl16rh03qkgnn2ne1tv5il5ad1.apps.googleusercontent.com",
-      "ariq": "MASUKKAN_CLIENT_ID_ARIQ_DISINI.apps.googleusercontent.com",
-      "muktiasa": "1010499260088-adok1ifmrsg3g128kqvk7q5k1s3ka209.apps.googleusercontent.com"
     }
   }
 }
