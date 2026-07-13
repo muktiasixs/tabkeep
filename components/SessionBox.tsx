@@ -355,12 +355,12 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
             >
                 {/* Header */}
                 <div
-                    className={`group/header p-4 bg-transparent flex justify-between items-center hover:bg-gray-50/50 dark:hover:bg-white/[0.02] rounded-none ${!isExpanded ? 'rounded-none' : ''}`}
+                    className={`group/header p-4 bg-transparent flex justify-between items-start hover:bg-gray-50/50 dark:hover:bg-white/[0.02] rounded-none ${!isExpanded ? 'rounded-none' : ''}`}
                 >
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
                         {/* Chevron button to toggle expand/collapse */}
                         <div 
-                            className="p-1 rounded-none hover:bg-gray-200 dark:hover:bg-[#333] transition-colors cursor-pointer"
+                            className="p-1 rounded-none hover:bg-gray-200 dark:hover:bg-[#333] transition-colors cursor-pointer mt-0.5"
                             onClick={(e) => {
                                 e.stopPropagation();
                                 setIsExpanded(!isExpanded);
@@ -371,6 +371,7 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                                 : <ChevronRight size={14} className="text-gray-600 dark:text-gray-400" />
                             }
                         </div>
+                        <div className="flex flex-col flex-1 min-w-0">
                         {editing ? (
                             <input
                                 ref={inputRef}
@@ -384,7 +385,7 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                             />
                         ) : (
                             <h3
-                                className="text-lg font-bold text-gray-900 dark:text-white tracking-tight flex-1 truncate hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-text flex items-center gap-2"
+                                className="text-lg font-bold text-gray-900 dark:text-white tracking-tight flex-1 break-words hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-text flex items-center gap-2"
                                 onDoubleClick={(e) => {
                                     e.stopPropagation();
                                     startEdit(e);
@@ -397,12 +398,10 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                                 )}
                             </h3>
                         )}
+                        </div>
                     </div>
 
-                    <div className="flex items-center gap-3 shrink-0 ml-4">
-                        <span className="text-[11px] text-gray-400 dark:text-gray-500 font-mono italic whitespace-nowrap">
-                            {session.timestamp || "Just now"}
-                        </span>
+                    <div className="flex items-center gap-3 shrink-0 ml-4 mt-0.5">
                         
                         <span className="text-xs font-mono font-bold text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-white/10 px-2 py-0.5 rounded-full">
                             {session.tabs.length} tabs
@@ -664,9 +663,14 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
 
                                 return (
                                     <React.Fragment key={idx}>
-                                        {/* Tab reorder drop indicator ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ before */}
+                                        {/* Tab reorder drop indicator – before */}
                                         {tabDropTarget?.idx === idx && tabDropTarget.pos === "before" && (
-                                            <div className="absolute left-2 right-2 h-0.5 bg-blue-500 rounded-full pointer-events-none z-10" />
+                                            <div 
+                                                className={viewMode === "grid"
+                                                    ? "h-7 w-0.5 bg-blue-500 rounded-full pointer-events-none z-10"
+                                                    : "absolute left-2 right-2 h-0.5 bg-blue-500 rounded-full pointer-events-none z-10"}
+                                                style={viewMode === "grid" ? { margin: "0 -1px", position: "relative" } : {}}
+                                            />
                                         )}
                                         <li
                                             draggable
@@ -680,7 +684,9 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                                                     e.preventDefault();
                                                     e.stopPropagation();
                                                     const rect = e.currentTarget.getBoundingClientRect();
-                                                    const pos = e.clientY < rect.top + rect.height / 2 ? "before" : "after";
+                                                    const pos = viewMode === "grid"
+                                                        ? (e.clientX < rect.left + rect.width / 2 ? "before" : "after")
+                                                        : (e.clientY < rect.top + rect.height / 2 ? "before" : "after");
                                                     setTabDropTarget({ idx, pos });
                                                 }
                                             }}
@@ -801,14 +807,24 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                                                 </>
                                             )}
                                         </li>
-                                        {/* Tab reorder drop indicator ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ after last item */}
+                                        {/* Tab reorder drop indicator – after last item */}
                                         {tabDropTarget?.idx === idx && tabDropTarget.pos === "after" && (
-                                            <div className="absolute left-2 right-2 h-0.5 bg-blue-500 rounded-full pointer-events-none z-10" />
+                                            <div 
+                                                className={viewMode === "grid"
+                                                    ? "h-7 w-0.5 bg-blue-500 rounded-full pointer-events-none z-10"
+                                                    : "absolute left-2 right-2 h-0.5 bg-blue-500 rounded-full pointer-events-none z-10"}
+                                                style={viewMode === "grid" ? { margin: "0 -1px", position: "relative" } : {}}
+                                            />
                                         )}
                                     </React.Fragment>
                                 );
                             })}
                         </ul>
+                        <div className="px-4 py-2 flex justify-end border-t border-gray-50 dark:border-white/[0.02]">
+                            <span className="text-[11px] text-gray-400 dark:text-gray-500 font-mono italic">
+                                {session.timestamp || "Just now"}
+                            </span>
+                        </div>
                     </>
                 )}
             </div>

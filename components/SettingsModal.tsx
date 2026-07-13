@@ -23,7 +23,7 @@ interface SettingsModalProps {
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     const { sessions, setSessions, settings } = useTabkeepStorage();
     const [importData, setImportData] = useState("");
-    const [isRendered, setIsRendered] = useState(isOpen);
+    const [isRendered, setIsRendered] = useState(isOpen)
     const [isVisible, setIsVisible] = useState(isOpen);
 
     // Google Drive Sync States
@@ -134,7 +134,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     </h2>
                     <button
                         onClick={onClose}
-                        className="p-1.5 rounded-none text-gray-600 dark:text-white/70 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                        className="p-1.5 rounded-lg text-gray-600 dark:text-white/70 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
                     >
                         <X size={16} />
                     </button>
@@ -237,7 +237,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                                 />
                                 <div className="flex flex-col gap-2 w-full">
                                     <div className="font-semibold text-sm">None</div>
-                                    <div className="bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-none p-3 flex items-start gap-3 w-11/12 max-w-md">
+                                    <div className="bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-lg p-3 flex items-start gap-3 w-11/12 max-w-md">
                                         <Globe size={16} className="text-blue-600 dark:text-blue-300 shrink-0 mt-0.5" />
                                         <div className="flex flex-col">
                                             <span className="text-sm text-blue-600 dark:text-blue-300 font-medium">Example website page title</span>
@@ -257,7 +257,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                                 />
                                 <div className="flex flex-col gap-2 w-full">
                                     <div className="font-semibold text-sm">Domain only</div>
-                                    <div className="bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-none p-3 flex items-start gap-3 w-11/12 max-w-md">
+                                    <div className="bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-lg p-3 flex items-start gap-3 w-11/12 max-w-md">
                                         <Globe size={16} className="text-blue-600 dark:text-blue-300 shrink-0 mt-0.5" />
                                         <div className="flex flex-col">
                                             <span className="text-sm text-blue-600 dark:text-blue-300 font-medium">Example website page title</span>
@@ -278,7 +278,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                                 />
                                 <div className="flex flex-col gap-2 w-full">
                                     <div className="font-semibold text-sm">Abbreviated</div>
-                                    <div className="bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-none p-3 flex items-start gap-3 w-11/12 max-w-xl">
+                                    <div className="bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-lg p-3 flex items-start gap-3 w-11/12 max-w-xl">
                                         <Globe size={16} className="text-blue-600 dark:text-blue-300 shrink-0 mt-0.5" />
                                         <div className="flex flex-col overflow-hidden">
                                             <span className="text-sm text-blue-600 dark:text-blue-300 font-medium">Example website page title</span>
@@ -299,7 +299,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                                 />
                                 <div className="flex flex-col gap-2 w-full">
                                     <div className="font-semibold text-sm">Full</div>
-                                    <div className="bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-none p-3 flex items-start gap-3 w-11/12 max-w-2xl">
+                                    <div className="bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-lg p-3 flex items-start gap-3 w-11/12 max-w-2xl">
                                         <Globe size={16} className="text-blue-600 dark:text-blue-300 shrink-0 mt-0.5" />
                                         <div className="flex flex-col overflow-hidden">
                                             <span className="text-sm text-blue-600 dark:text-blue-300 font-medium">Example website page title</span>
@@ -316,7 +316,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     <div className="flex flex-col p-2">
                         <h3 className="text-lg font-black mb-3 text-gray-900 dark:text-white">Backup / Export</h3>
                         <textarea
-                            className="w-full h-32 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/20 rounded-none p-3 text-sm font-mono text-gray-800 dark:text-white/90 focus:outline-none focus:border-black/30 dark:focus:border-white/50 mb-2 placeholder-gray-400 dark:placeholder-white/30"
+                            className="w-full h-32 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/20 rounded-lg p-3 text-sm font-mono text-gray-800 dark:text-white/90 focus:outline-none focus:border-black/30 dark:focus:border-white/50 mb-2 placeholder-gray-400 dark:placeholder-white/30"
                             readOnly
                             value={exportData}
                         />
@@ -346,7 +346,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                             </button>
                             <button
                                 onClick={() => navigator.clipboard.writeText(exportData)}
-                                className="bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 border border-black/10 dark:border-white/20 text-gray-900 dark:text-white font-bold py-1.5 px-4 rounded-none transition-colors text-sm"
+                                className="bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 border border-black/10 dark:border-white/20 text-gray-900 dark:text-white font-bold py-1.5 px-6 rounded-lg transition-colors text-sm"
                             >
                                 Copy all
                             </button>
@@ -357,13 +357,13 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     <div className="flex flex-col p-2">
                         <h3 className="text-lg font-black mb-3 text-gray-900 dark:text-white">Import</h3>
                         <textarea
-                            className="w-full h-32 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/20 rounded-none p-3 text-sm font-mono text-gray-800 dark:text-white/90 mb-2 focus:outline-none focus:border-black/30 dark:focus:border-white/50 whitespace-pre placeholder-gray-400 dark:placeholder-white/30"
+                            className="w-full h-32 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/20 rounded-lg p-3 text-sm font-mono text-gray-800 dark:text-white/90 mb-2 focus:outline-none focus:border-black/30 dark:focus:border-white/50 whitespace-pre placeholder-gray-400 dark:placeholder-white/30"
                             placeholder="Paste here.."
                             value={importData}
                             onChange={(e) => setImportData(e.target.value)}
                         />
                         <div className="flex justify-between items-end w-full">
-                            <label className="flex flex-col items-center justify-center w-32 h-24 border-2 border-dashed border-black/20 dark:border-white/30 rounded-none cursor-pointer hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
+                            <label className="flex flex-col items-center justify-center w-32 h-24 border-2 border-dashed border-black/20 dark:border-white/30 rounded-lg cursor-pointer hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
                                 <Upload size={24} className="text-gray-500 dark:text-white/50 mb-2" />
                                 <span className="text-[10px] text-gray-500 dark:text-white/50 text-center px-2">Upload JSON file here</span>
                                 <input type="file" className="hidden" accept=".json" />
@@ -372,7 +372,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                                 <button
                                     onClick={handleImportFromGDrive}
                                     disabled={gdriveImportState === "loading"}
-                                    className={`font-bold py-2 px-6 rounded-none transition-colors h-fit text-sm flex items-center gap-2 border ${
+                                    className={`font-bold py-2 px-6 rounded-lg transition-colors h-fit text-sm flex items-center gap-2 border ${
                                         gdriveImportState === "loading"
                                             ? "bg-gray-100 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-400 cursor-not-allowed"
                                             : gdriveImportState === "success"
@@ -387,7 +387,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                                 </button>
                                 <button
                                     onClick={handleImport}
-                                    className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-bold py-2 px-8 rounded-none transition-colors h-fit text-sm"
+                                    className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-bold py-2 px-8 rounded-lg transition-colors h-fit text-sm"
                                 >
                                     Import
                                 </button>

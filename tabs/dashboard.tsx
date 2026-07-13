@@ -1303,7 +1303,14 @@ export default function TabkeepDashboard() {
                             ) : (filteredSessions.length > 0 || (activeFolderId === "all" && folders.length > 0)) ? (
                                 viewMode === "graph" ? (
                                     <div className="w-full h-[600px] mt-4">
-                                        <GraphView folders={folders} sessions={sessions} theme={theme} />
+                                        <GraphView 
+                                            folders={folders} 
+                                            sessions={sessions} 
+                                            theme={theme} 
+                                            onMoveFolder={handleMoveFolder}
+                                            onMoveTab={handleMoveTab}
+                                            onMoveTabToFolder={handleMoveTabToFolder}
+                                        />
                                     </div>
                                 ) : activeFolderId === "all" ? (
                                     <>
