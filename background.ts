@@ -15,25 +15,27 @@ async function captureTab(tabId: number) {
         if (tab.active && tab.status === "complete" && tab.url && tab.url.startsWith("http") && !tab.discarded) {
             const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, {
                 format: "jpeg",
-                quality: 50 // Get a decent initial image before resizing
+                quality: 80 // Get a decent initial image before resizing
             });
 
             // Convert base64 to blob
             const response = await fetch(dataUrl);
             const blob = await response.blob();
             
-            // Resize using OffscreenCanvas
-            const bitmap = await createImageBitmap(blob, { resizeWidth: 320, resizeQuality: 'low' });
+            // Resize using OffscreenCanvas with high quality downscaling
+            const bitmap = await createImageBitmap(blob, { resizeWidth: 320, resizeQuality: 'high' });
             
-            // Calculate aspect ratio height to maintain proportions (assuming 16:9 for generic tabs, or dynamically based on bitmap)
+            // Calculate aspect ratio height to maintain proportions
             const aspectRatio = bitmap.width / bitmap.height;
             const targetHeight = Math.round(320 / aspectRatio);
             
             const canvas = new OffscreenCanvas(320, targetHeight);
             const ctx = canvas.getContext('2d');
             if (ctx) {
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
                 ctx.drawImage(bitmap, 0, 0, 320, targetHeight);
-                const webpBlob = await canvas.convertToBlob({ type: 'image/webp', quality: 0.5 });
+                const webpBlob = await canvas.convertToBlob({ type: 'image/webp', quality: 0.8 });
                 
                 // Save to IndexedDB using URL as key
                 await saveThumbnail(tab.url, webpBlob);

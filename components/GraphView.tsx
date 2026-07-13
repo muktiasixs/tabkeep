@@ -165,6 +165,7 @@ export const GraphView: React.FC<GraphViewProps> = ({ folders, sessions, theme, 
                 height={dimensions.height}
                 graphData={graphData}
                 nodeCanvasObject={paintNode}
+                nodeCanvasObjectMode={() => "replace"}
                 nodeLabel={(node: any) => (node.type === "tab" || node.type === "session") ? node.name : ""}
                 nodeRelSize={4}
                 linkColor={() => isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"}

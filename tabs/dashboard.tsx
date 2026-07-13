@@ -1027,20 +1027,26 @@ export default function TabkeepDashboard() {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-4">
+                <div className="flex items-center justify-end gap-2 w-[184px] shrink-0">
                     <button
                         onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                        className="p-1.5 rounded-none text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+                        className="group flex items-center justify-center h-9 w-9 hover:w-20 rounded-full border border-black/10 hover:border-black/20 dark:border-white/10 dark:hover:border-white/20 bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all duration-300 ease-in-out overflow-hidden shrink-0"
                         title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
                     >
-                        {theme === "dark" ? <Sun size={14} /> : <Moon size={14} />}
+                        {theme === "dark" ? <Sun size={16} className="shrink-0" /> : <Moon size={16} className="shrink-0" />}
+                        <span className="opacity-0 max-w-0 transition-all duration-200 ease-in-out group-hover:opacity-100 group-hover:max-w-[45px] group-hover:ml-2.5 whitespace-nowrap text-xs font-bold leading-none">
+                            {theme === "dark" ? "Light" : "Dark"}
+                        </span>
                     </button>
                     <button
                         onClick={() => setIsSettingsOpen(true)}
-                        className="p-1.5 rounded-none text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+                        className="group flex items-center justify-center h-9 w-9 hover:w-24 rounded-full border border-black/10 hover:border-black/20 dark:border-white/10 dark:hover:border-white/20 bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all duration-300 ease-in-out overflow-hidden shrink-0"
                         title="Settings"
                     >
-                        <Settings size={14} />
+                        <Settings size={16} className="shrink-0" />
+                        <span className="opacity-0 max-w-0 transition-all duration-200 ease-in-out group-hover:opacity-100 group-hover:max-w-[55px] group-hover:ml-2.5 whitespace-nowrap text-xs font-bold leading-none">
+                            Setting
+                        </span>
                     </button>
                 </div>
             </header>
