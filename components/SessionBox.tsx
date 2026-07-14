@@ -758,7 +758,7 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                                                 />
                                                 </div>
                                             )}
-                                            <img
+                                            <img loading="lazy"
                                                 src={tab.favIconUrl || "https://www.google.com/s2/favicons?domain=google.com&sz=32"}
                                                 className={`${viewMode === "grid" ? "w-4 h-4" : "w-3.5 h-3.5"} opacity-60 group-hover:opacity-100 flex-shrink-0`}
                                                 onError={(e) => { (e.target as HTMLImageElement).src = "https://www.google.com/s2/favicons?domain=google.com"; }}

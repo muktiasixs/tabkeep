@@ -295,7 +295,7 @@ export function RightSidebar({ hoveredTab, allSessions, theme }: RightSidebarPro
                         {/* Image Preview Container */}
                         <div className="relative aspect-video w-full rounded-none overflow-hidden bg-gray-100 dark:bg-[#121212] border border-gray-200 dark:border-[#2a2a2a] flex items-center justify-center">
                             {localScreenshot ? (
-                                <img
+                                <img loading="lazy"
                                     src={localScreenshot}
                                     alt={hoveredTab.title}
                                     className="w-full h-full object-cover"

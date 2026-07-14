@@ -80,7 +80,7 @@ export function PinnedLinks({ pinnedLinks, onUnpin, onAdd, theme }: Props) {
                             onClick={() => chrome.tabs.create({ url: link.url, active: true })}
                             title={link.url}
                         >
-                            <img
+                            <img loading="lazy"
                                 src={link.favIconUrl || `https://www.google.com/s2/favicons?domain=${link.url}&sz=32`}
                                 className="w-3.5 h-3.5 flex-shrink-0 opacity-70 group-hover:opacity-100 rounded-none"
                                 onError={(e) => { (e.target as HTMLImageElement).src = "https://www.google.com/s2/favicons?domain=google.com"; }}

@@ -310,7 +310,7 @@ function SessionRow({
                     style={{ paddingLeft: `${indentPx + 18}px` }}
                 >
                     <Pin size={8} className="flex-shrink-0 text-amber-500 dark:text-amber-400" />
-                    <img
+                    <img loading="lazy"
                         src={link.favIconUrl || `https://www.google.com/s2/favicons?domain=${link.url}&sz=32`}
                         className="w-3 h-3 flex-shrink-0 opacity-60 group-hover/pin:opacity-100 rounded-none transition-opacity"
                         onError={(e) => { (e.target as HTMLImageElement).src = "https://www.google.com/s2/favicons?domain=google.com"; }}

@@ -69,7 +69,7 @@ export function DeletedSessionBox({ session, onRestore, onPermanentDelete, theme
                             key={idx}
                             className="flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-[#252525] p-2 rounded-none group transition-colors opacity-60"
                         >
-                            <img
+                            <img loading="lazy"
                                 src={tab.favIconUrl || "https://www.google.com/s2/favicons?domain=google.com&sz=32"}
                                 className="w-3.5 h-3.5 flex-shrink-0"
                                 onError={(e) => { (e.target as HTMLImageElement).src = "https://www.google.com/s2/favicons?domain=google.com"; }}

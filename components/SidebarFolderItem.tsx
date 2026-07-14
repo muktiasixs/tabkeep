@@ -264,7 +264,7 @@ export function SidebarFolderItem({ folder, isActive, sessions, pinnedLinks, onC
                                             className="flex items-center gap-2 px-2 py-1 hover:bg-gray-100 dark:hover:bg-[#2a2a2a] group/tab transition-colors"
                                         >
                                             <Pin size={9} className="text-amber-500 dark:text-amber-400 flex-shrink-0" />
-                                            <img
+                                            <img loading="lazy"
                                                 src={link.favIconUrl || `https://www.google.com/s2/favicons?domain=${link.url}&sz=32`}
                                                 className="w-3 h-3 flex-shrink-0 opacity-60 group-hover/tab:opacity-100 bg-gray-100 dark:bg-white/5 rounded-none"
                                                 onError={(e) => { (e.target as HTMLImageElement).src = "https://www.google.com/s2/favicons?domain=google.com"; }}
