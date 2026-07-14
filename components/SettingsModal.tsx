@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { X, Upload, Download, Globe } from "lucide-react";
 import { useTabkeepStorage } from "~hooks/useTabkeepStorage";
-import { updateSessions, updateSettings } from "~lib/storage";
+import { updateSessions, updateSettings, getFolders, updateFolders, getPinnedLinks, updatePinnedLinks } from "~lib/storage";
 import { parseImportedLines } from "~lib/linkParser";
 import { uploadToGDrive, downloadFromGDrive } from "~lib/gdrive";
-import type { Session, Settings } from "~types";
+import { getAllThumbnails, importThumbnails } from "~lib/db";
+import type { Session, Settings, Folder, PinnedLink } from "~types";
 
 const GoogleDriveIcon = ({ size = 16 }: { size?: number }) => (
     <svg width={size} height={size} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0">
@@ -23,7 +24,7 @@ interface SettingsModalProps {
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     const { sessions, setSessions, settings } = useTabkeepStorage();
     const [importData, setImportData] = useState("");
-    const [isRendered, setIsRendered] = useState(isOpen);
+    const [isRendered, setIsRendered] = useState(isOpen)
     const [isVisible, setIsVisible] = useState(isOpen);
 
     // Google Drive Sync States
@@ -73,7 +74,25 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         setGdriveSyncState("syncing");
         setGdriveErrorMsg("");
         try {
-            await uploadToGDrive(exportData);
+            const currentFolders = await getFolders();
+            const currentPinned = await getPinnedLinks();
+            
+            let thumbnails: Record<string, string> = {};
+            if (settings.backupThumbnails) {
+                thumbnails = await getAllThumbnails();
+            }
+
+            const backupData = {
+                version: "1.0",
+                exportedAt: new Date().toISOString(),
+                sessions,
+                folders: currentFolders,
+                pinnedLinks: currentPinned,
+                settings,
+                thumbnails
+            };
+
+            await uploadToGDrive(JSON.stringify(backupData, null, 2), "tabkeep-backup.json", true);
             setGdriveSyncState("success");
             setTimeout(() => setGdriveSyncState("idle"), 3000);
         } catch (err: any) {
@@ -88,7 +107,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         setGdriveImportState("loading");
         setGdriveErrorMsg("");
         try {
-            const backupContent = await downloadFromGDrive();
+            const backupContent = await downloadFromGDrive("tabkeep-backup.json", true);
             setImportData(backupContent);
             setGdriveImportState("success");
             setTimeout(() => setGdriveImportState("idle"), 3000);
@@ -102,6 +121,63 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
     const handleImport = async () => {
         if (!importData.trim()) return;
+
+        // Cek jika data yang di-import berformat JSON
+        if (importData.trim().startsWith("{")) {
+            try {
+                const data = JSON.parse(importData);
+
+                // 1. Restorasi Folder (Merge berdasarkan ID unik)
+                if (data.folders && Array.isArray(data.folders)) {
+                    const currentFolders = await getFolders();
+                    const folderMap = new Map(currentFolders.map(f => [f.id, f]));
+                    data.folders.forEach((f: Folder) => {
+                        if (f && f.id) folderMap.set(f.id, f);
+                    });
+                    await updateFolders(Array.from(folderMap.values()));
+                }
+
+                // 2. Restorasi Sesi (Merge berdasarkan ID unik)
+                if (data.sessions && Array.isArray(data.sessions)) {
+                    const sessionMap = new Map(sessions.map(s => [s.id, s]));
+                    data.sessions.forEach((s: Session) => {
+                        if (s && s.id) sessionMap.set(s.id, s);
+                    });
+                    const updatedSessions = Array.from(sessionMap.values());
+                    setSessions(updatedSessions);
+                    await updateSessions(updatedSessions);
+                }
+
+                // 3. Restorasi Pinned Links
+                if (data.pinnedLinks && Array.isArray(data.pinnedLinks)) {
+                    const currentPinned = await getPinnedLinks();
+                    const pinnedMap = new Map(currentPinned.map(p => [p.id, p]));
+                    data.pinnedLinks.forEach((p: PinnedLink) => {
+                        if (p && p.id) pinnedMap.set(p.id, p);
+                    });
+                    await updatePinnedLinks(Array.from(pinnedMap.values()));
+                }
+
+                // 4. Restorasi Settings
+                if (data.settings) {
+                    await updateSettings({ ...settings, ...data.settings });
+                }
+
+                // 5. Restorasi Thumbnails (jika ada)
+                if (data.thumbnails && typeof data.thumbnails === "object") {
+                    await importThumbnails(data.thumbnails);
+                }
+
+                alert("Database berhasil di-import secara lengkap (throwback riil)!");
+                setImportData("");
+                onClose();
+                return;
+            } catch (jsonErr) {
+                console.error("Gagal mengurai JSON backup, mencoba fallback teks:", jsonErr);
+            }
+        }
+
+        // Fallback untuk format teks (.txt) lama
         const sessionBlocks = importData.split(/\n\s*\n/);
         const newSessions: Session[] = sessionBlocks.map(block => {
             const newTabs = parseImportedLines(block);
@@ -120,21 +196,24 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             await updateSessions(updatedSessions);
             setImportData("");
             alert(`Berhasil mengimpor ${newSessions.length} sesi!`);
+            onClose();
+        } else {
+            alert("Format data tidak dikenal atau kosong.");
         }
     };
 
     if (!isRendered) return null;
 
     return (
-        <div className={`fixed inset-0 z-50 flex items-center justify-center bg-white/50 dark:bg-black/40 transition-all duration-200 ${isVisible ? 'opacity-100 backdrop-blur-md' : 'opacity-0 backdrop-blur-none'}`}>
-            <div className={`w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh] transition-all duration-200 transform ${isVisible ? 'scale-100 opacity-100 translate-y-0' : 'scale-95 opacity-0 translate-y-4'}`}>
+        <div onClick={onClose} className={`fixed inset-0 z-50 flex items-center justify-center bg-white/50 dark:bg-black/40 transition-all duration-200 ${isVisible ? 'opacity-100 backdrop-blur-md' : 'opacity-0 backdrop-blur-none'}`}>
+            <div onClick={e => e.stopPropagation()} className={`w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh] transition-all duration-200 transform ${isVisible ? 'scale-100 opacity-100 translate-y-0' : 'scale-95 opacity-0 translate-y-4'}`}>
                 <div className="flex items-center justify-between px-6 py-4">
                     <h2 className="text-xl font-black text-gray-900 dark:text-white flex items-center gap-2 drop-shadow-sm dark:drop-shadow-md">
                         Setting
                     </h2>
                     <button
                         onClick={onClose}
-                        className="p-1.5 rounded-none text-gray-600 dark:text-white/70 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                        className="p-1.5 rounded-lg text-gray-600 dark:text-white/70 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
                     >
                         <X size={16} />
                     </button>
@@ -237,7 +316,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                                 />
                                 <div className="flex flex-col gap-2 w-full">
                                     <div className="font-semibold text-sm">None</div>
-                                    <div className="bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-none p-3 flex items-start gap-3 w-11/12 max-w-md">
+                                    <div className="bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-lg p-3 flex items-start gap-3 w-11/12 max-w-md">
                                         <Globe size={16} className="text-blue-600 dark:text-blue-300 shrink-0 mt-0.5" />
                                         <div className="flex flex-col">
                                             <span className="text-sm text-blue-600 dark:text-blue-300 font-medium">Example website page title</span>
@@ -257,7 +336,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                                 />
                                 <div className="flex flex-col gap-2 w-full">
                                     <div className="font-semibold text-sm">Domain only</div>
-                                    <div className="bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-none p-3 flex items-start gap-3 w-11/12 max-w-md">
+                                    <div className="bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-lg p-3 flex items-start gap-3 w-11/12 max-w-md">
                                         <Globe size={16} className="text-blue-600 dark:text-blue-300 shrink-0 mt-0.5" />
                                         <div className="flex flex-col">
                                             <span className="text-sm text-blue-600 dark:text-blue-300 font-medium">Example website page title</span>
@@ -278,7 +357,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                                 />
                                 <div className="flex flex-col gap-2 w-full">
                                     <div className="font-semibold text-sm">Abbreviated</div>
-                                    <div className="bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-none p-3 flex items-start gap-3 w-11/12 max-w-xl">
+                                    <div className="bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-lg p-3 flex items-start gap-3 w-11/12 max-w-xl">
                                         <Globe size={16} className="text-blue-600 dark:text-blue-300 shrink-0 mt-0.5" />
                                         <div className="flex flex-col overflow-hidden">
                                             <span className="text-sm text-blue-600 dark:text-blue-300 font-medium">Example website page title</span>
@@ -299,7 +378,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                                 />
                                 <div className="flex flex-col gap-2 w-full">
                                     <div className="font-semibold text-sm">Full</div>
-                                    <div className="bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-none p-3 flex items-start gap-3 w-11/12 max-w-2xl">
+                                    <div className="bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-lg p-3 flex items-start gap-3 w-11/12 max-w-2xl">
                                         <Globe size={16} className="text-blue-600 dark:text-blue-300 shrink-0 mt-0.5" />
                                         <div className="flex flex-col overflow-hidden">
                                             <span className="text-sm text-blue-600 dark:text-blue-300 font-medium">Example website page title</span>
@@ -308,22 +387,73 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                                     </div>
                                 </div>
                             </label>
+                        </div>
+                    </div>
 
+                    {/* Google Drive Auto-Sync */}
+                    <div className="p-2 border-t border-black/5 dark:border-white/5 pt-4 mt-2">
+                        <h3 className="font-bold mb-3 text-sm text-gray-800 dark:text-white/90">Google Drive Auto-Sync:</h3>
+                        <div className="flex flex-col gap-4">
+                            {/* Toggle Auto Sync */}
+                            <label className="flex items-center gap-3 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    className="accent-blue-600 dark:accent-blue-400 w-4 h-4 rounded"
+                                    checked={settings.autoSync || false}
+                                    onChange={(e) => updateSettings({ ...settings, autoSync: e.target.checked })}
+                                />
+                                <div>
+                                    <div className="font-semibold text-sm">Aktifkan Auto-Sync (Google Drive)</div>
+                                    <div className="text-xs text-gray-600 dark:text-white/70">Secara otomatis mencadangkan data ke Google Drive secara berkala di latar belakang.</div>
+                                </div>
+                            </label>
+
+                            {settings.autoSync && (
+                                <>
+                                    {/* Interval Sync */}
+                                    <div className="ml-7 flex items-center gap-3">
+                                        <span className="text-sm font-semibold text-gray-700 dark:text-white/80">Interval Sinkronisasi:</span>
+                                        <select
+                                            className="bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/20 rounded px-2.5 py-1 text-sm text-gray-800 dark:text-white focus:outline-none"
+                                            value={settings.autoSyncInterval || 1}
+                                            onChange={(e) => updateSettings({ ...settings, autoSyncInterval: Number(e.target.value) as 1 | 3 | 6 })}
+                                        >
+                                            <option value={1} className="dark:bg-[#1c1c1e]">Setiap 1 Jam</option>
+                                            <option value={3} className="dark:bg-[#1c1c1e]">Setiap 3 Jam</option>
+                                            <option value={6} className="dark:bg-[#1c1c1e]">Setiap 6 Jam</option>
+                                        </select>
+                                    </div>
+
+                                    {/* Toggle Backup Thumbnails */}
+                                    <label className="ml-7 flex items-center gap-3 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            className="accent-blue-600 dark:accent-blue-400 w-4 h-4 rounded"
+                                            checked={settings.backupThumbnails !== false}
+                                            onChange={(e) => updateSettings({ ...settings, backupThumbnails: e.target.checked })}
+                                        />
+                                        <div>
+                                            <div className="font-semibold text-sm">Cadangkan Gambar Preview (Thumbnails)</div>
+                                            <div className="text-xs text-gray-600 dark:text-white/70">Ikut sertakan tangkapan layar tab untuk pemulihan visual yang sempurna.</div>
+                                        </div>
+                                    </label>
+                                </>
+                            )}
                         </div>
                     </div>
 
                     {/* Backup / Export */}
-                    <div className="flex flex-col p-2">
+                    <div className="flex flex-col p-2 border-t border-black/5 dark:border-white/5 pt-4 mt-2">
                         <h3 className="text-lg font-black mb-3 text-gray-900 dark:text-white">Backup / Export</h3>
                         <textarea
-                            className="w-full h-32 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/20 rounded-none p-3 text-sm font-mono text-gray-800 dark:text-white/90 focus:outline-none focus:border-black/30 dark:focus:border-white/50 mb-2 placeholder-gray-400 dark:placeholder-white/30"
+                            className="w-full h-32 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/20 rounded-lg p-3 text-sm font-mono text-gray-800 dark:text-white/90 focus:outline-none focus:border-black/30 dark:focus:border-white/50 mb-2 placeholder-gray-400 dark:placeholder-white/30"
                             readOnly
                             value={exportData}
                         />
                         <div className="flex justify-end gap-2.5">
                             <button
                                 onClick={handleDownloadTxt}
-                                className="bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 border border-black/10 dark:border-white/20 text-gray-900 dark:text-white font-bold py-1.5 px-4 rounded-none transition-colors text-sm flex items-center gap-2"
+                                className="bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 border border-black/10 dark:border-white/20 text-gray-900 dark:text-white font-bold py-1.5 px-4 rounded-lg transition-colors text-sm flex items-center gap-2"
                             >
                                 <Download size={14} />
                                 Download TXT
@@ -331,7 +461,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                             <button
                                 onClick={handleSyncToGDrive}
                                 disabled={gdriveSyncState === "syncing"}
-                                className={`font-bold py-1.5 px-4 rounded-none transition-colors text-sm flex items-center gap-2 border ${
+                                className={`font-bold py-1.5 px-4 rounded-lg transition-colors text-sm flex items-center gap-2 border ${
                                     gdriveSyncState === "syncing"
                                         ? "bg-gray-100 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-400 cursor-not-allowed"
                                         : gdriveSyncState === "success"
@@ -346,7 +476,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                             </button>
                             <button
                                 onClick={() => navigator.clipboard.writeText(exportData)}
-                                className="bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 border border-black/10 dark:border-white/20 text-gray-900 dark:text-white font-bold py-1.5 px-4 rounded-none transition-colors text-sm"
+                                className="bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 border border-black/10 dark:border-white/20 text-gray-900 dark:text-white font-bold py-1.5 px-6 rounded-lg transition-colors text-sm"
                             >
                                 Copy all
                             </button>
@@ -357,13 +487,13 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     <div className="flex flex-col p-2">
                         <h3 className="text-lg font-black mb-3 text-gray-900 dark:text-white">Import</h3>
                         <textarea
-                            className="w-full h-32 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/20 rounded-none p-3 text-sm font-mono text-gray-800 dark:text-white/90 mb-2 focus:outline-none focus:border-black/30 dark:focus:border-white/50 whitespace-pre placeholder-gray-400 dark:placeholder-white/30"
+                            className="w-full h-32 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/20 rounded-lg p-3 text-sm font-mono text-gray-800 dark:text-white/90 mb-2 focus:outline-none focus:border-black/30 dark:focus:border-white/50 whitespace-pre placeholder-gray-400 dark:placeholder-white/30"
                             placeholder="Paste here.."
                             value={importData}
                             onChange={(e) => setImportData(e.target.value)}
                         />
                         <div className="flex justify-between items-end w-full">
-                            <label className="flex flex-col items-center justify-center w-32 h-24 border-2 border-dashed border-black/20 dark:border-white/30 rounded-none cursor-pointer hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
+                            <label className="flex flex-col items-center justify-center w-32 h-24 border-2 border-dashed border-black/20 dark:border-white/30 rounded-lg cursor-pointer hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
                                 <Upload size={24} className="text-gray-500 dark:text-white/50 mb-2" />
                                 <span className="text-[10px] text-gray-500 dark:text-white/50 text-center px-2">Upload JSON file here</span>
                                 <input type="file" className="hidden" accept=".json" />
@@ -372,7 +502,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                                 <button
                                     onClick={handleImportFromGDrive}
                                     disabled={gdriveImportState === "loading"}
-                                    className={`font-bold py-2 px-6 rounded-none transition-colors h-fit text-sm flex items-center gap-2 border ${
+                                    className={`font-bold py-2 px-6 rounded-lg transition-colors h-fit text-sm flex items-center gap-2 border ${
                                         gdriveImportState === "loading"
                                             ? "bg-gray-100 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-400 cursor-not-allowed"
                                             : gdriveImportState === "success"
@@ -387,7 +517,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                                 </button>
                                 <button
                                     onClick={handleImport}
-                                    className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-bold py-2 px-8 rounded-none transition-colors h-fit text-sm"
+                                    className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-bold py-2 px-8 rounded-lg transition-colors h-fit text-sm"
                                 >
                                     Import
                                 </button>

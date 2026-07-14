@@ -2,20 +2,44 @@
  * Helper untuk integrasi Google Drive REST API menggunakan chrome.identity.
  */
 
-// 1. Fungsi untuk mendapatkan Token Akses Google OAuth2
+// 1. Fungsi untuk mendapatkan Token Akses Google OAuth2 (Mendukung semua browser Chromium: Chrome, Edge, Brave, dll)
 export function getAuthToken(interactive = true): Promise<string> {
-    console.log("GDrive Debug: Memanggil chrome.identity.getAuthToken dengan interactive =", interactive);
+    console.log("GDrive Debug: Memanggil chrome.identity.launchWebAuthFlow dengan interactive =", interactive);
+    
+    const manifest = chrome.runtime.getManifest();
+    const clientId = manifest.oauth2?.client_id;
+    if (!clientId) {
+        return Promise.reject(new Error("Client ID tidak ditemukan di manifest (package.json)."));
+    }
+
+    const extensionId = chrome.runtime.id;
+    const redirectUri = `https://${extensionId}.chromiumapp.org/`;
+    const scope = encodeURIComponent("https://www.googleapis.com/auth/drive.file");
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}`;
+
     return new Promise((resolve, reject) => {
         try {
-            chrome.identity.getAuthToken({ interactive }, (token) => {
-                console.log("GDrive Debug: Callback dipanggil!");
+            chrome.identity.launchWebAuthFlow({
+                url: authUrl,
+                interactive: interactive
+            }, (redirectUrl) => {
+                console.log("GDrive Debug: Callback launchWebAuthFlow dipanggil!");
                 if (chrome.runtime.lastError) {
                     console.error("GDrive Debug: lastError ditemukan:", chrome.runtime.lastError);
                     return reject(new Error(chrome.runtime.lastError.message));
                 }
-                console.log("GDrive Debug: Token didapatkan:", token ? "ADA (Disamarkan)" : "TIDAK ADA");
+                if (!redirectUrl) {
+                    return reject(new Error("Otentikasi dibatalkan atau gagal."));
+                }
+
+                // Parse access_token dari hash URL pengalihan
+                const url = new URL(redirectUrl);
+                const params = new URLSearchParams(url.hash.substring(1));
+                const token = params.get("access_token");
+
+                console.log("GDrive Debug: Token didapatkan dari WebAuthFlow:", token ? "ADA (Disamarkan)" : "TIDAK ADA");
                 if (!token) {
-                    return reject(new Error("Gagal mendapatkan Google OAuth token."));
+                    return reject(new Error("Token tidak ditemukan dalam URL pengalihan."));
                 }
                 resolve(token);
             });
@@ -27,7 +51,7 @@ export function getAuthToken(interactive = true): Promise<string> {
 }
 
 // 2. Mencari file backup di Google Drive berdasarkan nama
-async function findBackupFile(token: string, filename = "tabkeep-backup.txt"): Promise<string | null> {
+async function findBackupFile(token: string, filename = "tabkeep-backup.json"): Promise<string | null> {
     const query = encodeURIComponent(`name = '${filename}' and trashed = false`);
     const response = await fetch(
         `https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name)`,
@@ -52,8 +76,8 @@ async function findBackupFile(token: string, filename = "tabkeep-backup.txt"): P
 }
 
 // 3. Mengunggah atau memperbarui file backup ke Google Drive
-export async function uploadToGDrive(content: string, filename = "tabkeep-backup.txt"): Promise<void> {
-    const token = await getAuthToken(true);
+export async function uploadToGDrive(content: string, filename = "tabkeep-backup.json", interactive = true): Promise<void> {
+    const token = await getAuthToken(interactive);
     const fileId = await findBackupFile(token, filename);
 
     if (fileId) {
@@ -64,7 +88,7 @@ export async function uploadToGDrive(content: string, filename = "tabkeep-backup
                 method: "PATCH",
                 headers: {
                     Authorization: `Bearer ${token}`,
-                    "Content-Type": "text/plain; charset=UTF-8"
+                    "Content-Type": "application/json; charset=UTF-8"
                 },
                 body: content
             }
@@ -84,7 +108,7 @@ export async function uploadToGDrive(content: string, filename = "tabkeep-backup
             },
             body: JSON.stringify({
                 name: filename,
-                mimeType: "text/plain"
+                mimeType: "application/json"
             })
         });
 
@@ -102,7 +126,7 @@ export async function uploadToGDrive(content: string, filename = "tabkeep-backup
                 method: "PATCH",
                 headers: {
                     Authorization: `Bearer ${token}`,
-                    "Content-Type": "text/plain; charset=UTF-8"
+                    "Content-Type": "application/json; charset=UTF-8"
                 },
                 body: content
             }
@@ -115,12 +139,12 @@ export async function uploadToGDrive(content: string, filename = "tabkeep-backup
 }
 
 // 4. Mengunduh isi file backup dari Google Drive
-export async function downloadFromGDrive(filename = "tabkeep-backup.txt"): Promise<string> {
-    const token = await getAuthToken(true);
+export async function downloadFromGDrive(filename = "tabkeep-backup.json", interactive = true): Promise<string> {
+    const token = await getAuthToken(interactive);
     const fileId = await findBackupFile(token, filename);
 
     if (!fileId) {
-        throw new Error("File backup 'tabkeep-backup.txt' tidak ditemukan di Google Drive kamu.");
+        throw new Error(`File backup '${filename}' tidak ditemukan di Google Drive kamu.`);
     }
 
     // Ambil konten file mentah menggunakan alt=media

@@ -10,8 +10,10 @@
     "package": "plasmo package --target=chrome-mv3"
   },
   "dependencies": {
+    "jimp": "^1.6.1",
     "lucide-react": "^0.471.0",
     "plasmo": "0.89.4",
+    "pngjs": "^7.0.0",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "react-force-graph-2d": "^1.29.1",
@@ -34,21 +36,17 @@
       "contextMenus",
       "unlimitedStorage",
       "clipboardRead",
-      "identity"
+      "identity",
+      "alarms"
     ],
     "host_permissions": [
       "<all_urls>"
     ],
     "oauth2": {
-      "client_id": "1010499260088-oij43jtl16rh03qkgnn2ne1tv5il5ad1.apps.googleusercontent.com",
+      "client_id": "1010499260088-4brb4qpmqa9km7ek16og7snojqptuoce.apps.googleusercontent.com",
       "scopes": [
         "https://www.googleapis.com/auth/drive.file"
       ]
-    },
-    "__gdrive_client_ids_template": {
-      "keanu": "1010499260088-oij43jtl16rh03qkgnn2ne1tv5il5ad1.apps.googleusercontent.com",
-      "ariq": "MASUKKAN_CLIENT_ID_ARIQ_DISINI.apps.googleusercontent.com",
-      "muktiasa": "1010499260088-adok1ifmrsg3g128kqvk7q5k1s3ka209.apps.googleusercontent.com"
     }
   }
 }

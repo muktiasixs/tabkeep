@@ -45,4 +45,7 @@ export interface Settings {
     restoreOption: "remove" | "keep" | "archived";
     duplicateOption: "allow" | "reject";
     urlDisplayOption: "none" | "domain" | "abbreviated" | "full";
+    autoSync?: boolean;
+    autoSyncInterval?: 1 | 3 | 6; // jam
+    backupThumbnails?: boolean;
 }
