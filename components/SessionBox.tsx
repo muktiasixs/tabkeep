@@ -28,9 +28,10 @@ interface Props {
     onToggleTabSelection?: (sessionId: string, tabIndex: number, url: string, isShift: boolean) => void;
     viewMode?: "list" | "grid" | "graph";
     theme?: string;
+    openTabUrls?: Set<string>;
 }
 
-export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSession, onMoveFolder, onMoveTab, onMoveMultiTabs, onMoveTabToFolder, onMoveMultiTabsToFolder, onMergeSessions, onDeleteTab, onTabHover, onPinTab, onUnpinTab, onDropPinnedLinkToSession, onReorderTab, onReorderSession, selectedTabs, onToggleTabSelection, viewMode = "list", theme }: Props) {
+export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSession, onMoveFolder, onMoveTab, onMoveMultiTabs, onMoveTabToFolder, onMoveMultiTabsToFolder, onMergeSessions, onDeleteTab, onTabHover, onPinTab, onUnpinTab, onDropPinnedLinkToSession, onReorderTab, onReorderSession, selectedTabs, onToggleTabSelection, viewMode = "list", theme, openTabUrls }: Props) {
     const [isExpanded, setIsExpanded] = useState(true);
     const [isDragOver, setIsDragOver] = useState(false);
     const [sessionDropPos, setSessionDropPos] = useState<"before" | "after" | null>(null);
@@ -695,6 +696,7 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                                 const isPinned = pinnedLinks.some(p => p.url === tab.url);
                                 const isSelected = selectedTabs?.some(t => t.sessionId === session.id && t.tabIndex === idx) || false;
                                 const isArchived = tab.archived;
+                                const isOpen = openTabUrls?.has(tab.url) || false;
 
                                 return (
                                     <React.Fragment key={idx}>
@@ -799,6 +801,12 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                                                 onError={(e) => { (e.target as HTMLImageElement).src = "https://www.google.com/s2/favicons?domain=google.com"; }}
                                                 draggable={false}
                                             />
+                                            {viewMode === "grid" && isOpen && (
+                                                <span 
+                                                    className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-green-500 border border-white dark:border-[#252525] shadow-[0_0_4px_rgba(34,197,94,0.6)] animate-pulse pointer-events-none"
+                                                    title="Tab sedang aktif terbuka"
+                                                />
+                                            )}
                                             {viewMode !== "grid" && (
                                                 <>
                                                 <div className="flex-1 overflow-hidden flex flex-col justify-center">
@@ -817,6 +825,12 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                                                     </span>
                                                 )}
                                             </div>
+                                            {isOpen && (
+                                                <span 
+                                                    className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0 shadow-[0_0_6px_rgba(34,197,94,0.8)] animate-pulse pointer-events-none"
+                                                    title="Tab sedang aktif terbuka"
+                                                />
+                                            )}
                                             <span className="text-[10px] text-gray-400 dark:text-gray-500 font-mono whitespace-nowrap">
                                                 {session.timestamp.includes(' ') ? session.timestamp.split(' ').pop() : session.timestamp}
                                             </span>

@@ -33,9 +33,10 @@ interface Props {
     onToggleTabSelection?: (sessionId: string, tabIndex: number, url: string, isShift: boolean) => void;
     viewMode?: "list" | "grid" | "graph";
     theme: "light" | "dark";
+    openTabUrls?: Set<string>;
 }
 
-export function MainFolderAccordion({ folder, sessions, allFolders, onDeleteSession, onRenameSession, onRenameFolder, onDeleteFolder, onMoveFolder, onMoveTab, onMoveMultiTabs, onMoveTabToFolder, onMoveMultiTabsToFolder, onMergeSessions, onDeleteTab, onTabHover, pinnedLinks, onPinTab, onUnpinTab, onDropPinnedLinkToFolder, onDropPinnedLinkToSession, onReorderFolder, onReorderSession, onReorderTab, selectedTabs, onToggleTabSelection, viewMode = "list", theme }: Props) {
+export function MainFolderAccordion({ folder, sessions, allFolders, onDeleteSession, onRenameSession, onRenameFolder, onDeleteFolder, onMoveFolder, onMoveTab, onMoveMultiTabs, onMoveTabToFolder, onMoveMultiTabsToFolder, onMergeSessions, onDeleteTab, onTabHover, pinnedLinks, onPinTab, onUnpinTab, onDropPinnedLinkToFolder, onDropPinnedLinkToSession, onReorderFolder, onReorderSession, onReorderTab, selectedTabs, onToggleTabSelection, viewMode = "list", theme, openTabUrls }: Props) {
     const [isExpanded, setIsExpanded] = useState(true);
     const [isDragOver, setIsDragOver] = useState(false);
     const [folderDropPos, setFolderDropPos] = useState<"before" | "after" | null>(null);
@@ -385,6 +386,7 @@ export function MainFolderAccordion({ folder, sessions, allFolders, onDeleteSess
                                     onReorderSession={onReorderSession}
                                     viewMode={viewMode}
                                     theme={theme}
+                                    openTabUrls={openTabUrls}
                                 />
                             ))
                         )}

@@ -324,8 +324,10 @@ export function RightSidebar({ hoveredTab, allSessions, theme }: RightSidebarPro
                         <Activity className="text-red-500 dark:text-red-400" size={16} />
                         <span className="text-[10px] text-gray-700 dark:text-gray-200 font-black uppercase tracking-widest">System Analytics</span>
                     </div>
-                    <span className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-tighter">
-                        {allSessions.length} sessions Â· {analytics.totalTabsCount} tabs
+                    <span className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-tighter flex items-center gap-1.5">
+                        <span>{allSessions.length} sessions</span>
+                        <span className="h-2 w-[1px] bg-gray-300 dark:bg-gray-700 self-center" />
+                        <span>{analytics.totalTabsCount} tabs</span>
                     </span>
                 </div>
 

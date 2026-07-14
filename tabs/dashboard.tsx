@@ -21,6 +21,43 @@ import type { Folder as FolderType, SavedTab, PinnedLink, Session, SelectedTab }
 
 export default function TabkeepDashboard() {
     const { sessions, setSessions, folders, setFolders, deletedSessions, setDeletedSessions, pinnedLinks, setPinnedLinks } = useTabkeepStorage();
+    const [openTabUrls, setOpenTabUrls] = useState<Set<string>>(new Set());
+
+    useEffect(() => {
+        const updateOpenTabs = async () => {
+            try {
+                if (typeof chrome !== "undefined" && chrome.tabs) {
+                    const tabs = await chrome.tabs.query({});
+                    const urls = new Set(tabs.map(t => t.url).filter(Boolean) as string[]);
+                    setOpenTabUrls(urls);
+                }
+            } catch (e) {
+                console.error("Failed to query open tabs:", e);
+            }
+        };
+
+        updateOpenTabs();
+
+        const handleTabEvent = () => {
+            updateOpenTabs();
+        };
+
+        if (typeof chrome !== "undefined" && chrome.tabs) {
+            chrome.tabs.onCreated.addListener(handleTabEvent);
+            chrome.tabs.onUpdated.addListener(handleTabEvent);
+            chrome.tabs.onRemoved.addListener(handleTabEvent);
+            chrome.tabs.onActivated.addListener(handleTabEvent);
+        }
+
+        return () => {
+            if (typeof chrome !== "undefined" && chrome.tabs) {
+                chrome.tabs.onCreated.removeListener(handleTabEvent);
+                chrome.tabs.onUpdated.removeListener(handleTabEvent);
+                chrome.tabs.onRemoved.removeListener(handleTabEvent);
+                chrome.tabs.onActivated.removeListener(handleTabEvent);
+            }
+        };
+    }, []);
 
     const [activeFolderId, setActiveFolderId] = useState<string | "all" | "trash">("all");
     const [viewMode, setViewMode] = useState<"list" | "grid" | "graph">("list");
@@ -1352,10 +1389,11 @@ export default function TabkeepDashboard() {
                                                     onReorderSession={handleReorderSessions}
                                                     viewMode={viewMode}
                                                     theme={theme}
+                                                    openTabUrls={openTabUrls}
                                                 />
                                             ))}
                                         </div>
-
+ 
                                         {/* Folders rendered as Accordions */}
                                         {folders.map(f => {
                                             const folderSessions = searchedSessions.filter(s => s.folderId === f.id);
@@ -1390,6 +1428,7 @@ export default function TabkeepDashboard() {
                                                     onReorderFolder={handleReorderFolders}
                                                     viewMode={viewMode}
                                                     theme={theme}
+                                                    openTabUrls={openTabUrls}
                                                 />
                                             );
                                         })}
@@ -1421,6 +1460,7 @@ export default function TabkeepDashboard() {
                                                 onReorderSession={handleReorderSessions}
                                                 viewMode={viewMode}
                                                 theme={theme}
+                                                openTabUrls={openTabUrls}
                                             />
                                         ))}
                                     </div>
