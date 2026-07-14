@@ -404,7 +404,10 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
 
                     <div className="flex items-center gap-3 shrink-0 ml-4 mt-0.5">
                         
-                        <span className="text-xs font-mono font-bold text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-white/10 px-2 py-0.5 rounded-full">
+                        <span className="text-xs font-mono font-bold text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-white/10 px-2 py-0.5 rounded-full flex items-center gap-1.5">
+                            {openTabUrls && session.tabs.some(t => t.url && openTabUrls.has(t.url)) && (
+                                <span className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_4px_rgba(34,197,94,0.6)] animate-pulse" title="Sesi ini memiliki tab yang sedang terbuka" />
+                            )}
                             {session.tabs.length} tabs
                         </span>
                         

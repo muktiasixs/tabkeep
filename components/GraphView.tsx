@@ -74,8 +74,64 @@ export const GraphView: React.FC<GraphViewProps> = ({ folders, sessions, theme, 
             });
         });
 
+        // Group tabs by domain to create links
+        const tabsByDomain: Record<string, string[]> = {};
+        nodes.filter(n => n.type === "tab").forEach(t => {
+            if (t.url) {
+                try {
+                    const urlObj = new URL(t.url);
+                    const domain = urlObj.hostname;
+                    if (domain) {
+                        if (!tabsByDomain[domain]) {
+                            tabsByDomain[domain] = [];
+                        }
+                        tabsByDomain[domain].push(t.id);
+                    }
+                } catch (e) {
+                    // Ignore invalid URLs
+                }
+            }
+        });
+
+        // Create links between tabs of the same domain
+        Object.values(tabsByDomain).forEach(tabIds => {
+            if (tabIds.length > 1) {
+                for (let i = 1; i < tabIds.length; i++) {
+                    links.push({
+                        source: tabIds[i - 1],
+                        target: tabIds[i],
+                        type: "domain-link"
+                    });
+                }
+            }
+        });
+
         return { nodes, links };
     }, [folders, sessions]);
+
+    // Update simulation forces to prevent overlapping
+    useEffect(() => {
+        if (fgRef.current) {
+            // Increase charge strength to push nodes further apart
+            fgRef.current.d3Force('charge').strength(-250);
+            
+            // Adjust link distances and strengths
+            const linkForce = fgRef.current.d3Force('link');
+            if (linkForce) {
+                linkForce.distance((link: any) => {
+                    if (link.type === "domain-link") return 80;
+                    return 40;
+                });
+                linkForce.strength((link: any) => {
+                    if (link.type === "domain-link") return 0; // Don't pull same-domain tabs together
+                    return 0.7; // Moderate strength for structural links
+                });
+            }
+            
+            // Re-heat simulation
+            fgRef.current.d3ReheatSimulation();
+        }
+    }, [graphData]);
 
     const isDark = theme === "dark";
 
@@ -116,7 +172,7 @@ export const GraphView: React.FC<GraphViewProps> = ({ folders, sessions, theme, 
             ctx.rect(node.x - 4, node.y - 4, 8, 8);
             ctx.fill();
         } else if (node.type === "tab") {
-            const size = 6;
+            const size = 8;
             if (node.favIconUrl) {
                 if (!node.img) {
                     const img = new Image();
@@ -132,18 +188,18 @@ export const GraphView: React.FC<GraphViewProps> = ({ folders, sessions, theme, 
                     };
                     // fallback while loading
                     ctx.fillStyle = isDark ? "#9ca3af" : "#6b7280";
-                    ctx.arc(node.x, node.y, 3, 0, 2 * Math.PI, false);
+                    ctx.arc(node.x, node.y, 4, 0, 2 * Math.PI, false);
                     ctx.fill();
                 } else if (node.loaded) {
                     ctx.drawImage(node.img, node.x - size/2, node.y - size/2, size, size);
                 } else {
                     ctx.fillStyle = isDark ? "#9ca3af" : "#6b7280";
-                    ctx.arc(node.x, node.y, 3, 0, 2 * Math.PI, false);
+                    ctx.arc(node.x, node.y, 4, 0, 2 * Math.PI, false);
                     ctx.fill();
                 }
             } else {
                 ctx.fillStyle = isDark ? "#9ca3af" : "#6b7280";
-                ctx.arc(node.x, node.y, 3, 0, 2 * Math.PI, false);
+                ctx.arc(node.x, node.y, 4, 0, 2 * Math.PI, false);
                 ctx.fill();
             }
         }

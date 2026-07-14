@@ -10,8 +10,10 @@
     "package": "plasmo package --target=chrome-mv3"
   },
   "dependencies": {
+    "jimp": "^1.6.1",
     "lucide-react": "^0.471.0",
     "plasmo": "0.89.4",
+    "pngjs": "^7.0.0",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "react-force-graph-2d": "^1.29.1",

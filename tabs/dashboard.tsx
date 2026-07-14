@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react"
 import "~style.css"
+import tabkeepLogo from "~assets/tabkeep-logo-transparent.png"
 import {
     FolderOpen, Archive, Search, X,
     Trash2, FolderPlus, LayoutGrid, LayoutList, Network, Library,
@@ -17,6 +18,8 @@ import { MainFolderAccordion } from "~components/MainFolderAccordion"
 import { PinnedLinks } from "~components/PinnedLinks"
 import { SettingsModal } from "~components/SettingsModal"
 import { GraphView } from "~components/GraphView"
+import { TabkeepLogo } from "~components/TabkeepLogo"
+import { BoxFolderIcon } from "~components/BoxFolderIcon"
 import type { Folder as FolderType, SavedTab, PinnedLink, Session, SelectedTab } from "~types"
 
 export default function TabkeepDashboard() {
@@ -1039,7 +1042,10 @@ export default function TabkeepDashboard() {
         <div className="bg-[#f5f5f7] dark:bg-[#171717] text-gray-700 dark:text-gray-300 font-sans h-screen flex flex-col overflow-hidden transition-colors duration-200">
             {/* NAVBAR */}
             <header className="flex items-center justify-between px-6 h-16 bg-white dark:bg-[#1e1e1e] shrink-0 z-20 shadow-md transition-colors duration-200">
-                <h1 className="text-2xl font-black text-gray-900 dark:text-white tracking-tighter" style={{ fontFamily: "'BBH Hegarty', sans-serif" }}>Tabkeep</h1>
+                <div className="flex items-center gap-1.5">
+                    <TabkeepLogo size={34} className="drop-shadow-md" />
+                    <h1 className="text-2xl font-black text-gray-900 dark:text-white tracking-tighter" style={{ fontFamily: "'BBH Hegarty', sans-serif" }}>Tabkeep</h1>
+                </div>
 
                 <div className="flex-1 max-w-5xl mx-8 relative">
                     <div className="relative w-full">
@@ -1217,7 +1223,7 @@ export default function TabkeepDashboard() {
                     <div className="w-full max-w-5xl mx-auto transition-all duration-300">
                         <div className="flex items-center gap-4 mb-6 border-b border-gray-200 dark:border-[#333] pb-4">
                             {activeFolderId === "all"
-                                ? <Archive className="text-gray-800 dark:text-white" size={32} strokeWidth={2.5} />
+                                ? null
                                 : <FolderOpen className="text-blue-500 dark:text-blue-400" size={32} strokeWidth={2.5} />
                             }
                             <h2 className="text-3xl font-black text-gray-900 dark:text-white">{mainTitle}</h2>
