@@ -57,5 +57,5 @@ dist/
 
 # typescript
 .tsbuildinfo
-.agents/  
- 
+.agents/
+.vscode/
