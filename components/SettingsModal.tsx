@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { X, Upload, Download, Globe } from "lucide-react";
 import { useTabkeepStorage } from "~hooks/useTabkeepStorage";
-import { updateSessions, updateSettings } from "~lib/storage";
+import { updateSessions, updateSettings, getFolders, updateFolders, getPinnedLinks, updatePinnedLinks } from "~lib/storage";
 import { parseImportedLines } from "~lib/linkParser";
 import { uploadToGDrive, downloadFromGDrive } from "~lib/gdrive";
-import type { Session, Settings } from "~types";
+import { getAllThumbnails, importThumbnails } from "~lib/db";
+import type { Session, Settings, Folder, PinnedLink } from "~types";
 
 const GoogleDriveIcon = ({ size = 16 }: { size?: number }) => (
     <svg width={size} height={size} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0">
@@ -73,7 +74,25 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         setGdriveSyncState("syncing");
         setGdriveErrorMsg("");
         try {
-            await uploadToGDrive(exportData);
+            const currentFolders = await getFolders();
+            const currentPinned = await getPinnedLinks();
+            
+            let thumbnails: Record<string, string> = {};
+            if (settings.backupThumbnails) {
+                thumbnails = await getAllThumbnails();
+            }
+
+            const backupData = {
+                version: "1.0",
+                exportedAt: new Date().toISOString(),
+                sessions,
+                folders: currentFolders,
+                pinnedLinks: currentPinned,
+                settings,
+                thumbnails
+            };
+
+            await uploadToGDrive(JSON.stringify(backupData, null, 2), "tabkeep-backup.json", true);
             setGdriveSyncState("success");
             setTimeout(() => setGdriveSyncState("idle"), 3000);
         } catch (err: any) {
@@ -88,7 +107,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         setGdriveImportState("loading");
         setGdriveErrorMsg("");
         try {
-            const backupContent = await downloadFromGDrive();
+            const backupContent = await downloadFromGDrive("tabkeep-backup.json", true);
             setImportData(backupContent);
             setGdriveImportState("success");
             setTimeout(() => setGdriveImportState("idle"), 3000);
@@ -102,6 +121,63 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
     const handleImport = async () => {
         if (!importData.trim()) return;
+
+        // Cek jika data yang di-import berformat JSON
+        if (importData.trim().startsWith("{")) {
+            try {
+                const data = JSON.parse(importData);
+
+                // 1. Restorasi Folder (Merge berdasarkan ID unik)
+                if (data.folders && Array.isArray(data.folders)) {
+                    const currentFolders = await getFolders();
+                    const folderMap = new Map(currentFolders.map(f => [f.id, f]));
+                    data.folders.forEach((f: Folder) => {
+                        if (f && f.id) folderMap.set(f.id, f);
+                    });
+                    await updateFolders(Array.from(folderMap.values()));
+                }
+
+                // 2. Restorasi Sesi (Merge berdasarkan ID unik)
+                if (data.sessions && Array.isArray(data.sessions)) {
+                    const sessionMap = new Map(sessions.map(s => [s.id, s]));
+                    data.sessions.forEach((s: Session) => {
+                        if (s && s.id) sessionMap.set(s.id, s);
+                    });
+                    const updatedSessions = Array.from(sessionMap.values());
+                    setSessions(updatedSessions);
+                    await updateSessions(updatedSessions);
+                }
+
+                // 3. Restorasi Pinned Links
+                if (data.pinnedLinks && Array.isArray(data.pinnedLinks)) {
+                    const currentPinned = await getPinnedLinks();
+                    const pinnedMap = new Map(currentPinned.map(p => [p.id, p]));
+                    data.pinnedLinks.forEach((p: PinnedLink) => {
+                        if (p && p.id) pinnedMap.set(p.id, p);
+                    });
+                    await updatePinnedLinks(Array.from(pinnedMap.values()));
+                }
+
+                // 4. Restorasi Settings
+                if (data.settings) {
+                    await updateSettings({ ...settings, ...data.settings });
+                }
+
+                // 5. Restorasi Thumbnails (jika ada)
+                if (data.thumbnails && typeof data.thumbnails === "object") {
+                    await importThumbnails(data.thumbnails);
+                }
+
+                alert("Database berhasil di-import secara lengkap (throwback riil)!");
+                setImportData("");
+                onClose();
+                return;
+            } catch (jsonErr) {
+                console.error("Gagal mengurai JSON backup, mencoba fallback teks:", jsonErr);
+            }
+        }
+
+        // Fallback untuk format teks (.txt) lama
         const sessionBlocks = importData.split(/\n\s*\n/);
         const newSessions: Session[] = sessionBlocks.map(block => {
             const newTabs = parseImportedLines(block);
@@ -120,6 +196,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             await updateSessions(updatedSessions);
             setImportData("");
             alert(`Berhasil mengimpor ${newSessions.length} sesi!`);
+            onClose();
+        } else {
+            alert("Format data tidak dikenal atau kosong.");
         }
     };
 
@@ -308,12 +387,63 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                                     </div>
                                 </div>
                             </label>
+                        </div>
+                    </div>
 
+                    {/* Google Drive Auto-Sync */}
+                    <div className="p-2 border-t border-black/5 dark:border-white/5 pt-4 mt-2">
+                        <h3 className="font-bold mb-3 text-sm text-gray-800 dark:text-white/90">Google Drive Auto-Sync:</h3>
+                        <div className="flex flex-col gap-4">
+                            {/* Toggle Auto Sync */}
+                            <label className="flex items-center gap-3 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    className="accent-blue-600 dark:accent-blue-400 w-4 h-4 rounded"
+                                    checked={settings.autoSync || false}
+                                    onChange={(e) => updateSettings({ ...settings, autoSync: e.target.checked })}
+                                />
+                                <div>
+                                    <div className="font-semibold text-sm">Aktifkan Auto-Sync (Google Drive)</div>
+                                    <div className="text-xs text-gray-600 dark:text-white/70">Secara otomatis mencadangkan data ke Google Drive secara berkala di latar belakang.</div>
+                                </div>
+                            </label>
+
+                            {settings.autoSync && (
+                                <>
+                                    {/* Interval Sync */}
+                                    <div className="ml-7 flex items-center gap-3">
+                                        <span className="text-sm font-semibold text-gray-700 dark:text-white/80">Interval Sinkronisasi:</span>
+                                        <select
+                                            className="bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/20 rounded px-2.5 py-1 text-sm text-gray-800 dark:text-white focus:outline-none"
+                                            value={settings.autoSyncInterval || 1}
+                                            onChange={(e) => updateSettings({ ...settings, autoSyncInterval: Number(e.target.value) as 1 | 3 | 6 })}
+                                        >
+                                            <option value={1} className="dark:bg-[#1c1c1e]">Setiap 1 Jam</option>
+                                            <option value={3} className="dark:bg-[#1c1c1e]">Setiap 3 Jam</option>
+                                            <option value={6} className="dark:bg-[#1c1c1e]">Setiap 6 Jam</option>
+                                        </select>
+                                    </div>
+
+                                    {/* Toggle Backup Thumbnails */}
+                                    <label className="ml-7 flex items-center gap-3 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            className="accent-blue-600 dark:accent-blue-400 w-4 h-4 rounded"
+                                            checked={settings.backupThumbnails !== false}
+                                            onChange={(e) => updateSettings({ ...settings, backupThumbnails: e.target.checked })}
+                                        />
+                                        <div>
+                                            <div className="font-semibold text-sm">Cadangkan Gambar Preview (Thumbnails)</div>
+                                            <div className="text-xs text-gray-600 dark:text-white/70">Ikut sertakan tangkapan layar tab untuk pemulihan visual yang sempurna.</div>
+                                        </div>
+                                    </label>
+                                </>
+                            )}
                         </div>
                     </div>
 
                     {/* Backup / Export */}
-                    <div className="flex flex-col p-2">
+                    <div className="flex flex-col p-2 border-t border-black/5 dark:border-white/5 pt-4 mt-2">
                         <h3 className="text-lg font-black mb-3 text-gray-900 dark:text-white">Backup / Export</h3>
                         <textarea
                             className="w-full h-32 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/20 rounded-lg p-3 text-sm font-mono text-gray-800 dark:text-white/90 focus:outline-none focus:border-black/30 dark:focus:border-white/50 mb-2 placeholder-gray-400 dark:placeholder-white/30"

@@ -1,5 +1,6 @@
-import { persistSession } from "~lib/storage";
-import { saveThumbnail } from "~lib/db";
+import { persistSession, getSessions, getFolders, getSettings, getPinnedLinks } from "~lib/storage";
+import { saveThumbnail, getAllThumbnails } from "~lib/db";
+import { uploadToGDrive } from "~lib/gdrive";
 
 export { }
 
@@ -104,6 +105,86 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
             tabsToSave.forEach(t => chrome.tabs.remove(t.id));
         }
     }
+});
+
+// --- Google Drive Auto-Sync Background Logic ---
+
+// 1. Function to run silent upload of JSON data
+async function runGDriveSync() {
+    console.log("Auto-Sync: Starting GDrive background sync...");
+    try {
+        const settings = await getSettings();
+        if (!settings.autoSync) return;
+
+        const sessions = await getSessions();
+        const folders = await getFolders();
+        const pinnedLinks = await getPinnedLinks();
+        
+        let thumbnails: Record<string, string> = {};
+        if (settings.backupThumbnails) {
+            thumbnails = await getAllThumbnails();
+        }
+
+        const backupData = {
+            version: "1.0",
+            exportedAt: new Date().toISOString(),
+            sessions,
+            folders,
+            pinnedLinks,
+            settings,
+            thumbnails
+        };
+
+        await uploadToGDrive(JSON.stringify(backupData, null, 2), "tabkeep-backup.json", false);
+        console.log("Auto-Sync: Background sync completed successfully.");
+    } catch (error) {
+        console.error("Auto-Sync: Error running GDrive background sync:", error);
+    }
+}
+
+// 2. Setup or teardown alarm based on settings
+async function updateAutoSyncAlarm() {
+    const settings = await getSettings();
+    const ALARM_NAME = "tabkeep-gdrive-auto-sync";
+
+    if (settings.autoSync && settings.autoSyncInterval) {
+        const periodInMinutes = settings.autoSyncInterval * 60;
+        // Clear existing first
+        await chrome.alarms.clear(ALARM_NAME);
+        // Create new alarm
+        chrome.alarms.create(ALARM_NAME, {
+            delayInMinutes: periodInMinutes,
+            periodInMinutes: periodInMinutes
+        });
+        console.log(`Auto-Sync: Alarm set for every ${settings.autoSyncInterval} hours.`);
+    } else {
+        await chrome.alarms.clear(ALARM_NAME);
+        console.log("Auto-Sync: Alarm cleared.");
+    }
+}
+
+// 3. Listen to alarm events
+chrome.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name === "tabkeep-gdrive-auto-sync") {
+        runGDriveSync();
+    }
+});
+
+// 4. Listen to storage changes to update alarm
+chrome.storage.onChanged.addListener(async (changes, areaName) => {
+    if (areaName === "local" && changes.settings) {
+        await updateAutoSyncAlarm();
+    }
+});
+
+// 5. Initialize alarm on startup
+chrome.runtime.onStartup.addListener(() => {
+    updateAutoSyncAlarm();
+});
+
+// Also run update alarm on install helper
+chrome.runtime.onInstalled.addListener(() => {
+    updateAutoSyncAlarm();
 });
 
 // Jalankan pin saat browser dibuka

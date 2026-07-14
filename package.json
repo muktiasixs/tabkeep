@@ -34,7 +34,8 @@
       "contextMenus",
       "unlimitedStorage",
       "clipboardRead",
-      "identity"
+      "identity",
+      "alarms"
     ],
     "host_permissions": [
       "<all_urls>"

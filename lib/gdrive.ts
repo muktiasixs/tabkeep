@@ -51,7 +51,7 @@ export function getAuthToken(interactive = true): Promise<string> {
 }
 
 // 2. Mencari file backup di Google Drive berdasarkan nama
-async function findBackupFile(token: string, filename = "tabkeep-backup.txt"): Promise<string | null> {
+async function findBackupFile(token: string, filename = "tabkeep-backup.json"): Promise<string | null> {
     const query = encodeURIComponent(`name = '${filename}' and trashed = false`);
     const response = await fetch(
         `https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name)`,
@@ -76,8 +76,8 @@ async function findBackupFile(token: string, filename = "tabkeep-backup.txt"): P
 }
 
 // 3. Mengunggah atau memperbarui file backup ke Google Drive
-export async function uploadToGDrive(content: string, filename = "tabkeep-backup.txt"): Promise<void> {
-    const token = await getAuthToken(true);
+export async function uploadToGDrive(content: string, filename = "tabkeep-backup.json", interactive = true): Promise<void> {
+    const token = await getAuthToken(interactive);
     const fileId = await findBackupFile(token, filename);
 
     if (fileId) {
@@ -88,7 +88,7 @@ export async function uploadToGDrive(content: string, filename = "tabkeep-backup
                 method: "PATCH",
                 headers: {
                     Authorization: `Bearer ${token}`,
-                    "Content-Type": "text/plain; charset=UTF-8"
+                    "Content-Type": "application/json; charset=UTF-8"
                 },
                 body: content
             }
@@ -108,7 +108,7 @@ export async function uploadToGDrive(content: string, filename = "tabkeep-backup
             },
             body: JSON.stringify({
                 name: filename,
-                mimeType: "text/plain"
+                mimeType: "application/json"
             })
         });
 
@@ -126,7 +126,7 @@ export async function uploadToGDrive(content: string, filename = "tabkeep-backup
                 method: "PATCH",
                 headers: {
                     Authorization: `Bearer ${token}`,
-                    "Content-Type": "text/plain; charset=UTF-8"
+                    "Content-Type": "application/json; charset=UTF-8"
                 },
                 body: content
             }
@@ -139,12 +139,12 @@ export async function uploadToGDrive(content: string, filename = "tabkeep-backup
 }
 
 // 4. Mengunduh isi file backup dari Google Drive
-export async function downloadFromGDrive(filename = "tabkeep-backup.txt"): Promise<string> {
-    const token = await getAuthToken(true);
+export async function downloadFromGDrive(filename = "tabkeep-backup.json", interactive = true): Promise<string> {
+    const token = await getAuthToken(interactive);
     const fileId = await findBackupFile(token, filename);
 
     if (!fileId) {
-        throw new Error("File backup 'tabkeep-backup.txt' tidak ditemukan di Google Drive kamu.");
+        throw new Error(`File backup '${filename}' tidak ditemukan di Google Drive kamu.`);
     }
 
     // Ambil konten file mentah menggunakan alt=media
