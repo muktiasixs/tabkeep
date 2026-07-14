@@ -1030,23 +1030,23 @@ export default function TabkeepDashboard() {
                 <div className="flex items-center justify-end gap-2 w-[184px] shrink-0">
                     <button
                         onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                        className="group flex items-center justify-center h-9 w-9 hover:w-20 rounded-full border border-black/10 hover:border-black/20 dark:border-white/10 dark:hover:border-white/20 bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all duration-300 ease-in-out overflow-hidden shrink-0"
+                        className="group flex items-center justify-center h-9 w-9 hover:w-20 rounded-lg border border-black/10 hover:border-black/20 dark:border-white/10 dark:hover:border-white/20 bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all duration-300 ease-in-out overflow-hidden shrink-0"
                         title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
                     >
-                        {theme === "dark" ? <Sun size={16} className="shrink-0" /> : <Moon size={16} className="shrink-0" />}
-                        <span className="opacity-0 max-w-0 transition-all duration-200 ease-in-out group-hover:opacity-100 group-hover:max-w-[45px] group-hover:ml-2.5 whitespace-nowrap text-xs font-bold leading-none">
+                        <span className="opacity-0 max-w-0 transition-all duration-200 ease-in-out group-hover:opacity-100 group-hover:max-w-[45px] group-hover:mr-2.5 whitespace-nowrap text-xs font-bold leading-none">
                             {theme === "dark" ? "Light" : "Dark"}
                         </span>
+                        {theme === "dark" ? <Sun size={16} className="shrink-0" /> : <Moon size={16} className="shrink-0" />}
                     </button>
                     <button
                         onClick={() => setIsSettingsOpen(true)}
-                        className="group flex items-center justify-center h-9 w-9 hover:w-24 rounded-full border border-black/10 hover:border-black/20 dark:border-white/10 dark:hover:border-white/20 bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all duration-300 ease-in-out overflow-hidden shrink-0"
+                        className="group flex items-center justify-center h-9 w-9 hover:w-24 rounded-lg border border-black/10 hover:border-black/20 dark:border-white/10 dark:hover:border-white/20 bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all duration-300 ease-in-out overflow-hidden shrink-0"
                         title="Settings"
                     >
-                        <Settings size={16} className="shrink-0" />
-                        <span className="opacity-0 max-w-0 transition-all duration-200 ease-in-out group-hover:opacity-100 group-hover:max-w-[55px] group-hover:ml-2.5 whitespace-nowrap text-xs font-bold leading-none">
+                        <span className="opacity-0 max-w-0 transition-all duration-200 ease-in-out group-hover:opacity-100 group-hover:max-w-[55px] group-hover:mr-2.5 whitespace-nowrap text-xs font-bold leading-none">
                             Setting
                         </span>
+                        <Settings size={16} className="shrink-0" />
                     </button>
                 </div>
             </header>
@@ -1082,7 +1082,7 @@ export default function TabkeepDashboard() {
 
                         {/* Input folder baru */}
                         {isCreatingFolder && (
-                            <div className="flex items-center gap-2 py-1.5 px-2 rounded-none bg-gray-50 dark:bg-[#252525] border border-blue-500/30 mt-2">
+                            <div className="flex items-center gap-2 py-1.5 px-2 rounded-lg bg-gray-50 dark:bg-[#252525] border border-blue-500/30 mt-2">
                                 <FolderPlus size={14} className="text-blue-400 flex-shrink-0" />
                                 <input
                                     ref={newFolderInputRef}
@@ -1103,7 +1103,7 @@ export default function TabkeepDashboard() {
                         {!isCreatingFolder && (
                             <button
                                 onClick={() => { setIsCreatingFolder(true); setNewFolderName(""); }}
-                                className="w-full flex items-center gap-2 py-1 px-1 rounded-none text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-400 hover:bg-gray-100/80 dark:hover:bg-white/5 transition-all text-[13px] mt-2"
+                                className="w-full flex items-center gap-2 py-1 px-1 rounded-lg text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-400 hover:bg-gray-100/80 dark:hover:bg-white/5 transition-all text-[13px] mt-2"
                             >
                                 <FolderPlus size={14} />
                                 <span>Folder Baru</span>
@@ -1113,7 +1113,7 @@ export default function TabkeepDashboard() {
 
                     <div
                         onClick={() => setActiveFolderId("trash")}
-                        className={`mt-auto pt-4 border-t border-gray-200 dark:border-[#333] flex items-center justify-between cursor-pointer transition-colors group px-2 py-1.5 rounded-none ${activeFolderId === "trash"
+                        className={`mt-auto pt-4 border-t border-gray-200 dark:border-[#333] flex items-center justify-between cursor-pointer transition-colors group px-2 py-1.5 rounded-lg ${activeFolderId === "trash"
                             ? "bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 font-semibold"
                             : "text-gray-400 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400"
                             }`}
@@ -1187,24 +1187,24 @@ export default function TabkeepDashboard() {
 
                             {/* View Mode Switcher */}
                             {activeFolderId !== "trash" && (
-                                <div className="ml-auto flex items-center bg-gray-200/50 dark:bg-[#252525] rounded-none p-1 border border-gray-200/80 dark:border-[#333]">
+                                <div className="ml-auto flex items-center bg-gray-200/50 dark:bg-[#252525] rounded-lg p-1 border border-gray-200/80 dark:border-[#333]">
                                     <button
                                         onClick={() => setViewMode("list")}
-                                        className={`p-1.5 rounded-none transition-colors ${viewMode === "list" ? "bg-white dark:bg-[#333] text-blue-600 dark:text-blue-400 shadow-sm" : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"}`}
+                                        className={`p-1.5 rounded-lg transition-colors ${viewMode === "list" ? "bg-white dark:bg-[#333] text-blue-600 dark:text-blue-400 shadow-sm" : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"}`}
                                         title="List View"
                                     >
                                         <LayoutList size={18} />
                                     </button>
                                     <button
                                         onClick={() => setViewMode("grid")}
-                                        className={`p-1.5 rounded-none transition-colors ${viewMode === "grid" ? "bg-white dark:bg-[#333] text-blue-600 dark:text-blue-400 shadow-sm" : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"}`}
+                                        className={`p-1.5 rounded-lg transition-colors ${viewMode === "grid" ? "bg-white dark:bg-[#333] text-blue-600 dark:text-blue-400 shadow-sm" : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"}`}
                                         title="Grid View"
                                     >
                                         <LayoutGrid size={18} />
                                     </button>
                                     <button
                                         onClick={() => setViewMode("graph")}
-                                        className={`p-1.5 rounded-none transition-colors ${viewMode === "graph" ? "bg-white dark:bg-[#333] text-blue-600 dark:text-blue-400 shadow-sm" : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"}`}
+                                        className={`p-1.5 rounded-lg transition-colors ${viewMode === "graph" ? "bg-white dark:bg-[#333] text-blue-600 dark:text-blue-400 shadow-sm" : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"}`}
                                         title="Graph View"
                                     >
                                         <Network size={18} />
@@ -1220,13 +1220,13 @@ export default function TabkeepDashboard() {
                                             e.stopPropagation();
                                             setIsHeaderMenuOpen(!isHeaderMenuOpen);
                                         }}
-                                        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-2 rounded-none hover:bg-gray-200 dark:hover:bg-[#333] transition-colors"
+                                        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-[#333] transition-colors"
                                     >
                                         <MoreHorizontal size={24} />
                                     </button>
                                     
                                     {isHeaderMenuOpen && (
-                                        <div className="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-[#252525] border border-gray-200 dark:border-[#333] rounded-none shadow-xl py-1 z-30">
+                                        <div className="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-[#252525] border border-gray-200 dark:border-[#333] rounded-lg shadow-xl py-1 z-30">
                                             <button
                                                 onClick={handleCopyAllSessions}
                                                 className="w-full text-left flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333] transition-colors"
@@ -1268,7 +1268,7 @@ export default function TabkeepDashboard() {
                             {activeFolderId === "trash" && deletedSessions.length > 0 && (
                                 <button
                                     onClick={handleEmptyTrash}
-                                    className="ml-auto flex items-center gap-2 text-xs font-bold text-red-500 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 px-3 py-1.5 rounded-none transition-colors"
+                                    className="ml-auto flex items-center gap-2 text-xs font-bold text-red-500 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 px-3 py-1.5 rounded-lg transition-colors"
                                 >
                                     <Trash2 size={14} />
                                     Empty Trash
@@ -1321,9 +1321,9 @@ export default function TabkeepDashboard() {
                                 ) : activeFolderId === "all" ? (
                                     <>
                                         {/* Uncategorized Sessions Dropzone */}
-                                        <div className={`transition-all mb-1.5 ${viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" : "space-y-1.5"} ${isMainDragOver && searchedSessions.filter(s => s.folderId === null).length > 0 ? "p-2 rounded-none border-2 border-blue-500 border-dashed bg-blue-50/30 dark:bg-blue-500/10" : ""}`}>
+                                        <div className={`transition-all mb-1.5 ${viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" : "space-y-1.5"} ${isMainDragOver && searchedSessions.filter(s => s.folderId === null).length > 0 ? "p-2 rounded-lg border-2 border-blue-500 border-dashed bg-blue-50/30 dark:bg-blue-500/10" : ""}`}>
                                             {searchedSessions.filter(s => s.folderId === null).length === 0 && isMainDragOver && (
-                                                <div className="py-24 flex items-center justify-center text-center text-blue-500 dark:text-blue-400 text-sm font-bold uppercase tracking-widest border-2 border-dashed border-blue-500 bg-blue-50/50 dark:bg-blue-900/20 rounded-none pointer-events-none">
+                                                <div className="py-24 flex items-center justify-center text-center text-blue-500 dark:text-blue-400 text-sm font-bold uppercase tracking-widest border-2 border-dashed border-blue-500 bg-blue-50/50 dark:bg-blue-900/20 rounded-lg pointer-events-none">
                                                     Drop here to Uncategorize
                                                 </div>
                                             )}
@@ -1455,27 +1455,27 @@ export default function TabkeepDashboard() {
 
                 {/* FLOATING ACTION BAR FOR MULTI-SELECTION */}
                 {selectedTabs.length > 0 && (
-                    <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-6 py-3 rounded-none shadow-2xl flex items-center gap-6 animate-in slide-in-from-bottom-10 fade-in duration-300 z-50">
+                    <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-6 py-3 rounded-lg shadow-2xl flex items-center gap-6 animate-in slide-in-from-bottom-10 fade-in duration-300 z-50">
                         <span className="text-sm font-bold">{selectedTabs.length} tab{selectedTabs.length > 1 ? 's' : ''} selected</span>
                         <div className="w-px h-4 bg-gray-700 dark:bg-gray-300"></div>
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={handleRestoreSelected}
-                                className="flex items-center gap-1.5 text-xs font-bold bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-none transition-colors"
+                                className="flex items-center gap-1.5 text-xs font-bold bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg transition-colors"
                             >
                                 <RotateCcw size={12} />
                                 Restore
                             </button>
                             <button
                                 onClick={handleDeleteSelected}
-                                className="flex items-center gap-1.5 text-xs font-bold bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-none transition-colors"
+                                className="flex items-center gap-1.5 text-xs font-bold bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg transition-colors"
                             >
                                 <Trash2 size={12} />
                                 Delete
                             </button>
                             <button
                                 onClick={handleClearSelection}
-                                className="text-xs font-bold text-gray-400 dark:text-gray-500 hover:text-white dark:hover:text-gray-900 px-3 py-1.5 rounded-none transition-colors"
+                                className="text-xs font-bold text-gray-400 dark:text-gray-500 hover:text-white dark:hover:text-gray-900 px-3 py-1.5 rounded-lg transition-colors"
                             >
                                 Cancel
                             </button>

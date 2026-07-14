@@ -44,7 +44,7 @@ export function PinnedLinks({ pinnedLinks, onUnpin, onAdd, theme }: Props) {
                 <button
                     onClick={() => setIsAdding(true)}
                     title="Pin link baru"
-                    className="text-gray-400 dark:text-gray-600 hover:text-blue-500 dark:hover:text-blue-400 transition-colors rounded-none p-0.5"
+                    className="text-gray-400 dark:text-gray-600 hover:text-blue-500 dark:hover:text-blue-400 transition-colors rounded-lg p-0.5"
                 >
                     <Plus size={12} />
                 </button>
@@ -52,7 +52,7 @@ export function PinnedLinks({ pinnedLinks, onUnpin, onAdd, theme }: Props) {
 
             {/* Add input */}
             {isAdding && (
-                <div className="mx-1 mb-2 flex items-center gap-2 px-2 py-1.5 rounded-none bg-gray-50 dark:bg-[#252525] border border-blue-500/40">
+                <div className="mx-1 mb-2 flex items-center gap-2 px-2 py-1.5 rounded-lg bg-gray-50 dark:bg-[#252525] border border-blue-500/40">
                     <Pin size={11} className="text-blue-400 flex-shrink-0" />
                     <input
                         autoFocus
@@ -76,13 +76,13 @@ export function PinnedLinks({ pinnedLinks, onUnpin, onAdd, theme }: Props) {
                     pinnedLinks.map((link) => (
                         <div
                             key={link.id}
-                            className="group flex items-center gap-2 px-2 py-1.5 rounded-none hover:bg-gray-100 dark:hover:bg-[#252525] transition-colors cursor-pointer"
+                            className="group flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#252525] transition-colors cursor-pointer"
                             onClick={() => chrome.tabs.create({ url: link.url, active: true })}
                             title={link.url}
                         >
                             <img loading="lazy"
                                 src={link.favIconUrl || `https://www.google.com/s2/favicons?domain=${link.url}&sz=32`}
-                                className="w-3.5 h-3.5 flex-shrink-0 opacity-70 group-hover:opacity-100 rounded-none"
+                                className="w-3.5 h-3.5 flex-shrink-0 opacity-70 group-hover:opacity-100 rounded-lg"
                                 onError={(e) => { (e.target as HTMLImageElement).src = "https://www.google.com/s2/favicons?domain=google.com"; }}
                                 draggable={false}
                             />

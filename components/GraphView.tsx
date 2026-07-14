@@ -158,7 +158,7 @@ export const GraphView: React.FC<GraphViewProps> = ({ folders, sessions, theme, 
     }, [isDark]);
 
     return (
-        <div ref={containerRef} className="w-full h-full min-h-[600px] flex-1 bg-[#f5f5f7] dark:bg-[#171717] rounded-none overflow-hidden border border-gray-200 dark:border-[#333]">
+        <div ref={containerRef} className="w-full h-full min-h-[600px] flex-1 bg-[#f5f5f7] dark:bg-[#171717] rounded-lg overflow-hidden border border-gray-200 dark:border-[#333]">
             <ForceGraph2D
                 ref={fgRef}
                 width={dimensions.width}

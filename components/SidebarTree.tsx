@@ -6,6 +6,8 @@ import {
 } from "lucide-react";
 import type { Folder as FolderType, Session, PinnedLink } from "~types";
 import { parseImportedLines } from "~lib/linkParser";
+import { useTabkeepStorage } from "~hooks/useTabkeepStorage";
+import { updateSessions } from "~lib/storage";
 
 // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Session Row ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
 
@@ -34,6 +36,7 @@ function SessionRow({
     const [sessionDropPos, setSessionDropPos] = useState<"before" | "after" | null>(null);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
+    const { settings, sessions: allSessions, setSessions } = useTabkeepStorage();
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -131,7 +134,7 @@ function SessionRow({
                         } catch { }
                     }
                 }}
-                className={`group flex flex-col cursor-grab active:cursor-grabbing rounded-none transition-all select-none ${isDropOver
+                className={`group flex flex-col cursor-grab active:cursor-grabbing rounded-lg transition-all select-none ${isDropOver
                     ? "bg-blue-100 dark:bg-blue-500/15 ring-1 ring-blue-400 dark:ring-blue-500"
                     : "hover:bg-gray-100/80 dark:hover:bg-white/5"
                     }`}
@@ -143,7 +146,7 @@ function SessionRow({
                     {/* chevron ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ only show if has pins */}
                     <button
                         onClick={(e) => { e.stopPropagation(); if (pins.length > 0) setIsOpen(v => !v); }}
-                        className={`flex-shrink-0 w-3.5 h-3.5 flex items-center justify-center rounded-none transition-colors ${pins.length > 0 ? "text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-400" : "text-transparent pointer-events-none"}`}
+                        className={`flex-shrink-0 w-3.5 h-3.5 flex items-center justify-center rounded-lg transition-colors ${pins.length > 0 ? "text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-400" : "text-transparent pointer-events-none"}`}
                     >
                         {pins.length > 0 ? (isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />) : <span className="w-2.5" />}
                     </button>
@@ -158,7 +161,7 @@ function SessionRow({
                             onBlur={commitEdit}
                             onKeyDown={e => { if (e.key === "Enter") commitEdit(); if (e.key === "Escape") setEditing(false); }}
                             onClick={e => e.stopPropagation()}
-                            className="flex-1 bg-gray-100 dark:bg-[#333] text-gray-900 dark:text-white text-[14px] rounded-none px-1 py-0 outline-none border border-blue-500/50 min-w-0"
+                            className="flex-1 bg-gray-100 dark:bg-[#333] text-gray-900 dark:text-white text-[14px] rounded-lg px-1 py-0 outline-none border border-blue-500/50 min-w-0"
                         />
                     ) : (
                         <span
@@ -179,7 +182,7 @@ function SessionRow({
                                         onDeleteSession?.(session.id);
                                     }
                                 }}
-                                className="flex-shrink-0 text-red-400 hover:text-red-600 dark:text-red-500/70 dark:hover:text-red-500 p-0.5 rounded-none"
+                                className="flex-shrink-0 text-red-400 hover:text-red-600 dark:text-red-500/70 dark:hover:text-red-500 p-0.5 rounded-lg"
                                 title="Delete session"
                             >
                                 <X size={11} />
@@ -188,19 +191,28 @@ function SessionRow({
                             <div className="relative" ref={menuRef}>
                                 <button
                                     onClick={(e) => { e.stopPropagation(); setIsMenuOpen(!isMenuOpen); }}
-                                    className="flex-shrink-0 text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-300 p-0.5 rounded-none"
+                                    className="flex-shrink-0 text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-300 p-0.5 rounded-lg"
                                     title="More options"
                                 >
                                     <MoreHorizontal size={13} />
                                 </button>
                                 
                                 {isMenuOpen && (
-                                    <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-[#252525] border border-gray-200 dark:border-[#333] rounded-none shadow-lg z-50 py-1 flex flex-col overflow-hidden">
+                                    <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-[#252525] border border-gray-200 dark:border-[#333] rounded-lg shadow-lg z-50 py-1 flex flex-col overflow-hidden">
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 setIsMenuOpen(false);
-                                                chrome.windows.create({ url: session.tabs.map(t => t.url) });
+                                                const urls = session.tabs.map(t => t.url).filter(Boolean);
+                                                if (urls.length > 0) {
+                                                    const inBackground = e.ctrlKey || e.metaKey;
+                                                    chrome.windows.create({ url: urls, focused: !inBackground });
+                                                }
+                                                if (settings.restoreOption === "remove" && onDeleteSession) {
+                                                    onDeleteSession(session.id);
+                                                } else if (settings.restoreOption === "archived" && onUpdateSession) {
+                                                    onUpdateSession(session.id, { tabs: session.tabs.map(t => ({ ...t, archived: true })) });
+                                                }
                                             }}
                                             className="flex items-center gap-2 px-3 py-1.5 text-[12px] text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
                                         >
@@ -210,7 +222,15 @@ function SessionRow({
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 setIsMenuOpen(false);
-                                                session.tabs.forEach(t => chrome.tabs.create({ url: t.url, active: false }));
+                                                const inBackground = e.ctrlKey || e.metaKey;
+                                                session.tabs.forEach(t => {
+                                                    if (t.url) chrome.tabs.create({ url: t.url, active: !inBackground });
+                                                });
+                                                if (settings.restoreOption === "remove" && onDeleteSession) {
+                                                    onDeleteSession(session.id);
+                                                } else if (settings.restoreOption === "archived" && onUpdateSession) {
+                                                    onUpdateSession(session.id, { tabs: session.tabs.map(t => ({ ...t, archived: true })) });
+                                                }
                                             }}
                                             className="flex items-center gap-2 px-3 py-1.5 text-[12px] text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
                                         >
@@ -306,13 +326,13 @@ function SessionRow({
                     }}
                     onClick={() => chrome.tabs.create({ url: link.url, active: true })}
                     title={link.title}
-                    className="group/pin flex items-center gap-1.5 py-[3px] pr-2 cursor-pointer rounded-none hover:bg-gray-100/80 dark:hover:bg-white/5 transition-colors"
+                    className="group/pin flex items-center gap-1.5 py-[3px] pr-2 cursor-pointer rounded-lg hover:bg-gray-100/80 dark:hover:bg-white/5 transition-colors"
                     style={{ paddingLeft: `${indentPx + 18}px` }}
                 >
                     <Pin size={8} className="flex-shrink-0 text-amber-500 dark:text-amber-400" />
                     <img loading="lazy"
                         src={link.favIconUrl || `https://www.google.com/s2/favicons?domain=${link.url}&sz=32`}
-                        className="w-3 h-3 flex-shrink-0 opacity-60 group-hover/pin:opacity-100 rounded-none transition-opacity"
+                        className="w-3 h-3 flex-shrink-0 opacity-60 group-hover/pin:opacity-100 rounded-lg transition-opacity"
                         onError={(e) => { (e.target as HTMLImageElement).src = "https://www.google.com/s2/favicons?domain=google.com"; }}
                         draggable={false}
                     />
@@ -365,6 +385,7 @@ function FolderRow({
     const [folderDropPos, setFolderDropPos] = useState<"before" | "after" | null>(null);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
+    const { settings, sessions: allSessions, setSessions } = useTabkeepStorage();
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -464,7 +485,7 @@ function FolderRow({
                     }
                 }}
                 onDrop={handleDrop}
-                className={`rounded-none transition-all ${isDragOver && !folderDropPos
+                className={`rounded-lg transition-all ${isDragOver && !folderDropPos
                     ? "ring-1 ring-blue-400 dark:ring-blue-500 bg-blue-50/50 dark:bg-blue-500/10"
                     : ""
                     }`}
@@ -477,7 +498,7 @@ function FolderRow({
                         e.dataTransfer.setData("application/tabkeep-reorder-folder", JSON.stringify({ folderId: folder.id }));
                         e.dataTransfer.effectAllowed = "move";
                     }}
-                    className={`group flex items-center gap-1.5 py-[3px] pr-2 rounded-none transition-all select-none cursor-pointer ${isDragOver && !folderDropPos
+                    className={`group flex items-center gap-1.5 py-[3px] pr-2 rounded-lg transition-all select-none cursor-pointer ${isDragOver && !folderDropPos
                         ? "text-blue-600 dark:text-blue-400"
                         : isActive
                             ? "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400"
@@ -505,7 +526,7 @@ function FolderRow({
                                 onBlur={commitEdit}
                                 onKeyDown={e => { if (e.key === "Enter") commitEdit(); if (e.key === "Escape") setEditing(false); }}
                                 onClick={e => e.stopPropagation()}
-                                className="flex-1 bg-gray-100 dark:bg-[#333] text-gray-900 dark:text-white text-[15px] rounded-none px-1 py-0 outline-none border border-blue-500/50 min-w-0"
+                                className="flex-1 bg-gray-100 dark:bg-[#333] text-gray-900 dark:text-white text-[15px] rounded-lg px-1 py-0 outline-none border border-blue-500/50 min-w-0"
                             />
                         ) : (
                             <span
@@ -526,7 +547,7 @@ function FolderRow({
                             <button
                                 onClick={e => { e.stopPropagation(); onDelete(folder.id); }}
                                 title="Delete folder"
-                                className="flex-shrink-0 text-red-400 hover:text-red-600 dark:text-red-500/70 dark:hover:text-red-500 p-0.5 rounded-none transition-colors"
+                                className="flex-shrink-0 text-red-400 hover:text-red-600 dark:text-red-500/70 dark:hover:text-red-500 p-0.5 rounded-lg transition-colors"
                             >
                                 <X size={11} />
                             </button>
@@ -534,20 +555,40 @@ function FolderRow({
                             <div className="relative" ref={menuRef}>
                                 <button
                                     onClick={(e) => { e.stopPropagation(); setIsMenuOpen(!isMenuOpen); }}
-                                    className="flex-shrink-0 text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-300 p-0.5 rounded-none transition-colors"
+                                    className="flex-shrink-0 text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-300 p-0.5 rounded-lg transition-colors"
                                     title="More options"
                                 >
                                     <MoreHorizontal size={13} />
                                 </button>
                                 
                                 {isMenuOpen && (
-                                    <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-[#252525] border border-gray-200 dark:border-[#333] rounded-none shadow-lg z-50 py-1 flex flex-col overflow-hidden text-left">
+                                    <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-[#252525] border border-gray-200 dark:border-[#333] rounded-lg shadow-lg z-50 py-1 flex flex-col overflow-hidden text-left">
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 setIsMenuOpen(false);
-                                                const allUrls = sessions.flatMap(s => s.tabs.map(t => t.url));
-                                                if (allUrls.length > 0) chrome.windows.create({ url: allUrls });
+                                                const allUrls = sessions.flatMap(s => s.tabs.map(t => t.url)).filter(Boolean);
+                                                if (allUrls.length > 0) {
+                                                    const inBackground = e.ctrlKey || e.metaKey;
+                                                    chrome.windows.create({ url: allUrls, focused: !inBackground });
+                                                }
+                                                
+                                                if (settings.restoreOption === "remove") {
+                                                    const folderSessionIds = new Set(sessions.map(s => s.id));
+                                                    const updated = allSessions.filter(s => !folderSessionIds.has(s.id));
+                                                    setSessions(updated);
+                                                    updateSessions(updated);
+                                                } else if (settings.restoreOption === "archived") {
+                                                    const folderSessionIds = new Set(sessions.map(s => s.id));
+                                                    const updated = allSessions.map(s => {
+                                                        if (folderSessionIds.has(s.id)) {
+                                                            return { ...s, tabs: s.tabs.map(t => ({ ...t, archived: true })) };
+                                                        }
+                                                        return s;
+                                                    });
+                                                    setSessions(updated);
+                                                    updateSessions(updated);
+                                                }
                                             }}
                                             className="flex items-center gap-2 px-3 py-1.5 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
                                         >
@@ -557,8 +598,26 @@ function FolderRow({
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 setIsMenuOpen(false);
-                                                const allUrls = sessions.flatMap(s => s.tabs.map(t => t.url));
-                                                allUrls.forEach(url => chrome.tabs.create({ url, active: false }));
+                                                const allUrls = sessions.flatMap(s => s.tabs.map(t => t.url)).filter(Boolean);
+                                                const inBackground = e.ctrlKey || e.metaKey;
+                                                allUrls.forEach(url => chrome.tabs.create({ url, active: !inBackground }));
+                                                
+                                                if (settings.restoreOption === "remove") {
+                                                    const folderSessionIds = new Set(sessions.map(s => s.id));
+                                                    const updated = allSessions.filter(s => !folderSessionIds.has(s.id));
+                                                    setSessions(updated);
+                                                    updateSessions(updated);
+                                                } else if (settings.restoreOption === "archived") {
+                                                    const folderSessionIds = new Set(sessions.map(s => s.id));
+                                                    const updated = allSessions.map(s => {
+                                                        if (folderSessionIds.has(s.id)) {
+                                                            return { ...s, tabs: s.tabs.map(t => ({ ...t, archived: true })) };
+                                                        }
+                                                        return s;
+                                                    });
+                                                    setSessions(updated);
+                                                    updateSessions(updated);
+                                                }
                                             }}
                                             className="flex items-center gap-2 px-3 py-1.5 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
                                         >
@@ -743,7 +802,7 @@ export function SidebarTree({
             >
                 {/* Root header */}
                 <div
-                    className={`group flex items-center gap-1.5 py-[5px] pr-2 pl-1 rounded-none transition-all select-none ${isRootDragOver
+                    className={`group flex items-center gap-1.5 py-[5px] pr-2 pl-1 rounded-lg transition-all select-none ${isRootDragOver
                         ? "bg-blue-100 dark:bg-blue-500/15 ring-1 ring-blue-400 dark:ring-blue-500"
                         : activeFolderId === "all"
                             ? "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400"

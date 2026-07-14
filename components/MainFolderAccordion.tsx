@@ -3,7 +3,8 @@ import { ChevronDown, ChevronRight, Folder, X, MoreHorizontal, ExternalLink, Pen
 import { SessionBox } from "./SessionBox";
 import type { Folder as FolderType, Session, SavedTab, PinnedLink, SelectedTab } from "~types";
 import { parseImportedLines } from "~lib/linkParser";
-
+import { useTabkeepStorage } from "~hooks/useTabkeepStorage";
+import { updateSessions } from "~lib/storage";
 interface Props {
     folder: FolderType;
     sessions: Session[];
@@ -40,6 +41,7 @@ export function MainFolderAccordion({ folder, sessions, allFolders, onDeleteSess
     const [folderDropPos, setFolderDropPos] = useState<"before" | "after" | null>(null);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
+    const { settings, sessions: allSessions, setSessions: setAllSessions } = useTabkeepStorage();
 
     // Edit folder state
     const [editing, setEditing] = useState(false);
@@ -149,7 +151,7 @@ export function MainFolderAccordion({ folder, sessions, allFolders, onDeleteSess
     };
 
     return (
-        <div className={`relative mb-1.5 last:mb-0 bg-white dark:bg-[#1a1a1a] rounded-none shadow-sm dark:shadow-none transition-all ${isDragOver && !folderDropPos
+        <div className={`relative mb-1.5 last:mb-0 bg-white dark:bg-[#1a1a1a] rounded-lg shadow-sm dark:shadow-none transition-all ${isDragOver && !folderDropPos
             ? "ring-2 ring-blue-500/50"
             : ""
             }`}>
@@ -164,10 +166,10 @@ export function MainFolderAccordion({ folder, sessions, allFolders, onDeleteSess
                 }}
                 onDragOver={handleDragOver}
                 onDrop={handleDrop}
-                className={`flex items-center gap-3 group p-4 transition-all rounded-none ${!isExpanded ? "rounded-none" : ""}`}
+                className={`flex items-center gap-3 group p-4 transition-all rounded-lg ${!isExpanded ? "rounded-lg" : ""}`}
             >
                 <div 
-                    className="p-1 rounded-none bg-gray-200 dark:bg-[#333] hover:bg-gray-300 dark:hover:bg-[#444] transition-colors cursor-pointer"
+                    className="p-1 rounded-lg bg-gray-200 dark:bg-[#333] hover:bg-gray-300 dark:hover:bg-[#444] transition-colors cursor-pointer"
                     onClick={(e) => {
                         e.stopPropagation();
                         setIsExpanded(!isExpanded);
@@ -185,7 +187,7 @@ export function MainFolderAccordion({ folder, sessions, allFolders, onDeleteSess
                         onBlur={commitEdit}
                         onKeyDown={handleKeyDown}
                         onClick={(e) => e.stopPropagation()}
-                        className="bg-white dark:bg-[#1a1a1a] border border-blue-500 rounded-none px-2 py-0.5 text-lg font-bold text-gray-900 dark:text-white outline-none flex-1 min-w-0"
+                        className="bg-white dark:bg-[#1a1a1a] border border-blue-500 rounded-lg px-2 py-0.5 text-lg font-bold text-gray-900 dark:text-white outline-none flex-1 min-w-0"
                     />
                 ) : (
                     <h3
@@ -210,18 +212,38 @@ export function MainFolderAccordion({ folder, sessions, allFolders, onDeleteSess
                             e.stopPropagation();
                             setIsMenuOpen(!isMenuOpen);
                         }}
-                        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1 rounded-none hover:bg-gray-200 dark:hover:bg-[#333] transition-colors"
+                        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1 rounded-lg hover:bg-gray-200 dark:hover:bg-[#333] transition-colors"
                     >
                         <MoreHorizontal size={16} />
                     </button>
                     {isMenuOpen && (
-                        <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-[#252525] border border-gray-200 dark:border-[#333] rounded-none shadow-lg py-1 z-20">
+                        <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-[#252525] border border-gray-200 dark:border-[#333] rounded-lg shadow-lg py-1 z-20">
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     setIsMenuOpen(false);
-                                    const allUrls = sessions.flatMap(s => s.tabs.map(t => t.url));
-                                    chrome.windows.create({ url: allUrls });
+                                    const allUrls = sessions.flatMap(s => s.tabs.map(t => t.url)).filter(Boolean);
+                                    if (allUrls.length > 0) {
+                                        const inBackground = e.ctrlKey || e.metaKey;
+                                        chrome.windows.create({ url: allUrls, focused: !inBackground });
+                                    }
+                                    
+                                    if (settings.restoreOption === "remove") {
+                                        const folderSessionIds = new Set(sessions.map(s => s.id));
+                                        const updated = allSessions.filter(s => !folderSessionIds.has(s.id));
+                                        setAllSessions(updated);
+                                        updateSessions(updated);
+                                    } else if (settings.restoreOption === "archived") {
+                                        const folderSessionIds = new Set(sessions.map(s => s.id));
+                                        const updated = allSessions.map(s => {
+                                            if (folderSessionIds.has(s.id)) {
+                                                return { ...s, tabs: s.tabs.map(t => ({ ...t, archived: true })) };
+                                            }
+                                            return s;
+                                        });
+                                        setAllSessions(updated);
+                                        updateSessions(updated);
+                                    }
                                 }}
                                 className="flex items-center gap-2 px-3 py-1.5 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
                             >
@@ -231,8 +253,26 @@ export function MainFolderAccordion({ folder, sessions, allFolders, onDeleteSess
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     setIsMenuOpen(false);
-                                    const allUrls = sessions.flatMap(s => s.tabs.map(t => t.url));
-                                    allUrls.forEach(url => chrome.tabs.create({ url, active: false }));
+                                    const allUrls = sessions.flatMap(s => s.tabs.map(t => t.url)).filter(Boolean);
+                                    const inBackground = e.ctrlKey || e.metaKey;
+                                    allUrls.forEach(url => chrome.tabs.create({ url, active: !inBackground }));
+                                    
+                                    if (settings.restoreOption === "remove") {
+                                        const folderSessionIds = new Set(sessions.map(s => s.id));
+                                        const updated = allSessions.filter(s => !folderSessionIds.has(s.id));
+                                        setAllSessions(updated);
+                                        updateSessions(updated);
+                                    } else if (settings.restoreOption === "archived") {
+                                        const folderSessionIds = new Set(sessions.map(s => s.id));
+                                        const updated = allSessions.map(s => {
+                                            if (folderSessionIds.has(s.id)) {
+                                                return { ...s, tabs: s.tabs.map(t => ({ ...t, archived: true })) };
+                                            }
+                                            return s;
+                                        });
+                                        setAllSessions(updated);
+                                        updateSessions(updated);
+                                    }
                                 }}
                                 className="flex items-center gap-2 px-3 py-1.5 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
                             >
@@ -316,7 +356,7 @@ export function MainFolderAccordion({ folder, sessions, allFolders, onDeleteSess
 
             {isExpanded && (
                 <>
-                    <div className={`border-t border-gray-100 dark:border-[#222] ${viewMode === "grid" ? "p-4 grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50/50 dark:bg-[#131313]" : "p-4 space-y-1.5 bg-gray-50/50 dark:bg-transparent rounded-none"}`}>
+                    <div className={`border-t border-gray-100 dark:border-[#222] ${viewMode === "grid" ? "p-4 grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50/50 dark:bg-[#131313]" : "p-4 space-y-1.5 bg-gray-50/50 dark:bg-transparent rounded-lg"}`}>
                         {sessions.length === 0 ? (
                             <p className="text-[10px] text-gray-400 dark:text-gray-600 italic">Folder kosong</p>
                         ) : (

@@ -347,7 +347,7 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
             <div
                 draggable
                 onDragStart={handleSessionDragStart}
-                className={`bg-white dark:bg-[#1a1a1a] rounded-none shadow-sm dark:shadow-none transition-all animate-in fade-in duration-300 ${isDragOver ? "ring-2 ring-blue-500/50 shadow-blue-500/20" : ""
+                className={`bg-white dark:bg-[#1a1a1a] rounded-lg shadow-sm dark:shadow-none transition-all animate-in fade-in duration-300 ${isDragOver ? "ring-2 ring-blue-500/50 shadow-blue-500/20" : ""
                     }`}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
@@ -355,12 +355,12 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
             >
                 {/* Header */}
                 <div
-                    className={`group/header p-4 bg-transparent flex justify-between items-start hover:bg-gray-50/50 dark:hover:bg-white/[0.02] rounded-none ${!isExpanded ? 'rounded-none' : ''}`}
+                    className={`group/header p-4 bg-transparent flex justify-between items-start hover:bg-gray-50/50 dark:hover:bg-white/[0.02] rounded-lg ${!isExpanded ? 'rounded-lg' : ''}`}
                 >
                     <div className="flex items-start gap-3 flex-1 min-w-0">
                         {/* Chevron button to toggle expand/collapse */}
                         <div 
-                            className="p-1 rounded-none hover:bg-gray-200 dark:hover:bg-[#333] transition-colors cursor-pointer mt-0.5"
+                            className="p-1 rounded-lg hover:bg-gray-200 dark:hover:bg-[#333] transition-colors cursor-pointer mt-0.5"
                             onClick={(e) => {
                                 e.stopPropagation();
                                 setIsExpanded(!isExpanded);
@@ -381,7 +381,7 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                                 onBlur={commitEdit}
                                 onKeyDown={handleKeyDown}
                                 onClick={(e) => e.stopPropagation()}
-                                className="bg-white dark:bg-[#1a1a1a] border border-blue-500 rounded-none px-2 py-0.5 text-lg font-bold text-gray-900 dark:text-white outline-none flex-1 min-w-0"
+                                className="bg-white dark:bg-[#1a1a1a] border border-blue-500 rounded-lg px-2 py-0.5 text-lg font-bold text-gray-900 dark:text-white outline-none flex-1 min-w-0"
                             />
                         ) : (
                             <h3
@@ -414,21 +414,39 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                                     setIsMenuOpen(!isMenuOpen);
                                     if (isMenuOpen) setMenuView('main');
                                 }}
-                                className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 p-1.5 rounded-none hover:bg-gray-200 dark:hover:bg-[#333] transition-colors"
+                                className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-[#333] transition-colors"
                             >
                                 <MoreHorizontal size={16} />
                             </button>
                             
                             {isMenuOpen && (
-                                <div className="absolute right-0 top-full mt-1 w-52 bg-white dark:bg-[#252525] border border-gray-200 dark:border-[#333] rounded-none shadow-xl z-50 py-1 text-left flex flex-col overflow-hidden">
+                                <div className="absolute right-0 top-full mt-1 w-52 bg-white dark:bg-[#252525] border border-gray-200 dark:border-[#333] rounded-lg shadow-xl z-50 py-1 text-left flex flex-col overflow-hidden">
                                     {menuView === 'main' && (
                                         <>
                                             <button
-                                                onClick={(e) => {
+                                                onClick={async (e) => {
                                                     e.stopPropagation();
                                                     setIsMenuOpen(false);
                                                     setMenuView('main');
-                                                    handleRestoreAll(e);
+                                                    const urls = session.tabs.map(t => t.url).filter(Boolean);
+                                                    if (urls.length > 0) {
+                                                        const inBackground = e.ctrlKey || e.metaKey;
+                                                        await chrome.windows.create({ url: urls, focused: !inBackground });
+                                                    }
+
+                                                    // Apply restore settings (remove/archive)
+                                                    if (settings.restoreOption === "remove") {
+                                                        onDelete(session.id);
+                                                    } else if (settings.restoreOption === "archived") {
+                                                        const updatedSessions = sessions.map(s => {
+                                                            if (s.id === session.id) {
+                                                                return { ...s, tabs: s.tabs.map(t => ({ ...t, archived: true })) };
+                                                            }
+                                                            return s;
+                                                        });
+                                                        setSessions(updatedSessions);
+                                                        updateSessions(updatedSessions);
+                                                    }
                                                 }}
                                                 className="flex items-center gap-3 px-3 py-2 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
                                             >
@@ -439,7 +457,24 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                                                     e.stopPropagation();
                                                     setIsMenuOpen(false);
                                                     setMenuView('main');
-                                                    session.tabs.forEach(tab => chrome.tabs.create({ url: tab.url, active: false }));
+                                                    const inBackground = e.ctrlKey || e.metaKey;
+                                                    session.tabs.forEach(tab => {
+                                                        if (tab.url) chrome.tabs.create({ url: tab.url, active: !inBackground });
+                                                    });
+                                                    
+                                                    // Apply restore settings (remove/archive)
+                                                    if (settings.restoreOption === "remove") {
+                                                        onDelete(session.id);
+                                                    } else if (settings.restoreOption === "archived") {
+                                                        const updatedSessions = sessions.map(s => {
+                                                            if (s.id === session.id) {
+                                                                return { ...s, tabs: s.tabs.map(t => ({ ...t, archived: true })) };
+                                                            }
+                                                            return s;
+                                                        });
+                                                        setSessions(updatedSessions);
+                                                        updateSessions(updatedSessions);
+                                                    }
                                                 }}
                                                 className="flex items-center gap-3 px-3 py-2 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333]"
                                             >
@@ -736,7 +771,7 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                                             }}
                                             onMouseEnter={() => onTabHover?.({ ...tab, sessionTimestamp: session.timestamp })}
                                             title={viewMode === "grid" ? tab.title || "Untitled Tab" : undefined}
-                                            className={`flex items-center cursor-grab active:cursor-grabbing group transition-colors ${viewMode === "grid" ? "justify-center p-1 rounded-none w-7 h-7 relative" : "gap-2.5 py-1 px-2 rounded-none"} ${isSelected
+                                            className={`flex items-center cursor-grab active:cursor-grabbing group transition-colors ${viewMode === "grid" ? "justify-center p-1 rounded-lg w-7 h-7 relative" : "gap-2.5 py-1 px-2 rounded-lg"} ${isSelected
                                                 ? "bg-blue-50 dark:bg-blue-900/30"
                                                 : isArchived
                                                     ? "bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(0,0,0,0.02)_10px,rgba(0,0,0,0.02)_20px)] dark:bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(255,255,255,0.02)_10px,rgba(255,255,255,0.02)_20px)] hover:bg-gray-100 dark:hover:bg-[#2a2a2a]"
@@ -754,7 +789,7 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                                                     type="checkbox"
                                                     checked={isSelected}
                                                     readOnly
-                                                    className="w-3 h-3 cursor-pointer accent-blue-500 rounded-none border-gray-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-blue-600 focus:ring-offset-gray-100 dark:focus:ring-offset-gray-800"
+                                                    className="w-3 h-3 cursor-pointer accent-blue-500 rounded-lg border-gray-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-blue-600 focus:ring-offset-gray-100 dark:focus:ring-offset-gray-800"
                                                 />
                                                 </div>
                                             )}
@@ -788,7 +823,7 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                                             <button
                                                 onClick={(e) => handlePinTabClick(e, tab)}
                                                 title={isPinned ? "Unpin dari sidebar" : "Pin ke sidebar"}
-                                                className={`transition-all p-1 rounded-none flex-shrink-0 ${isPinned
+                                                className={`transition-all p-1 rounded-lg flex-shrink-0 ${isPinned
                                                     ? "text-amber-500 dark:text-amber-400 opacity-100"
                                                     : "opacity-0 group-hover:opacity-100 text-gray-400 hover:text-amber-500 dark:hover:text-amber-400"
                                                     }`}

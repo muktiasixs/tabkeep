@@ -126,8 +126,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     if (!isRendered) return null;
 
     return (
-        <div className={`fixed inset-0 z-50 flex items-center justify-center bg-white/50 dark:bg-black/40 transition-all duration-200 ${isVisible ? 'opacity-100 backdrop-blur-md' : 'opacity-0 backdrop-blur-none'}`}>
-            <div className={`w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh] transition-all duration-200 transform ${isVisible ? 'scale-100 opacity-100 translate-y-0' : 'scale-95 opacity-0 translate-y-4'}`}>
+        <div onClick={onClose} className={`fixed inset-0 z-50 flex items-center justify-center bg-white/50 dark:bg-black/40 transition-all duration-200 ${isVisible ? 'opacity-100 backdrop-blur-md' : 'opacity-0 backdrop-blur-none'}`}>
+            <div onClick={e => e.stopPropagation()} className={`w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh] transition-all duration-200 transform ${isVisible ? 'scale-100 opacity-100 translate-y-0' : 'scale-95 opacity-0 translate-y-4'}`}>
                 <div className="flex items-center justify-between px-6 py-4">
                     <h2 className="text-xl font-black text-gray-900 dark:text-white flex items-center gap-2 drop-shadow-sm dark:drop-shadow-md">
                         Setting
@@ -323,7 +323,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                         <div className="flex justify-end gap-2.5">
                             <button
                                 onClick={handleDownloadTxt}
-                                className="bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 border border-black/10 dark:border-white/20 text-gray-900 dark:text-white font-bold py-1.5 px-4 rounded-none transition-colors text-sm flex items-center gap-2"
+                                className="bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 border border-black/10 dark:border-white/20 text-gray-900 dark:text-white font-bold py-1.5 px-4 rounded-lg transition-colors text-sm flex items-center gap-2"
                             >
                                 <Download size={14} />
                                 Download TXT
@@ -331,7 +331,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                             <button
                                 onClick={handleSyncToGDrive}
                                 disabled={gdriveSyncState === "syncing"}
-                                className={`font-bold py-1.5 px-4 rounded-none transition-colors text-sm flex items-center gap-2 border ${
+                                className={`font-bold py-1.5 px-4 rounded-lg transition-colors text-sm flex items-center gap-2 border ${
                                     gdriveSyncState === "syncing"
                                         ? "bg-gray-100 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-400 cursor-not-allowed"
                                         : gdriveSyncState === "success"

@@ -105,7 +105,7 @@ export function SidebarFolderItem({ folder, isActive, sessions, pinnedLinks, onC
 
     return (
         <div
-            className={`mb-2 rounded-none transition-all border overflow-hidden ${isDragOver ? "bg-blue-100 dark:bg-blue-500/10 border-blue-500 outline-dashed outline-2 outline-blue-500" :
+            className={`mb-2 rounded-lg transition-all border overflow-hidden ${isDragOver ? "bg-blue-100 dark:bg-blue-500/10 border-blue-500 outline-dashed outline-2 outline-blue-500" :
                 isActive
                     ? "bg-blue-50/30 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/30"
                     : "border-gray-200 dark:border-white/5 hover:border-gray-300 dark:hover:border-white/10"
@@ -143,7 +143,7 @@ export function SidebarFolderItem({ folder, isActive, sessions, pinnedLinks, onC
                         onBlur={commitEdit}
                         onKeyDown={handleKeyDown}
                         onClick={(e) => e.stopPropagation()}
-                        className="flex-1 bg-gray-50 dark:bg-[#333] text-gray-900 dark:text-white text-sm rounded-none px-1 py-0 outline-none border border-blue-500/50 min-w-0"
+                        className="flex-1 bg-gray-50 dark:bg-[#333] text-gray-900 dark:text-white text-sm rounded-lg px-1 py-0 outline-none border border-blue-500/50 min-w-0"
                     />
                 ) : (
                     <span 
@@ -244,7 +244,7 @@ export function SidebarFolderItem({ folder, isActive, sessions, pinnedLinks, onC
                                                 } catch (err) {}
                                             }
                                         }}
-                                        className="px-2 py-1 text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider truncate flex items-center justify-between group/session-title cursor-grab active:cursor-grabbing hover:bg-gray-100 dark:hover:bg-[#2a2a2a] transition-colors rounded-none border border-transparent"
+                                        className="px-2 py-1 text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider truncate flex items-center justify-between group/session-title cursor-grab active:cursor-grabbing hover:bg-gray-100 dark:hover:bg-[#2a2a2a] transition-colors rounded-lg border border-transparent"
                                     >
                                         <span>{session.name || "Unnamed Session"}</span>
                                         <span className="text-[8px] opacity-0 group-hover/session-title:opacity-100 transition-opacity">
@@ -266,7 +266,7 @@ export function SidebarFolderItem({ folder, isActive, sessions, pinnedLinks, onC
                                             <Pin size={9} className="text-amber-500 dark:text-amber-400 flex-shrink-0" />
                                             <img loading="lazy"
                                                 src={link.favIconUrl || `https://www.google.com/s2/favicons?domain=${link.url}&sz=32`}
-                                                className="w-3 h-3 flex-shrink-0 opacity-60 group-hover/tab:opacity-100 bg-gray-100 dark:bg-white/5 rounded-none"
+                                                className="w-3 h-3 flex-shrink-0 opacity-60 group-hover/tab:opacity-100 bg-gray-100 dark:bg-white/5 rounded-lg"
                                                 onError={(e) => { (e.target as HTMLImageElement).src = "https://www.google.com/s2/favicons?domain=google.com"; }}
                                                 draggable={false}
                                             />
