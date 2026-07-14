@@ -205,7 +205,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     if (!isRendered) return null;
 
     return (
-        <div onClick={onClose} className={`fixed inset-0 z-50 flex items-center justify-center bg-white/50 dark:bg-black/40 transition-all duration-200 ${isVisible ? 'opacity-100 backdrop-blur-md' : 'opacity-0 backdrop-blur-none'}`}>
+        <div onClick={onClose} className={`fixed inset-0 z-50 flex items-center justify-center bg-white/50 dark:bg-black/40 backdrop-blur-md transition-opacity duration-200 ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
             <div onClick={e => e.stopPropagation()} className={`w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh] transition-all duration-200 transform ${isVisible ? 'scale-100 opacity-100 translate-y-0' : 'scale-95 opacity-0 translate-y-4'}`}>
                 <div className="flex items-center justify-between px-6 py-4">
                     <h2 className="text-xl font-black text-gray-900 dark:text-white flex items-center gap-2 drop-shadow-sm dark:drop-shadow-md">

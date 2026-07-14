@@ -340,7 +340,7 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
     };
 
     return (
-        <div className="relative pb-4">
+        <div id={`session-${session.id}`} className="relative pb-4">
             {/* Session reorder drop indicator ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ before */}
             {sessionDropPos === "before" && (
                 <div className="absolute top-[-2px] left-1 right-1 h-1 bg-blue-500 rounded-full pointer-events-none z-10" />
@@ -776,11 +776,11 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                                             }}
                                             onMouseEnter={() => onTabHover?.({ ...tab, sessionTimestamp: session.timestamp })}
                                             title={viewMode === "grid" ? tab.title || "Untitled Tab" : undefined}
-                                            className={`flex items-center cursor-grab active:cursor-grabbing group transition-colors ${viewMode === "grid" ? "justify-center p-1 rounded-lg w-7 h-7 relative" : "gap-2.5 py-1 px-2 rounded-lg"} ${isSelected
-                                                ? "bg-blue-50 dark:bg-blue-900/30"
+                                            className={`flex items-center cursor-grab active:cursor-grabbing group transition-colors ${viewMode === "grid" ? "justify-center p-1 w-7 h-7 relative" : "gap-2.5 py-1 px-2"} ${isSelected
+                                                ? "bg-blue-50 dark:bg-blue-900/30 rounded-none"
                                                 : isArchived
-                                                    ? "bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(0,0,0,0.02)_10px,rgba(0,0,0,0.02)_20px)] dark:bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(255,255,255,0.02)_10px,rgba(255,255,255,0.02)_20px)] hover:bg-gray-100 dark:hover:bg-[#2a2a2a]"
-                                                    : "hover:bg-blue-50/50 dark:hover:bg-[#252525]"
+                                                    ? "rounded-lg bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(0,0,0,0.02)_10px,rgba(0,0,0,0.02)_20px)] dark:bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(255,255,255,0.02)_10px,rgba(255,255,255,0.02)_20px)] hover:bg-gray-100 dark:hover:bg-[#2a2a2a]"
+                                                    : "rounded-lg hover:bg-blue-50/50 dark:hover:bg-[#252525]"
                                                 }`}
                                         >
                                             {viewMode !== "grid" && (

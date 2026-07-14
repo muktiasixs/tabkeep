@@ -23,12 +23,13 @@ interface SessionRowProps {
     onReorderSession?: (draggedId: string, targetId: string, position: "before" | "after") => void;
     onUpdateSession?: (id: string, updates: Partial<Session>) => void;
     onDeleteSession?: (id: string) => void;
+    onSessionClick?: (id: string) => void;
 }
 
 function SessionRow({
     session, pinnedLinks, depth,
     onRenameSession, onMoveTabToSession, onMoveMultiTabsToSession, onDropPinnedLinkToSession, onReorderSession,
-    onUpdateSession, onDeleteSession
+    onUpdateSession, onDeleteSession, onSessionClick
 }: SessionRowProps) {
     const [isOpen, setIsOpen] = useState(true);
     const [editing, setEditing] = useState(false);
@@ -166,8 +167,12 @@ function SessionRow({
                         />
                     ) : (
                         <span
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onSessionClick?.(session.id);
+                            }}
                             onDoubleClick={(e) => { e.stopPropagation(); setEditing(true); setEditValue(session.name || ""); }}
-                            className={`flex-1 text-[14px] truncate leading-tight transition-colors flex items-center gap-1.5 ${session.isStarred ? "text-amber-600 dark:text-amber-500 font-medium" : "text-gray-600 dark:text-gray-400"}`}
+                            className={`flex-1 text-[14px] truncate leading-tight transition-colors flex items-center gap-1.5 cursor-pointer ${session.isStarred ? "text-amber-600 dark:text-amber-500 font-medium" : "text-gray-600 dark:text-gray-400"}`}
                         >
                             <span className="truncate">{session.name || `Session ${session.timestamp}`}</span>
                             {session.isStarred && <Star size={12} className="fill-amber-500 text-amber-500 flex-shrink-0" />}
@@ -369,6 +374,7 @@ interface FolderRowProps {
     onReorderSession?: (draggedId: string, targetId: string, position: "before" | "after") => void;
     onUpdateSession?: (id: string, updates: Partial<Session>) => void;
     onDeleteSession?: (id: string) => void;
+    onSessionClick?: (id: string) => void;
 }
 
 function FolderRow({
@@ -377,7 +383,7 @@ function FolderRow({
     onMoveSessionToFolder, onMoveTabToFolder, onMoveMultiTabsToFolder,
     onMoveTabToSession, onMoveMultiTabsToSession,
     onDropPinnedLinkToFolder, onDropPinnedLinkToSession, onRenameSession, onReorderFolder, onReorderSession,
-    onUpdateSession, onDeleteSession
+    onUpdateSession, onDeleteSession, onSessionClick
 }: FolderRowProps) {
     const [isOpen, setIsOpen] = useState(true);
     const [editing, setEditing] = useState(false);
@@ -472,7 +478,7 @@ function FolderRow({
 
     return (
         <div className="relative">
-            {/* Folder reorder drop indicator ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ before */}
+            {/* Folder reorder drop indicator — before */}
             {folderDropPos === "before" && (
                 <div className="h-0.5 bg-blue-500 rounded-full mb-[1px] pointer-events-none" style={{ marginLeft: `${indentPx}px` }} />
             )}
@@ -709,13 +715,14 @@ function FolderRow({
                                     onReorderSession={onReorderSession}
                                     onUpdateSession={onUpdateSession}
                                     onDeleteSession={onDeleteSession}
+                                    onSessionClick={onSessionClick}
                                 />
                             ))
                         )}
                     </div>
                 )}
             </div>
-            {/* Folder reorder drop indicator ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ after */}
+            {/* Folder reorder drop indicator — after */}
             {folderDropPos === "after" && (
                 <div className="h-0.5 bg-blue-500 rounded-full mt-[1px] pointer-events-none" style={{ marginLeft: `${indentPx}px` }} />
             )}
@@ -723,7 +730,7 @@ function FolderRow({
     );
 }
 
-// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Main SidebarTree ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+// ————————————————————————————————— Main SidebarTree —————————————————————————————————————————————————————————————————————————————————————————
 
 interface SidebarTreeProps {
     sessions: Session[];
@@ -744,6 +751,7 @@ interface SidebarTreeProps {
     onReorderSession?: (draggedId: string, targetId: string, position: "before" | "after") => void;
     onUpdateSession?: (id: string, updates: Partial<Session>) => void;
     onDeleteSession?: (id: string) => void;
+    onSessionClick?: (id: string) => void;
 }
 
 export function SidebarTree({
@@ -752,7 +760,9 @@ export function SidebarTree({
     onMoveFolder, onMoveTabToFolder, onMoveMultiTabsToFolder,
     onMoveTab, onMoveMultiTabs, onDropPinnedLink,
     onReorderFolder, onReorderSession,
-    onUpdateSession, onDeleteSession
+    onUpdateSession,
+    onDeleteSession,
+    onSessionClick
 }: SidebarTreeProps) {
     const [rootOpen, setRootOpen] = useState(true);
     const [isRootDragOver, setIsRootDragOver] = useState(false);
@@ -849,6 +859,7 @@ export function SidebarTree({
                                 onReorderSession={onReorderSession}
                                 onUpdateSession={onUpdateSession}
                                 onDeleteSession={onDeleteSession}
+                                onSessionClick={onSessionClick}
                             />
                         ))}
 
@@ -876,6 +887,7 @@ export function SidebarTree({
                                 onReorderSession={onReorderSession}
                                 onUpdateSession={onUpdateSession}
                                 onDeleteSession={onDeleteSession}
+                                onSessionClick={onSessionClick}
                             />
                         ))}
 

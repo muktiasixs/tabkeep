@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from "react"
 import "~style.css"
-import tabkeepLogo from "~assets/tabkeep-logo-transparent.png"
+import tabkeepLogo from "~assets/icon.png"
 import {
     FolderOpen, Archive, Search, X,
     Trash2, FolderPlus, LayoutGrid, LayoutList, Network, Library,
     Sun, Moon, RotateCcw, Settings,
-    MoreHorizontal, Copy, Link, Layers, Globe
+    MoreHorizontal, Copy, Link, Layers, Globe, Info
 } from "lucide-react"
 import { useTabkeepStorage } from "~hooks/useTabkeepStorage"
 import { updateSessions, updateFolders, updateDeletedSessions, updatePinnedLinks } from "~lib/storage"
@@ -17,6 +17,7 @@ import { RightSidebar } from "~components/RightSidebar"
 import { MainFolderAccordion } from "~components/MainFolderAccordion"
 import { PinnedLinks } from "~components/PinnedLinks"
 import { SettingsModal } from "~components/SettingsModal"
+import { HelpModal } from "~components/HelpModal"
 import { GraphView } from "~components/GraphView"
 import { TabkeepLogo } from "~components/TabkeepLogo"
 import { BoxFolderIcon } from "~components/BoxFolderIcon"
@@ -68,6 +69,7 @@ export default function TabkeepDashboard() {
     const [newFolderName, setNewFolderName] = useState("");
     const newFolderInputRef = useRef<HTMLInputElement>(null);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [isHelpOpen, setIsHelpOpen] = useState(false);
 
     const [hoveredTab, setHoveredTab] = useState<(SavedTab & { sessionTimestamp?: string; sessionId?: string }) | null>(null);
     const [isAllSessionsDragOver, setIsAllSessionsDragOver] = useState(false);
@@ -1042,8 +1044,8 @@ export default function TabkeepDashboard() {
         <div className="bg-[#f5f5f7] dark:bg-[#171717] text-gray-700 dark:text-gray-300 font-sans h-screen flex flex-col overflow-hidden transition-colors duration-200">
             {/* NAVBAR */}
             <header className="flex items-center justify-between px-6 h-16 bg-white dark:bg-[#1e1e1e] shrink-0 z-20 shadow-md transition-colors duration-200">
-                <div className="flex items-center gap-1.5">
-                    <TabkeepLogo size={34} className="drop-shadow-md" />
+                <div className="flex items-center gap-2">
+                    <img src={tabkeepLogo} alt="Tabkeep Logo" className="w-8 h-8 drop-shadow-md" />
                     <h1 className="text-2xl font-black text-gray-900 dark:text-white tracking-tighter" style={{ fontFamily: "'BBH Hegarty', sans-serif" }}>Tabkeep</h1>
                 </div>
 
@@ -1081,6 +1083,17 @@ export default function TabkeepDashboard() {
                         </span>
                         {theme === "dark" ? <Sun size={16} className="shrink-0" /> : <Moon size={16} className="shrink-0" />}
                     </button>
+                    <button
+                        onClick={() => setIsHelpOpen(true)}
+                        className="group flex items-center justify-center h-9 w-9 hover:w-20 rounded-lg border border-black/10 hover:border-black/20 dark:border-white/10 dark:hover:border-white/20 bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all duration-300 ease-in-out overflow-hidden shrink-0"
+                        title="Help / Guide"
+                    >
+                        <span className="opacity-0 max-w-0 transition-all duration-200 ease-in-out group-hover:opacity-100 group-hover:max-w-[45px] group-hover:mr-2.5 whitespace-nowrap text-xs font-bold leading-none">
+                            Help
+                        </span>
+                        <Info size={16} strokeWidth={2.5} className="shrink-0" />
+                    </button>
+
                     <button
                         onClick={() => setIsSettingsOpen(true)}
                         className="group flex items-center justify-center h-9 w-9 hover:w-24 rounded-lg border border-black/10 hover:border-black/20 dark:border-white/10 dark:hover:border-white/20 bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all duration-300 ease-in-out overflow-hidden shrink-0"
@@ -1121,6 +1134,12 @@ export default function TabkeepDashboard() {
                             onDropPinnedLink={handleDropPinnedLink}
                             onReorderFolder={handleReorderFolders}
                             onReorderSession={handleReorderSessions}
+                            onSessionClick={(id) => {
+                                const el = document.getElementById(`session-${id}`);
+                                if (el) {
+                                    el.scrollIntoView({ behavior: "smooth", block: "start" });
+                                }
+                            }}
                         />
 
                         {/* Input folder baru */}
@@ -1531,6 +1550,7 @@ export default function TabkeepDashboard() {
             </div>
 
             <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+            <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
         </div>
     );
 }

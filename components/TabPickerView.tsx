@@ -177,7 +177,7 @@ export function TabPickerView() {
                             <div
                                 key={tab.id}
                                 onClick={(e) => handleTabClick(e, tab.id, idx)}
-                                className={`flex items-center gap-2 py-0.5 px-1 rounded-lg transition-all group cursor-pointer ${isChecked ? "bg-blue-100/50 dark:bg-blue-900/30" : "hover:bg-gray-100 dark:hover:bg-white/[0.02]"}`}
+                                className={`flex items-center gap-2 py-0.5 px-1 transition-all group cursor-pointer ${isChecked ? "bg-blue-100/50 dark:bg-blue-900/30 rounded-none" : "hover:bg-gray-100 dark:hover:bg-white/[0.02] rounded-lg"}`}
                             >
                                 <img loading="lazy"
                                     src={tab.favIconUrl || "https://www.google.com/s2/favicons?domain=google.com&sz=32"}
