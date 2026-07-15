@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react"
+import React, { useEffect, useMemo, useRef, useState, useCallback, useLayoutEffect } from "react"
 import "~style.css"
 import tabkeepLogo from "~assets/icon.png"
 import {
@@ -22,6 +22,17 @@ import { GraphView } from "~components/GraphView"
 import { TabkeepLogo } from "~components/TabkeepLogo"
 import { BoxFolderIcon } from "~components/BoxFolderIcon"
 import type { Folder as FolderType, SavedTab, PinnedLink, Session, SelectedTab } from "~types"
+
+function useEvent<T extends (...args: any[]) => any>(handler: T): T {
+    const handlerRef = useRef(handler);
+    useLayoutEffect(() => {
+        handlerRef.current = handler;
+    });
+    return useCallback((...args: any[]) => {
+        const fn = handlerRef.current;
+        return fn(...args);
+    }, []) as T;
+}
 
 export default function TabkeepDashboard() {
     const { sessions, setSessions, folders, setFolders, deletedSessions, setDeletedSessions, pinnedLinks, setPinnedLinks } = useTabkeepStorage();
@@ -151,7 +162,7 @@ export default function TabkeepDashboard() {
     }, []);
 
     // --- Folder Actions ---
-    const handleCreateFolder = async () => {
+    const handleCreateFolder = useEvent(async () => {
         const name = newFolderName.trim();
         if (!name) { setIsCreatingFolder(false); return; }
         const newFolder: FolderType = {
@@ -165,7 +176,7 @@ export default function TabkeepDashboard() {
         setNewFolderName("");
         setIsCreatingFolder(false);
         setActiveFolderId(newFolder.id);
-    };
+    });
 
     useEffect(() => {
         const handlePasteToFolder = (e: Event) => {
@@ -259,13 +270,13 @@ export default function TabkeepDashboard() {
         };
     }, []);
 
-    const handleRenameFolder = async (id: string, newName: string) => {
+    const handleRenameFolder = useEvent(async (id: string, newName: string) => {
         const updated = folders.map(f => f.id === id ? { ...f, name: newName } : f);
         setFolders(updated);
         await updateFolders(updated);
-    };
+    });
 
-    const handleDeleteFolder = async (id: string) => {
+    const handleDeleteFolder = useEvent(async (id: string) => {
         const updatedSessions = sessions.map(s => s.folderId === id ? { ...s, folderId: null } : s);
         const updatedFolders = folders.filter(f => f.id !== id);
         setSessions(updatedSessions);
@@ -273,22 +284,22 @@ export default function TabkeepDashboard() {
         await updateSessions(updatedSessions);
         await updateFolders(updatedFolders);
         if (activeFolderId === id) setActiveFolderId("all");
-    };
+    });
 
     // --- Session Actions ---
-    const handleRenameSession = async (id: string, newName: string) => {
+    const handleRenameSession = useEvent(async (id: string, newName: string) => {
         const updated = sessions.map(s => s.id === id ? { ...s, name: newName } : s);
         setSessions(updated);
         await updateSessions(updated);
-    };
+    });
 
-    const handleUpdateSession = async (id: string, updates: Partial<Session>) => {
+    const handleUpdateSession = useEvent(async (id: string, updates: Partial<Session>) => {
         const updated = sessions.map(s => s.id === id ? { ...s, ...updates } : s);
         setSessions(updated);
         await updateSessions(updated);
-    };
+    });
 
-    const handleDeleteSession = async (id: string) => {
+    const handleDeleteSession = useEvent(async (id: string) => {
         const sessionToDelete = sessions.find(s => s.id === id);
         if (sessionToDelete) {
             const newDeletedSession = {
@@ -311,9 +322,9 @@ export default function TabkeepDashboard() {
         const updated = sessions.filter(s => s.id !== id);
         setSessions(updated);
         await updateSessions(updated);
-    };
+    });
 
-    const handleMoveTab = async (sourceSessionId: string, targetSessionId: string, tabIndex: number, insertIndex?: number) => {
+    const handleMoveTab = useEvent(async (sourceSessionId: string, targetSessionId: string, tabIndex: number, insertIndex?: number) => {
         if (sourceSessionId === targetSessionId) return;
 
         const sourceSession = sessions.find(s => s.id === sourceSessionId);
@@ -355,9 +366,9 @@ export default function TabkeepDashboard() {
                 await updatePinnedLinks(updatedPins);
             }
         }
-    };
+    });
 
-    const handleMoveTabToFolder = async (sourceSessionId: string, tabIndex: number, folderId: string | null, targetSessionId?: string, insertPosition?: "before" | "after") => {
+    const handleMoveTabToFolder = useEvent(async (sourceSessionId: string, tabIndex: number, folderId: string | null, targetSessionId?: string, insertPosition?: "before" | "after") => {
         const sourceSession = sessions.find(s => s.id === sourceSessionId);
         if (!sourceSession) return;
         const tabToMove = sourceSession.tabs[tabIndex];
@@ -409,9 +420,9 @@ export default function TabkeepDashboard() {
                 await updatePinnedLinks(updatedPins);
             }
         }
-    };
+    });
 
-    const handleMoveMultiTabs = async (tabsToMove: SelectedTab[], targetSessionId: string, insertIndex?: number) => {
+    const handleMoveMultiTabs = useEvent(async (tabsToMove: SelectedTab[], targetSessionId: string, insertIndex?: number) => {
         if (tabsToMove.length === 0) return;
         const targetSession = sessions.find(s => s.id === targetSessionId);
         if (!targetSession) return;
@@ -484,9 +495,9 @@ export default function TabkeepDashboard() {
         }
 
         setSelectedTabs([]); // Clear selection after moving
-    };
+    });
 
-    const handleMoveMultiTabsToFolder = async (tabsToMove: SelectedTab[], folderId: string | null, targetSessionId?: string, insertPosition?: "before" | "after") => {
+    const handleMoveMultiTabsToFolder = useEvent(async (tabsToMove: SelectedTab[], folderId: string | null, targetSessionId?: string, insertPosition?: "before" | "after") => {
         if (tabsToMove.length === 0) return;
         let updatedSessions = [...sessions];
         let updatedPins = [...pinnedLinks];
@@ -556,9 +567,9 @@ export default function TabkeepDashboard() {
         }
 
         setSelectedTabs([]);
-    };
+    });
 
-    const handleMergeSessions = async (sourceSessionId: string, targetSessionId: string) => {
+    const handleMergeSessions = useEvent(async (sourceSessionId: string, targetSessionId: string) => {
         const sourceSession = sessions.find(s => s.id === sourceSessionId);
         const targetSession = sessions.find(s => s.id === targetSessionId);
         if (!sourceSession || !targetSession) return;
@@ -574,9 +585,9 @@ export default function TabkeepDashboard() {
 
         setSessions(updatedSessions);
         await updateSessions(updatedSessions);
-    };
+    });
 
-    const handleDeleteTab = async (sessionId: string, tabIndex: number) => {
+    const handleDeleteTab = useEvent(async (sessionId: string, tabIndex: number) => {
         const session = sessions.find(s => s.id === sessionId);
         if (!session) return;
 
@@ -619,9 +630,9 @@ export default function TabkeepDashboard() {
 
         // Remove from selection if deleted
         setSelectedTabs(prev => prev.filter(t => !(t.sessionId === sessionId && t.tabIndex === tabIndex)));
-    };
+    });
 
-    const handleToggleTabSelection = (sessionId: string, tabIndex: number, url: string, isShift: boolean) => {
+    const handleToggleTabSelection = useEvent((sessionId: string, tabIndex: number, url: string, isShift: boolean) => {
         const session = sessions.find(s => s.id === sessionId);
         if (!session) return;
 
@@ -659,14 +670,14 @@ export default function TabkeepDashboard() {
         });
 
         setLastClickedTab({ sessionId, tabIndex });
-    };
+    });
 
-    const handleClearSelection = () => {
+    const handleClearSelection = useEvent(() => {
         setSelectedTabs([]);
         setLastClickedTab(null);
-    };
+    });
 
-    const handleRestoreSelected = async () => {
+    const handleRestoreSelected = useEvent(async () => {
         if (selectedTabs.length === 0) return;
 
         for (const sel of selectedTabs) {
@@ -679,9 +690,9 @@ export default function TabkeepDashboard() {
             }
         }
         handleClearSelection();
-    };
+    });
 
-    const handleDeleteSelected = async () => {
+    const handleDeleteSelected = useEvent(async () => {
         if (selectedTabs.length === 0) return;
 
         let updatedSessions = [...sessions];
@@ -746,9 +757,9 @@ export default function TabkeepDashboard() {
         await updateDeletedSessions(newDeleted);
 
         setSelectedTabs([]);
-    };
+    });
 
-    const handleDropPinnedLink = async (link: PinnedLink, sessionId: string | null, folderId: string | null, targetSessionId?: string, insertPosition?: "before" | "after") => {
+    const handleDropPinnedLink = useEvent(async (link: PinnedLink, sessionId: string | null, folderId: string | null, targetSessionId?: string, insertPosition?: "before" | "after") => {
         if (!link) return;
 
         if (sessionId && !insertPosition) {
@@ -790,10 +801,10 @@ export default function TabkeepDashboard() {
             setSessions(newSessions);
             await updateSessions(newSessions);
         }
-    };
+    });
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Reorder handlers Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
-    const handleReorderFolders = async (draggedId: string, targetId: string, position: "before" | "after") => {
+    // ─── Reorder handlers ──────────────────────────────────────────────
+    const handleReorderFolders = useEvent(async (draggedId: string, targetId: string, position: "before" | "after") => {
         if (draggedId === targetId) return;
         const copy = [...folders];
         const fromIdx = copy.findIndex(f => f.id === draggedId);
@@ -804,9 +815,9 @@ export default function TabkeepDashboard() {
         copy.splice(position === "before" ? toIdx : toIdx + 1, 0, item);
         setFolders(copy);
         await updateFolders(copy);
-    };
+    });
 
-    const handleReorderSessions = async (draggedId: string, targetId: string, position: "before" | "after") => {
+    const handleReorderSessions = useEvent(async (draggedId: string, targetId: string, position: "before" | "after") => {
         if (draggedId === targetId) return;
         const copy = [...sessions];
         const fromIdx = copy.findIndex(s => s.id === draggedId);
@@ -820,9 +831,9 @@ export default function TabkeepDashboard() {
         copy.splice(position === "before" ? toIdx : toIdx + 1, 0, updated);
         setSessions(copy);
         await updateSessions(copy);
-    };
+    });
 
-    const handleReorderTabs = async (sessionId: string, fromIdx: number, toIdx: number) => {
+    const handleReorderTabs = useEvent(async (sessionId: string, fromIdx: number, toIdx: number) => {
         if (fromIdx === toIdx) return;
         const updated = sessions.map(s => {
             if (s.id !== sessionId) return s;
@@ -833,7 +844,7 @@ export default function TabkeepDashboard() {
         });
         setSessions(updated);
         await updateSessions(updated);
-    };
+    });
 
     const handleRestoreSession = async (id: string) => {
         const sessionToRestore = deletedSessions.find(s => s.id === id);
@@ -949,7 +960,7 @@ export default function TabkeepDashboard() {
         setIsHeaderMenuOpen(false);
     };
 
-    const handleMoveFolder = async (sessionId: string, folderId: string | null) => {
+    const handleMoveFolder = useEvent(async (sessionId: string, folderId: string | null) => {
         const movedSession = sessions.find(s => s.id === sessionId);
         const updated = sessions.map(s => s.id === sessionId ? { ...s, folderId } : s);
         setSessions(updated);
@@ -966,9 +977,9 @@ export default function TabkeepDashboard() {
                 await updatePinnedLinks(updatedPins);
             }
         }
-    };
+    });
 
-    const handlePinLink = async (tab: { title: string; url: string; favIconUrl?: string }, folderId: string | null = null) => {
+    const handlePinLink = useEvent(async (tab: { title: string; url: string; favIconUrl?: string }, folderId: string | null = null) => {
         const alreadyPinned = pinnedLinks.some(p => p.url === tab.url);
         if (alreadyPinned) return;
         const newPin: PinnedLink = {
@@ -982,14 +993,14 @@ export default function TabkeepDashboard() {
         const updated = [newPin, ...pinnedLinks];
         setPinnedLinks(updated);
         await updatePinnedLinks(updated);
-    };
+    });
 
-    const handleUnpinLink = async (urlOrId: string) => {
+    const handleUnpinLink = useEvent(async (urlOrId: string) => {
         // support both id and url for unpin
         const updated = pinnedLinks.filter(p => p.id !== urlOrId && p.url !== urlOrId);
         setPinnedLinks(updated);
         await updatePinnedLinks(updated);
-    };
+    });
 
     // --- Computed ---
     const searchedSessions = useMemo(() => {
@@ -1134,6 +1145,7 @@ export default function TabkeepDashboard() {
                             onDropPinnedLink={handleDropPinnedLink}
                             onReorderFolder={handleReorderFolders}
                             onReorderSession={handleReorderSessions}
+                            onMergeSessions={handleMergeSessions}
                             onSessionClick={(id) => {
                                 const el = document.getElementById(`session-${id}`);
                                 if (el) {
@@ -1551,6 +1563,11 @@ export default function TabkeepDashboard() {
 
             <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
             <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
+
+            {/* Global Drop Indicators for buttery smooth drag-and-drop snapping */}
+            <div id="global-drag-indicator" className="fixed h-[2px] bg-blue-500 shadow-[0_0_4px_#3b82f6] hidden z-[9999] pointer-events-none rounded-full" />
+            <div id="global-drag-indicator-vertical" className="fixed w-[2px] bg-blue-500 shadow-[0_0_4px_#3b82f6] hidden z-[9999] pointer-events-none rounded-full" />
+            <div id="global-merge-indicator" className="fixed border-[2px] border-blue-500 bg-blue-500/15 hidden z-[9998] pointer-events-none rounded-lg shadow-[0_0_8px_rgba(59,130,246,0.3)]" />
         </div>
     );
 }

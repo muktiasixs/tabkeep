@@ -221,24 +221,6 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
         }
     };
 
-    
-    const createDragGhost = (text: string) => {
-        const dragGhost = document.createElement("div");
-        dragGhost.textContent = text;
-        dragGhost.style.position = "absolute";
-        dragGhost.style.top = "-1000px";
-        dragGhost.style.background = "#3b82f6";
-        dragGhost.style.color = "white";
-        dragGhost.style.padding = "4px 12px";
-        dragGhost.style.borderRadius = "16px";
-        dragGhost.style.fontSize = "12px";
-        dragGhost.style.fontWeight = "bold";
-        dragGhost.style.zIndex = "9999";
-        dragGhost.style.pointerEvents = "none";
-        document.body.appendChild(dragGhost);
-        return dragGhost;
-    };
-
     const handleSessionDragStart = (e: React.DragEvent) => {
         e.dataTransfer.setData("application/tabkeep-session", JSON.stringify({ sessionId: session.id }));
         e.dataTransfer.setData("application/tabkeep-reorder-session", JSON.stringify({ sessionId: session.id }));

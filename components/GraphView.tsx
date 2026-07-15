@@ -11,10 +11,19 @@ interface GraphViewProps {
     onMoveTabToFolder?: (sourceSessionId: string, tabIndex: number, folderId: string | null) => void;
 }
 
+// ponytail: only render folder + session nodes (no individual tabs).
+// With 10,000+ links, rendering each tab as a node would create 10k+ nodes + 10k+ links = unusable.
+// Upgrade path: progressive disclosure — click session to expand its tab nodes on demand.
+
 export const GraphView: React.FC<GraphViewProps> = ({ folders, sessions, theme, onMoveFolder, onMoveTab, onMoveTabToFolder }) => {
     const fgRef = useRef<any>();
     const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
     const containerRef = useRef<HTMLDivElement>(null);
+
+    // ponytail: cache node positions across re-renders so graph doesn't "explode"
+    const positionCacheRef = useRef<Map<string, { x: number; y: number }>>(new Map());
+    // ponytail: cache loaded favicon images
+    const imgCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
 
     useEffect(() => {
         if (containerRef.current) {
@@ -38,102 +47,98 @@ export const GraphView: React.FC<GraphViewProps> = ({ folders, sessions, theme, 
         const links: any[] = [];
 
         // Add root node
-        nodes.push({ id: "root", name: "Workspace", type: "root", val: 30 });
+        const totalTabs = sessions.reduce((acc, s) => acc + s.tabs.length, 0);
+        nodes.push({ id: "root", name: "Workspace", type: "root", val: 30, tabCount: totalTabs });
 
         // Add folders
         folders.forEach(f => {
-            nodes.push({ id: `folder-${f.id}`, name: f.name, type: "folder", val: 20, realId: f.id });
+            const folderSessions = sessions.filter(s => s.folderId === f.id);
+            const tabCount = folderSessions.reduce((acc, s) => acc + s.tabs.length, 0);
+            nodes.push({ id: `folder-${f.id}`, name: f.name, type: "folder", val: 20, realId: f.id, tabCount });
             links.push({ source: "root", target: `folder-${f.id}` });
         });
 
-        // Add sessions
-        sessions.forEach((s, idx) => {
+        // Add sessions (NOT individual tabs — that's the key optimization)
+        sessions.forEach(s => {
             const sessionId = `session-${s.id}`;
-            nodes.push({ id: sessionId, name: s.name || `Session ${s.timestamp}`, type: "session", val: 10, realId: s.id, folderId: s.folderId });
+            // Get a representative favicon from the first tab
+            const firstTab = s.tabs[0];
+            nodes.push({
+                id: sessionId,
+                name: s.name || `Session ${s.timestamp}`,
+                type: "session",
+                val: Math.max(6, Math.min(15, s.tabs.length)), // size based on tab count
+                realId: s.id,
+                folderId: s.folderId,
+                tabCount: s.tabs.length,
+                favIconUrl: firstTab?.favIconUrl
+            });
             
             if (s.folderId) {
                 links.push({ source: `folder-${s.folderId}`, target: sessionId });
             } else {
                 links.push({ source: "root", target: sessionId });
             }
-
-            // Add tabs
-            s.tabs.forEach((t, tIdx) => {
-                const tabId = `tab-${s.id}-${tIdx}`;
-                nodes.push({ 
-                    id: tabId, 
-                    name: t.title || t.url, 
-                    type: "tab", 
-                    favIconUrl: t.favIconUrl,
-                    url: t.url,
-                    sessionId: s.id,
-                    tabIndex: tIdx,
-                    val: 5 
-                });
-                links.push({ source: sessionId, target: tabId });
-            });
         });
 
-        // Group tabs by domain to create links
-        const tabsByDomain: Record<string, string[]> = {};
-        nodes.filter(n => n.type === "tab").forEach(t => {
-            if (t.url) {
-                try {
-                    const urlObj = new URL(t.url);
-                    const domain = urlObj.hostname;
-                    if (domain) {
-                        if (!tabsByDomain[domain]) {
-                            tabsByDomain[domain] = [];
-                        }
-                        tabsByDomain[domain].push(t.id);
-                    }
-                } catch (e) {
-                    // Ignore invalid URLs
-                }
-            }
-        });
-
-        // Create links between tabs of the same domain
-        Object.values(tabsByDomain).forEach(tabIds => {
-            if (tabIds.length > 1) {
-                for (let i = 1; i < tabIds.length; i++) {
-                    links.push({
-                        source: tabIds[i - 1],
-                        target: tabIds[i],
-                        type: "domain-link"
-                    });
-                }
+        // ponytail: restore cached positions for nodes that still exist
+        const cache = positionCacheRef.current;
+        nodes.forEach(node => {
+            const cached = cache.get(node.id);
+            if (cached) {
+                node.x = cached.x;
+                node.y = cached.y;
             }
         });
 
         return { nodes, links };
     }, [folders, sessions]);
 
-    // Update simulation forces to prevent overlapping
+    // Save positions when simulation ticks
+    const handleEngineTick = useCallback(() => {
+        const cache = positionCacheRef.current;
+        graphData.nodes.forEach(n => {
+            if (n.x !== undefined && n.y !== undefined) {
+                cache.set(n.id, { x: n.x, y: n.y });
+            }
+        });
+    }, [graphData]);
+
+    // Update simulation forces
     useEffect(() => {
         if (fgRef.current) {
-            // Increase charge strength to push nodes further apart
-            fgRef.current.d3Force('charge').strength(-250);
+            fgRef.current.d3Force('charge').strength(-200);
             
-            // Adjust link distances and strengths
             const linkForce = fgRef.current.d3Force('link');
             if (linkForce) {
-                linkForce.distance((link: any) => {
-                    if (link.type === "domain-link") return 80;
-                    return 40;
-                });
-                linkForce.strength((link: any) => {
-                    if (link.type === "domain-link") return 0; // Don't pull same-domain tabs together
-                    return 0.7; // Moderate strength for structural links
-                });
+                linkForce.distance(60);
+                linkForce.strength(0.5);
             }
             
-            // Re-heat simulation
-            fgRef.current.d3ReheatSimulation();
+            // ponytail: only reheat if this is a fresh graph (no cached positions)
+            const hasCachedPositions = graphData.nodes.some(n => positionCacheRef.current.has(n.id));
+            if (!hasCachedPositions) {
+                fgRef.current.d3ReheatSimulation();
+            }
         }
     }, [graphData]);
 
     const isDark = theme === "dark";
+
+    // ponytail: get or load an image, cached in ref across renders
+    const getImage = useCallback((url: string): HTMLImageElement | null => {
+        const cache = imgCacheRef.current;
+        if (cache.has(url)) return cache.get(url)!;
+        const img = new Image();
+        img.src = url;
+        img.onerror = () => {
+            const fallback = new Image();
+            fallback.src = "https://www.google.com/s2/favicons?domain=google.com&sz=32";
+            cache.set(url, fallback);
+        };
+        cache.set(url, img);
+        return null; // not loaded yet, will be available on next paint
+    }, []);
 
     const paintNode = useCallback((node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
         const label = node.name;
@@ -143,14 +148,9 @@ export const GraphView: React.FC<GraphViewProps> = ({ folders, sessions, theme, 
         // Draw drop target highlight
         if (node.isDragTarget) {
             ctx.beginPath();
-            if (node.type === "root") {
-                ctx.arc(node.x, node.y, 14, 0, 2 * Math.PI, false);
-            } else if (node.type === "folder") {
-                ctx.arc(node.x, node.y, 12, 0, 2 * Math.PI, false);
-            } else if (node.type === "session") {
-                ctx.rect(node.x - 8, node.y - 8, 16, 16);
-            }
-            ctx.fillStyle = "rgba(59, 130, 246, 0.4)"; // blue-500 with opacity
+            const r = node.type === "root" ? 14 : node.type === "folder" ? 12 : 10;
+            ctx.arc(node.x, node.y, r, 0, 2 * Math.PI, false);
+            ctx.fillStyle = "rgba(59, 130, 246, 0.4)";
             ctx.fill();
             ctx.strokeStyle = "#3b82f6";
             ctx.lineWidth = 1;
@@ -164,42 +164,37 @@ export const GraphView: React.FC<GraphViewProps> = ({ folders, sessions, theme, 
             ctx.arc(node.x, node.y, 8, 0, 2 * Math.PI, false);
             ctx.fill();
         } else if (node.type === "folder") {
-            ctx.fillStyle = "#3b82f6"; // blue-500
+            ctx.fillStyle = "#3b82f6";
             ctx.arc(node.x, node.y, 6, 0, 2 * Math.PI, false);
             ctx.fill();
         } else if (node.type === "session") {
-            ctx.fillStyle = isDark ? "#4b5563" : "#9ca3af"; // gray-500
-            ctx.rect(node.x - 4, node.y - 4, 8, 8);
+            // Draw session as a rounded square with favicon
+            const size = 10;
+            const halfSize = size / 2;
+
+            // Background
+            ctx.fillStyle = isDark ? "#2a2a2a" : "#ffffff";
+            ctx.strokeStyle = isDark ? "#444" : "#ddd";
+            ctx.lineWidth = 0.5;
+            ctx.roundRect(node.x - halfSize, node.y - halfSize, size, size, 2);
             ctx.fill();
-        } else if (node.type === "tab") {
-            const size = 8;
+            ctx.stroke();
+
+            // Favicon inside
             if (node.favIconUrl) {
-                if (!node.img) {
-                    const img = new Image();
-                    img.src = node.favIconUrl || "https://www.google.com/s2/favicons?domain=google.com&sz=32";
-                    img.onload = () => {
-                        node.img = img;
-                        node.loaded = true;
-                    };
-                    img.onerror = () => {
-                        node.img = new Image();
-                        node.img.src = "https://www.google.com/s2/favicons?domain=google.com&sz=32";
-                        node.loaded = true;
-                    };
-                    // fallback while loading
-                    ctx.fillStyle = isDark ? "#9ca3af" : "#6b7280";
-                    ctx.arc(node.x, node.y, 4, 0, 2 * Math.PI, false);
-                    ctx.fill();
-                } else if (node.loaded) {
-                    ctx.drawImage(node.img, node.x - size/2, node.y - size/2, size, size);
+                const img = getImage(node.favIconUrl);
+                if (img && img.complete && img.naturalWidth > 0) {
+                    ctx.drawImage(img, node.x - halfSize + 1, node.y - halfSize + 1, size - 2, size - 2);
                 } else {
-                    ctx.fillStyle = isDark ? "#9ca3af" : "#6b7280";
-                    ctx.arc(node.x, node.y, 4, 0, 2 * Math.PI, false);
+                    ctx.fillStyle = isDark ? "#555" : "#bbb";
+                    ctx.beginPath();
+                    ctx.arc(node.x, node.y, 3, 0, 2 * Math.PI, false);
                     ctx.fill();
                 }
             } else {
-                ctx.fillStyle = isDark ? "#9ca3af" : "#6b7280";
-                ctx.arc(node.x, node.y, 4, 0, 2 * Math.PI, false);
+                ctx.fillStyle = isDark ? "#555" : "#bbb";
+                ctx.beginPath();
+                ctx.arc(node.x, node.y, 3, 0, 2 * Math.PI, false);
                 ctx.fill();
             }
         }
@@ -210,8 +205,33 @@ export const GraphView: React.FC<GraphViewProps> = ({ folders, sessions, theme, 
             ctx.textBaseline = "middle";
             ctx.fillStyle = isDark ? "#d1d5db" : "#374151";
             ctx.fillText(label, node.x, node.y + (node.type === "root" ? 14 : 12));
+        } else if (node.type === "session" && globalScale > 2) {
+            // Only show session labels when zoomed in enough
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillStyle = isDark ? "#9ca3af" : "#6b7280";
+            const displayName = node.tabCount > 0 ? `${label} (${node.tabCount})` : label;
+            ctx.fillText(displayName, node.x, node.y + 10);
         }
-    }, [isDark]);
+
+        // Tab count badge for sessions (always visible)
+        if (node.type === "session" && node.tabCount > 0 && globalScale <= 2) {
+            const badgeText = String(node.tabCount);
+            const badgeFontSize = 8 / globalScale;
+            ctx.font = `bold ${badgeFontSize}px Sans-Serif`;
+            const tw = ctx.measureText(badgeText).width;
+            const bx = node.x + 5;
+            const by = node.y - 5;
+            ctx.fillStyle = "#3b82f6";
+            ctx.beginPath();
+            ctx.arc(bx, by, Math.max(tw / 2 + 2, 5 / globalScale), 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.fillStyle = "#fff";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(badgeText, bx, by);
+        }
+    }, [isDark, getImage]);
 
     return (
         <div ref={containerRef} className="w-full h-full min-h-[600px] flex-1 bg-[#f5f5f7] dark:bg-[#171717] rounded-lg overflow-hidden border border-gray-200 dark:border-[#333]">
@@ -222,26 +242,30 @@ export const GraphView: React.FC<GraphViewProps> = ({ folders, sessions, theme, 
                 graphData={graphData}
                 nodeCanvasObject={paintNode}
                 nodeCanvasObjectMode={() => "replace"}
-                nodeLabel={(node: any) => (node.type === "tab" || node.type === "session") ? node.name : ""}
+                nodeLabel={(node: any) => {
+                    if (node.type === "session") return `${node.name} (${node.tabCount} tabs)`;
+                    if (node.type === "folder") return `${node.name} (${node.tabCount} tabs)`;
+                    return node.name;
+                }}
                 nodeRelSize={4}
                 linkColor={() => isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"}
                 linkWidth={1}
                 backgroundColor={isDark ? "#171717" : "#f5f5f7"}
-                d3AlphaDecay={0.02}
+                d3AlphaDecay={0.05}
                 d3VelocityDecay={0.4}
-                cooldownTicks={100}
+                cooldownTicks={60}
+                onEngineTick={handleEngineTick}
                 onNodeClick={(node) => {
-                    if (node.type === "tab" && node.url) {
-                        window.open(node.url, "_blank");
-                    } else {
-                        // Center/zoom on node
-                        if (fgRef.current) {
-                            fgRef.current.centerAt(node.x, node.y, 1000);
-                            fgRef.current.zoom(8, 2000);
-                        }
+                    // Center/zoom on node
+                    if (fgRef.current) {
+                        fgRef.current.centerAt(node.x, node.y, 1000);
+                        fgRef.current.zoom(node.type === "session" ? 6 : 3, 1000);
                     }
                 }}
                 onNodeDragEnd={(node: any) => {
+                    // Save final position
+                    positionCacheRef.current.set(node.id, { x: node.x, y: node.y });
+                    
                     // Clear drag targets
                     graphData.nodes.forEach(n => {
                         if (n.isDragTarget) n.isDragTarget = false;
@@ -250,13 +274,7 @@ export const GraphView: React.FC<GraphViewProps> = ({ folders, sessions, theme, 
                     // Find if dropped on another node (within 20px distance)
                     const dropTarget = graphData.nodes.find(n => n.id !== node.id && n.x !== undefined && n.y !== undefined && Math.hypot(n.x - node.x, n.y - node.y) < 20);
                     if (dropTarget) {
-                        if (node.type === "tab") {
-                            if (dropTarget.type === "session" && onMoveTab) {
-                                onMoveTab(node.sessionId, dropTarget.realId, node.tabIndex);
-                            } else if (dropTarget.type === "folder" && onMoveTabToFolder) {
-                                onMoveTabToFolder(node.sessionId, node.tabIndex, dropTarget.realId);
-                            }
-                        } else if (node.type === "session") {
+                        if (node.type === "session") {
                             if (dropTarget.type === "folder" && onMoveFolder) {
                                 onMoveFolder(node.realId, dropTarget.realId);
                             } else if (dropTarget.type === "root" && onMoveFolder) {
@@ -274,12 +292,9 @@ export const GraphView: React.FC<GraphViewProps> = ({ folders, sessions, theme, 
                     const dropTarget = graphData.nodes.find(n => n.id !== node.id && n.x !== undefined && n.y !== undefined && Math.hypot(n.x - node.x, n.y - node.y) < 20);
                     if (dropTarget) {
                         let isValid = false;
-                        if (node.type === "tab" && (dropTarget.type === "session" || dropTarget.type === "folder")) {
-                            isValid = true;
-                        } else if (node.type === "session" && (dropTarget.type === "folder" || dropTarget.type === "root")) {
+                        if (node.type === "session" && (dropTarget.type === "folder" || dropTarget.type === "root")) {
                             isValid = true;
                         }
-                        
                         if (isValid) {
                             dropTarget.isDragTarget = true;
                         }

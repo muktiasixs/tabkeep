@@ -23,13 +23,14 @@ interface SessionRowProps {
     onReorderSession?: (draggedId: string, targetId: string, position: "before" | "after") => void;
     onUpdateSession?: (id: string, updates: Partial<Session>) => void;
     onDeleteSession?: (id: string) => void;
+    onMergeSessions?: (sourceId: string, targetId: string) => void;
     onSessionClick?: (id: string) => void;
 }
 
 function SessionRow({
     session, pinnedLinks, depth,
     onRenameSession, onMoveTabToSession, onMoveMultiTabsToSession, onDropPinnedLinkToSession, onReorderSession,
-    onUpdateSession, onDeleteSession, onSessionClick
+    onUpdateSession, onDeleteSession, onMergeSessions, onSessionClick
 }: SessionRowProps) {
     const [isOpen, setIsOpen] = useState(true);
     const [editing, setEditing] = useState(false);
@@ -81,12 +82,13 @@ function SessionRow({
                         e.stopPropagation();
                         e.dataTransfer.dropEffect = "move";
                         
+                        // ponytail: wider center zone (76%) = easier to drop into session (like OneTab)
                         const rect = e.currentTarget.getBoundingClientRect();
                         const relativeY = e.clientY - rect.top;
-                        if (relativeY < rect.height * 0.25) {
+                        if (relativeY < rect.height * 0.12) {
                             setSessionDropPos("before");
                             if (isDropOver) setIsDropOver(false);
-                        } else if (relativeY > rect.height * 0.75) {
+                        } else if (relativeY > rect.height * 0.88) {
                             setSessionDropPos("after");
                             if (isDropOver) setIsDropOver(false);
                         } else {
@@ -107,8 +109,12 @@ function SessionRow({
                         e.preventDefault(); e.stopPropagation();
                         try {
                             const data = JSON.parse(e.dataTransfer.getData("application/tabkeep-reorder-session"));
-                            if (data.sessionId && data.sessionId !== session.id && onReorderSession) {
-                                onReorderSession(data.sessionId, session.id, sessionDropPos || "after");
+                            if (data.sessionId && data.sessionId !== session.id) {
+                                if (sessionDropPos === null) {
+                                    if (onMergeSessions) onMergeSessions(data.sessionId, session.id);
+                                } else if (onReorderSession) {
+                                    onReorderSession(data.sessionId, session.id, sessionDropPos);
+                                }
                             }
                         } catch { }
                         setSessionDropPos(null);
@@ -141,9 +147,7 @@ function SessionRow({
                     : "hover:bg-gray-100/80 dark:hover:bg-white/5"
                     }`}
             >
-                {sessionDropPos === "before" && (
-                    <div className="h-0.5 bg-blue-500 rounded-full pointer-events-none" style={{ marginLeft: `${indentPx}px` }} />
-                )}
+                
                 <div className="flex items-center gap-1.5 py-[3px] pr-2" style={{ paddingLeft: `${indentPx}px` }}>
                     {/* chevron ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ only show if has pins */}
                     <button
@@ -315,9 +319,7 @@ function SessionRow({
                         </div>
                     )}
                 </div>
-                {sessionDropPos === "after" && (
-                    <div className="h-0.5 bg-blue-500 rounded-full pointer-events-none" style={{ marginLeft: `${indentPx}px` }} />
-                )}
+                
             </div>
 
             {/* Pinned links */}
@@ -374,6 +376,7 @@ interface FolderRowProps {
     onReorderSession?: (draggedId: string, targetId: string, position: "before" | "after") => void;
     onUpdateSession?: (id: string, updates: Partial<Session>) => void;
     onDeleteSession?: (id: string) => void;
+    onMergeSessions?: (sourceId: string, targetId: string) => void;
     onSessionClick?: (id: string) => void;
 }
 
@@ -383,7 +386,7 @@ function FolderRow({
     onMoveSessionToFolder, onMoveTabToFolder, onMoveMultiTabsToFolder,
     onMoveTabToSession, onMoveMultiTabsToSession,
     onDropPinnedLinkToFolder, onDropPinnedLinkToSession, onRenameSession, onReorderFolder, onReorderSession,
-    onUpdateSession, onDeleteSession, onSessionClick
+    onUpdateSession, onDeleteSession, onMergeSessions, onSessionClick
 }: FolderRowProps) {
     const [isOpen, setIsOpen] = useState(true);
     const [editing, setEditing] = useState(false);
@@ -479,9 +482,7 @@ function FolderRow({
     return (
         <div className="relative">
             {/* Folder reorder drop indicator — before */}
-            {folderDropPos === "before" && (
-                <div className="h-0.5 bg-blue-500 rounded-full mb-[1px] pointer-events-none" style={{ marginLeft: `${indentPx}px` }} />
-            )}
+            
             <div
                 onDragOver={handleDragOver}
                 onDragLeave={(e) => {
@@ -715,6 +716,7 @@ function FolderRow({
                                     onReorderSession={onReorderSession}
                                     onUpdateSession={onUpdateSession}
                                     onDeleteSession={onDeleteSession}
+                                    onMergeSessions={onMergeSessions}
                                     onSessionClick={onSessionClick}
                                 />
                             ))
@@ -723,9 +725,7 @@ function FolderRow({
                 )}
             </div>
             {/* Folder reorder drop indicator — after */}
-            {folderDropPos === "after" && (
-                <div className="h-0.5 bg-blue-500 rounded-full mt-[1px] pointer-events-none" style={{ marginLeft: `${indentPx}px` }} />
-            )}
+            
         </div>
     );
 }
@@ -749,17 +749,36 @@ interface SidebarTreeProps {
     onDropPinnedLink: (link: any, sessionId: string | null, folderId: string | null, targetSessionId?: string, position?: "before" | "after") => void;
     onReorderFolder?: (draggedId: string, targetId: string, position: "before" | "after") => void;
     onReorderSession?: (draggedId: string, targetId: string, position: "before" | "after") => void;
+    onMergeSessions?: (sourceId: string, targetId: string) => void;
     onUpdateSession?: (id: string, updates: Partial<Session>) => void;
     onDeleteSession?: (id: string) => void;
     onSessionClick?: (id: string) => void;
 }
+
+
+const createDragGhost = (text: string) => {
+    const dragGhost = document.createElement("div");
+    dragGhost.textContent = text;
+    dragGhost.style.position = "absolute";
+    dragGhost.style.top = "-1000px";
+    dragGhost.style.background = "#3b82f6";
+    dragGhost.style.color = "white";
+    dragGhost.style.padding = "4px 12px";
+    dragGhost.style.borderRadius = "16px";
+    dragGhost.style.fontSize = "12px";
+    dragGhost.style.fontWeight = "bold";
+    dragGhost.style.zIndex = "9999";
+    dragGhost.style.pointerEvents = "none";
+    document.body.appendChild(dragGhost);
+    return dragGhost;
+};
 
 export function SidebarTree({
     sessions, folders, pinnedLinks, activeFolderId,
     onSetActive, onRenameFolder, onDeleteFolder, onRenameSession,
     onMoveFolder, onMoveTabToFolder, onMoveMultiTabsToFolder,
     onMoveTab, onMoveMultiTabs, onDropPinnedLink,
-    onReorderFolder, onReorderSession,
+    onReorderFolder, onReorderSession, onMergeSessions,
     onUpdateSession,
     onDeleteSession,
     onSessionClick
@@ -859,6 +878,7 @@ export function SidebarTree({
                                 onReorderSession={onReorderSession}
                                 onUpdateSession={onUpdateSession}
                                 onDeleteSession={onDeleteSession}
+                                onMergeSessions={onMergeSessions}
                                 onSessionClick={onSessionClick}
                             />
                         ))}
@@ -887,6 +907,7 @@ export function SidebarTree({
                                 onReorderSession={onReorderSession}
                                 onUpdateSession={onUpdateSession}
                                 onDeleteSession={onDeleteSession}
+                                onMergeSessions={onMergeSessions}
                                 onSessionClick={onSessionClick}
                             />
                         ))}
