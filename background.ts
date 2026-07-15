@@ -63,10 +63,38 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     }
 });
 
+// Deduplicate duplicate dashboard tabs (e.g. on browser startup session restore)
+async function deduplicateDashboard() {
+    try {
+        const tabs = await chrome.tabs.query({});
+        const dashboardTabs = tabs.filter(t => t.url && t.url.includes("tabs/dashboard.html"));
+        
+        if (dashboardTabs.length > 1) {
+            dashboardTabs.sort((a, b) => {
+                if (a.pinned && !b.pinned) return -1;
+                if (!a.pinned && b.pinned) return 1;
+                return (a.id || 0) - (b.id || 0);
+            });
+            
+            const toKeep = dashboardTabs[0];
+            const toRemove = dashboardTabs.slice(1);
+            
+            for (const t of toRemove) {
+                if (t.id && t.id !== toKeep.id) {
+                    await chrome.tabs.remove(t.id);
+                }
+            }
+        }
+    } catch (e) {
+        console.error("Failed to deduplicate dashboard tabs:", e);
+    }
+}
+
 // Fungsi Pin Dashboard
 async function ensurePinned() {
+    await deduplicateDashboard();
     const tabs = await chrome.tabs.query({});
-    const exists = tabs.find(t => t.url === DASHBOARD_URL);
+    const exists = tabs.find(t => t.url && t.url.includes("tabs/dashboard.html"));
     if (!exists) {
         await chrome.tabs.create({ url: DASHBOARD_URL, pinned: true, index: 0 });
     } else {
@@ -189,3 +217,17 @@ chrome.runtime.onInstalled.addListener(() => {
 
 // Jalankan pin saat browser dibuka
 chrome.runtime.onStartup.addListener(ensurePinned);
+
+// Auto-deduplicate dashboard tabs when they are created or updated (e.g. from Chrome session restore)
+chrome.tabs.onCreated.addListener((tab) => {
+    if (tab.url && tab.url.includes("tabs/dashboard.html")) {
+        deduplicateDashboard();
+    }
+});
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if ((changeInfo.url && changeInfo.url.includes("tabs/dashboard.html")) || 
+        (tab.url && tab.url.includes("tabs/dashboard.html") && changeInfo.status === "complete")) {
+        deduplicateDashboard();
+    }
+});
