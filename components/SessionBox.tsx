@@ -242,6 +242,15 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
     const handleSessionDragStart = (e: React.DragEvent) => {
         e.dataTransfer.setData("application/tabkeep-session", JSON.stringify({ sessionId: session.id }));
         e.dataTransfer.setData("application/tabkeep-reorder-session", JSON.stringify({ sessionId: session.id }));
+        
+        const allTabs = session.tabs.map((tab, idx) => ({
+            sessionId: session.id,
+            tabIndex: idx,
+            url: tab.url,
+            title: tab.title
+        }));
+        e.dataTransfer.setData("application/tabkeep-multi-tabs", JSON.stringify(allTabs));
+        
         e.dataTransfer.effectAllowed = "move";
     };
 
