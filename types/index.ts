@@ -44,6 +44,7 @@ export interface PinnedLink {
 export interface Settings {
     restoreOption: "remove" | "keep" | "archived";
     duplicateOption: "allow" | "reject";
+    highlightDuplicates: boolean;
     urlDisplayOption: "none" | "domain" | "abbreviated" | "full";
     autoSync?: boolean;
     autoSyncInterval?: 1 | 3 | 6; // jam

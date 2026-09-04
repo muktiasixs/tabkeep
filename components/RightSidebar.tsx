@@ -7,14 +7,15 @@ interface RightSidebarProps {
     hoveredTab: (SavedTab & { sessionTimestamp?: string; sessionId?: string }) | null;
     allSessions: Session[];
     theme?: string;
+    isMinimized: boolean;
+    onMinimizedChange: (minimized: boolean) => void;
 }
 
-export function RightSidebar({ hoveredTab, allSessions, theme }: RightSidebarProps) {
+export function RightSidebar({ hoveredTab, allSessions, theme, isMinimized, onMinimizedChange }: RightSidebarProps) {
     // State to track if the screenshot image is loading or failed
     const [imgState, setImgState] = useState<"loading" | "loaded" | "error">("loading");
     // State to hold the object URL from IndexedDB
     const [idbImage, setIdbImage] = useState<string | null>(null);
-    const [isMinimized, setIsMinimized] = useState(false);
 
     // Reset image state whenever the hovered tab URL changes
     useEffect(() => {
@@ -260,15 +261,15 @@ export function RightSidebar({ hoveredTab, allSessions, theme }: RightSidebarPro
         <div className="relative h-full flex shrink-0">
             {/* Fixed Top-Right Toggle Button */}
             <button
-                onClick={() => setIsMinimized(!isMinimized)}
+                onClick={() => onMinimizedChange(!isMinimized)}
                 className="absolute top-4 right-4 z-50 p-2 rounded-lg bg-white/80 dark:bg-[#252525]/80 backdrop-blur-sm border border-gray-200 dark:border-[#333] shadow-sm hover:bg-gray-100 dark:hover:bg-[#333] text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-all cursor-pointer"
                 title={isMinimized ? "Open Sidebar" : "Close Sidebar"}
             >
                 {isMinimized ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
             </button>
 
-            <aside className={`${isMinimized ? "w-0" : "w-80"} bg-white dark:bg-[#1e1e1e] h-full shrink-0 overflow-hidden z-10 shadow-lg dark:shadow-none transition-all duration-300`}>
-                <div className="w-80 h-full p-5 flex flex-col gap-6 overflow-y-auto custom-scrollbar">
+            <aside className={`${isMinimized ? "w-0" : "w-72 xl:w-80"} bg-white dark:bg-[#1e1e1e] h-full shrink-0 overflow-hidden z-10 shadow-lg dark:shadow-none transition-all duration-300`}>
+                <div className="w-72 xl:w-80 h-full p-4 xl:p-5 flex flex-col gap-6 overflow-y-auto custom-scrollbar">
                     {/* LAST VIEW TAB PANEL (BLUE BOX) */}
                     <div className="bg-transparent rounded-lg p-4 flex flex-col select-none transition-all">
                         <div className="flex items-center justify-between mb-3">

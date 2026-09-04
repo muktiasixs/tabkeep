@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import { ChevronDown, ChevronRight, Folder, X, MoreHorizontal, ExternalLink, Pencil, Monitor, Copy, Link, Layers, Globe } from "lucide-react";
 import { SessionBox } from "./SessionBox";
+import { SessionGridRows } from "./SessionGridRows";
 import type { Folder as FolderType, Session, SavedTab, PinnedLink, SelectedTab } from "~types";
 import { parseImportedLines } from "~lib/linkParser";
 import { useTabkeepStorage } from "~hooks/useTabkeepStorage";
 import { updateSessions } from "~lib/storage";
+import { activateDropTarget, clearDropTarget, setCompactDragImage } from "~lib/dragDrop";
 interface Props {
     folder: FolderType;
     sessions: Session[];
@@ -34,10 +36,16 @@ interface Props {
     viewMode?: "list" | "grid" | "graph";
     theme: "light" | "dark";
     openTabUrls?: Set<string>;
+    collapseSignal?: number;
+    gridColumns?: 3 | 4;
+    dragResetSignal?: number;
+    duplicateUrls?: Set<string>;
 }
 
-export function MainFolderAccordion({ folder, sessions, allFolders, onDeleteSession, onRenameSession, onRenameFolder, onDeleteFolder, onMoveFolder, onMoveTab, onMoveMultiTabs, onMoveTabToFolder, onMoveMultiTabsToFolder, onMergeSessions, onDeleteTab, onTabHover, pinnedLinks, onPinTab, onUnpinTab, onDropPinnedLinkToFolder, onDropPinnedLinkToSession, onReorderFolder, onReorderSession, onReorderTab, selectedTabs, onToggleTabSelection, viewMode = "list", theme, openTabUrls }: Props) {
-    const [isExpanded, setIsExpanded] = useState(true);
+export function MainFolderAccordion({ folder, sessions, allFolders, onDeleteSession, onRenameSession, onRenameFolder, onDeleteFolder, onMoveFolder, onMoveTab, onMoveMultiTabs, onMoveTabToFolder, onMoveMultiTabsToFolder, onMergeSessions, onDeleteTab, onTabHover, pinnedLinks, onPinTab, onUnpinTab, onDropPinnedLinkToFolder, onDropPinnedLinkToSession, onReorderFolder, onReorderSession, onReorderTab, selectedTabs, onToggleTabSelection, viewMode = "list", theme, openTabUrls, collapseSignal = 0, gridColumns = 3, dragResetSignal = 0, duplicateUrls }: Props) {
+    const expandedStorageKey = `tabkeep:folder-expanded:${folder.id}`;
+    const [isExpanded, setIsExpanded] = useState(() => localStorage.getItem(expandedStorageKey) !== "false");
+    const lastCollapseSignal = useRef(collapseSignal);
     const [isDragOver, setIsDragOver] = useState(false);
     const [folderDropPos, setFolderDropPos] = useState<"before" | "after" | null>(null);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -47,6 +55,21 @@ export function MainFolderAccordion({ folder, sessions, allFolders, onDeleteSess
     // Edit folder state
     const [editing, setEditing] = useState(false);
     const [editValue, setEditValue] = useState(folder.name);
+
+    useEffect(() => {
+        if (collapseSignal !== lastCollapseSignal.current) setIsExpanded(collapseSignal < 0);
+        lastCollapseSignal.current = collapseSignal;
+    }, [collapseSignal]);
+
+    useEffect(() => {
+        localStorage.setItem(expandedStorageKey, String(isExpanded));
+    }, [expandedStorageKey, isExpanded]);
+
+    useEffect(() => {
+        setIsDragOver(false);
+        setFolderDropPos(null);
+        clearDropTarget(`main-folder:${folder.id}`);
+    }, [dragResetSignal]);
 
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
@@ -63,6 +86,10 @@ export function MainFolderAccordion({ folder, sessions, allFolders, onDeleteSess
             e.preventDefault();
             e.stopPropagation();
             e.dataTransfer.dropEffect = "move";
+            activateDropTarget(`main-folder:${folder.id}`, () => {
+                setIsDragOver(false);
+                setFolderDropPos(null);
+            });
             if (!isDragOver) setIsDragOver(true);
 
             if (e.dataTransfer.types.includes("application/tabkeep-reorder-folder")) {
@@ -74,13 +101,15 @@ export function MainFolderAccordion({ folder, sessions, allFolders, onDeleteSess
 
     const handleDragLeave = (e: React.DragEvent) => {
         if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-            setIsDragOver(false);
-            setFolderDropPos(null);
+            clearDropTarget(`main-folder:${folder.id}`);
         }
     };
 
     const handleDrop = (e: React.DragEvent) => {
         setIsDragOver(false);
+        clearDropTarget(`main-folder:${folder.id}`);
+        const rect = e.currentTarget.getBoundingClientRect();
+        const reorderPosition = e.clientY < rect.top + rect.height / 2 ? "before" : "after";
         if (e.dataTransfer.types.includes("application/tabkeep-session")) {
             e.preventDefault();
             e.stopPropagation();
@@ -92,6 +121,7 @@ export function MainFolderAccordion({ folder, sessions, allFolders, onDeleteSess
             } catch (err) { }
         } else if (e.dataTransfer.types.includes("application/tabkeep-multi-tabs")) {
             e.preventDefault();
+            e.stopPropagation();
             try {
                 const tabsToMove = JSON.parse(e.dataTransfer.getData("application/tabkeep-multi-tabs"));
                 if (tabsToMove && tabsToMove.length > 0 && onMoveMultiTabsToFolder) {
@@ -124,7 +154,7 @@ export function MainFolderAccordion({ folder, sessions, allFolders, onDeleteSess
             try {
                 const data = JSON.parse(e.dataTransfer.getData("application/tabkeep-reorder-folder"));
                 if (data.folderId && data.folderId !== folder.id && onReorderFolder) {
-                    onReorderFolder(data.folderId, folder.id, folderDropPos || "after");
+                    onReorderFolder(data.folderId, folder.id, reorderPosition);
                 }
             } catch (err) { }
             setFolderDropPos(null);
@@ -152,7 +182,7 @@ export function MainFolderAccordion({ folder, sessions, allFolders, onDeleteSess
     };
 
     return (
-        <div className={`relative mb-1.5 last:mb-0 bg-white dark:bg-[#1a1a1a] rounded-lg shadow-sm dark:shadow-none transition-all ${isDragOver && !folderDropPos
+        <div className={`relative mb-1.5 last:mb-0 bg-white dark:bg-[#1a1a1a] rounded-lg shadow-sm dark:shadow-none transition-colors ${isDragOver && !folderDropPos
             ? "ring-2 ring-blue-500/50"
             : ""
             }`}>
@@ -164,10 +194,12 @@ export function MainFolderAccordion({ folder, sessions, allFolders, onDeleteSess
                 onDragStart={(e) => {
                     e.dataTransfer.setData("application/tabkeep-reorder-folder", JSON.stringify({ folderId: folder.id }));
                     e.dataTransfer.effectAllowed = "move";
+                    setCompactDragImage(e.dataTransfer, folder.name);
                 }}
                 onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
-                className={`flex items-center gap-3 group p-4 transition-all rounded-lg ${!isExpanded ? "rounded-lg" : ""}`}
+                className={`flex items-center gap-3 group p-4 transition-colors rounded-lg ${!isExpanded ? "rounded-lg" : ""}`}
             >
                 <div 
                     className="p-1 rounded-lg bg-gray-200 dark:bg-[#333] hover:bg-gray-300 dark:hover:bg-[#444] transition-colors cursor-pointer"
@@ -357,11 +389,12 @@ export function MainFolderAccordion({ folder, sessions, allFolders, onDeleteSess
 
             {isExpanded && (
                 <>
-                    <div className={`border-t border-gray-100 dark:border-[#222] ${viewMode === "grid" ? "p-4 grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50/50 dark:bg-[#131313]" : "p-4 space-y-1.5 bg-gray-50/50 dark:bg-transparent rounded-lg"}`}>
+                    <div className={`border-t border-gray-100 p-4 dark:border-[#222] ${viewMode === "grid" ? "bg-gray-50/50 dark:bg-[#131313]" : "bg-gray-50/50 dark:bg-transparent rounded-lg"}`}>
                         {sessions.length === 0 ? (
                             <p className="text-[10px] text-gray-400 dark:text-gray-600 italic">Folder kosong</p>
                         ) : (
-                            sessions.map(s => (
+                            <SessionGridRows sessions={sessions} columns={gridColumns} grid={viewMode === "grid"}>
+                                {(s, rowExpanded) => (
                                 <SessionBox
                                     key={s.id}
                                     session={s}
@@ -387,8 +420,13 @@ export function MainFolderAccordion({ folder, sessions, allFolders, onDeleteSess
                                     viewMode={viewMode}
                                     theme={theme}
                                     openTabUrls={openTabUrls}
+                                    rowExpanded={rowExpanded}
+                                    dragResetSignal={dragResetSignal}
+                                    collapseSignal={collapseSignal}
+                                    duplicateUrls={duplicateUrls}
                                 />
-                            ))
+                                )}
+                            </SessionGridRows>
                         )}
                     </div>
                 </>

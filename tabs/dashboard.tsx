@@ -5,7 +5,7 @@ import {
     FolderOpen, Archive, Search, X,
     Trash2, FolderPlus, LayoutGrid, LayoutList, Network, Library,
     Sun, Moon, RotateCcw, Settings,
-    MoreHorizontal, Copy, Link, Layers, Globe, Info
+    MoreHorizontal, Copy, Link, Layers, Globe, Info, BookOpen, ChevronsUp, ChevronsDown, Eye, EyeOff
 } from "lucide-react"
 import { useTabkeepStorage } from "~hooks/useTabkeepStorage"
 import { updateSessions, updateFolders, updateDeletedSessions, updatePinnedLinks } from "~lib/storage"
@@ -15,12 +15,14 @@ import { DeletedSessionBox } from "~components/DeletedSessionBox"
 import { SidebarTree } from "~components/SidebarTree"
 import { RightSidebar } from "~components/RightSidebar"
 import { MainFolderAccordion } from "~components/MainFolderAccordion"
-import { PinnedLinks } from "~components/PinnedLinks"
+import { SessionGridRows } from "~components/SessionGridRows"
 import { SettingsModal } from "~components/SettingsModal"
 import { HelpModal } from "~components/HelpModal"
+import { AboutModal } from "~components/AboutModal"
 import { GraphView } from "~components/GraphView"
 import { TabkeepLogo } from "~components/TabkeepLogo"
 import { BoxFolderIcon } from "~components/BoxFolderIcon"
+import { resetDropTarget, setCompactDragImage } from "~lib/dragDrop"
 import type { Folder as FolderType, SavedTab, PinnedLink, Session, SelectedTab } from "~types"
 
 function useEvent<T extends (...args: any[]) => any>(handler: T): T {
@@ -35,7 +37,7 @@ function useEvent<T extends (...args: any[]) => any>(handler: T): T {
 }
 
 export default function TabkeepDashboard() {
-    const { sessions, setSessions, folders, setFolders, deletedSessions, setDeletedSessions, pinnedLinks, setPinnedLinks } = useTabkeepStorage();
+    const { sessions, setSessions, folders, setFolders, deletedSessions, setDeletedSessions, pinnedLinks, setPinnedLinks, settings } = useTabkeepStorage();
     const [openTabUrls, setOpenTabUrls] = useState<Set<string>>(new Set());
 
     useEffect(() => {
@@ -76,15 +78,52 @@ export default function TabkeepDashboard() {
 
     const [activeFolderId, setActiveFolderId] = useState<string | "all" | "trash">("all");
     const [viewMode, setViewMode] = useState<"list" | "grid" | "graph">("list");
+    const [collapseSignal, setCollapseSignal] = useState(0);
+    const [showPinnedBar, setShowPinnedBar] = useState(() => localStorage.getItem("tabkeep:show-pinned-bar") !== "false");
+    const [dragResetSignal, setDragResetSignal] = useState(0);
+    const [isRightSidebarMinimized, setIsRightSidebarMinimized] = useState(false);
     const [isCreatingFolder, setIsCreatingFolder] = useState(false);
     const [newFolderName, setNewFolderName] = useState("");
     const newFolderInputRef = useRef<HTMLInputElement>(null);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isHelpOpen, setIsHelpOpen] = useState(false);
+    const [isAboutOpen, setIsAboutOpen] = useState(false);
+    const pinnedScrollRef = useRef<HTMLDivElement>(null);
+
+    const duplicateUrls = useMemo(() => {
+        if (!settings.highlightDuplicates) return new Set<string>();
+        const normalize = (url: string) => {
+            try {
+                const parsed = new URL(url.trim());
+                parsed.hash = "";
+                return parsed.href;
+            } catch {
+                return url.trim();
+            }
+        };
+        const tabs = sessions.flatMap((session) => session.tabs).filter((tab) => tab.url);
+        const counts = tabs.reduce((result, tab) => {
+            const url = normalize(tab.url);
+            result.set(url, (result.get(url) || 0) + 1);
+            return result;
+        }, new Map<string, number>());
+        return new Set(tabs.filter((tab) => (counts.get(normalize(tab.url)) || 0) > 1).map((tab) => tab.url));
+    }, [sessions, settings.highlightDuplicates]);
+
+    useEffect(() => {
+        const element = pinnedScrollRef.current;
+        if (!element) return;
+        const handleWheel = (event: WheelEvent) => {
+            if (!event.deltaY) return;
+            event.preventDefault();
+            event.stopPropagation();
+            element.scrollLeft += event.deltaY;
+        };
+        element.addEventListener("wheel", handleWheel, { passive: false });
+        return () => element.removeEventListener("wheel", handleWheel);
+    }, [showPinnedBar, pinnedLinks.length]);
 
     const [hoveredTab, setHoveredTab] = useState<(SavedTab & { sessionTimestamp?: string; sessionId?: string }) | null>(null);
-    const [isAllSessionsDragOver, setIsAllSessionsDragOver] = useState(false);
-    const [isMainDragOver, setIsMainDragOver] = useState(false);
     
     // Header Menu State
     const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
@@ -150,14 +189,21 @@ export default function TabkeepDashboard() {
     // Global drag end listener to prevent stuck dragover states
     React.useEffect(() => {
         const handleDragEndGlobal = () => {
-            setIsMainDragOver(false);
-            setIsAllSessionsDragOver(false);
+            resetDropTarget();
+            setDragResetSignal((signal) => signal + 1);
+        };
+        const handleEscape = (event: KeyboardEvent) => {
+            if (event.key === "Escape") handleDragEndGlobal();
         };
         window.addEventListener("dragend", handleDragEndGlobal, true);
-        window.addEventListener("drop", handleDragEndGlobal, true);
+        window.addEventListener("drop", handleDragEndGlobal);
+        window.addEventListener("blur", handleDragEndGlobal);
+        window.addEventListener("keydown", handleEscape);
         return () => {
             window.removeEventListener("dragend", handleDragEndGlobal, true);
-            window.removeEventListener("drop", handleDragEndGlobal, true);
+            window.removeEventListener("drop", handleDragEndGlobal);
+            window.removeEventListener("blur", handleDragEndGlobal);
+            window.removeEventListener("keydown", handleEscape);
         };
     }, []);
 
@@ -1054,7 +1100,7 @@ export default function TabkeepDashboard() {
     return (
         <div className="bg-[#f5f5f7] dark:bg-[#171717] text-gray-700 dark:text-gray-300 font-sans h-screen flex flex-col overflow-hidden transition-colors duration-200">
             {/* NAVBAR */}
-            <header className="flex items-center justify-between px-6 h-16 bg-white dark:bg-[#1e1e1e] shrink-0 z-20 shadow-md transition-colors duration-200">
+            <header className="flex items-center justify-between px-3 md:px-6 h-16 bg-white dark:bg-[#1e1e1e] shrink-0 z-20 shadow-md transition-colors duration-200">
                 <div className="flex items-center gap-2">
                     <img src={tabkeepLogo} alt="Tabkeep Logo" className="w-8 h-8 drop-shadow-md" />
                     <h1 className="text-2xl font-black text-gray-900 dark:text-white tracking-tighter" style={{ fontFamily: "'BBH Hegarty', sans-serif" }}>Tabkeep</h1>
@@ -1106,6 +1152,17 @@ export default function TabkeepDashboard() {
                     </button>
 
                     <button
+                        onClick={() => setIsAboutOpen(true)}
+                        className="group flex items-center justify-center h-9 w-9 hover:w-20 rounded-lg border border-black/10 hover:border-black/20 dark:border-white/10 dark:hover:border-white/20 bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all duration-300 ease-in-out overflow-hidden shrink-0"
+                        title="About & Legal"
+                    >
+                        <span className="opacity-0 max-w-0 transition-all duration-200 ease-in-out group-hover:opacity-100 group-hover:max-w-[45px] group-hover:mr-2.5 whitespace-nowrap text-xs font-bold leading-none">
+                            About
+                        </span>
+                        <BookOpen size={16} strokeWidth={2.5} className="shrink-0" />
+                    </button>
+
+                    <button
                         onClick={() => setIsSettingsOpen(true)}
                         className="group flex items-center justify-center h-9 w-9 hover:w-24 rounded-lg border border-black/10 hover:border-black/20 dark:border-white/10 dark:hover:border-white/20 bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all duration-300 ease-in-out overflow-hidden shrink-0"
                         title="Settings"
@@ -1120,7 +1177,7 @@ export default function TabkeepDashboard() {
 
             <div className="flex flex-1 overflow-hidden">
                 {/* SIDEBAR */}
-                <aside className="w-64 bg-white dark:bg-[#1e1e1e] flex flex-col p-4 shrink-0 overflow-y-auto custom-scrollbar transition-colors duration-200 z-10 shadow-lg dark:shadow-none">
+                <aside className="w-56 xl:w-64 bg-white dark:bg-[#1e1e1e] flex flex-col p-3 xl:p-4 shrink-0 overflow-y-auto custom-scrollbar transition-colors duration-200 z-10 shadow-lg dark:shadow-none">
                     <div className="mb-3 px-1 text-sm font-bold text-gray-400 dark:text-gray-600 uppercase tracking-[0.2em] opacity-60">
                         Workspace
                     </div>
@@ -1202,22 +1259,15 @@ export default function TabkeepDashboard() {
 
                 {/* MAIN CONTENT */}
                 <main
-                    className="flex-1 px-8 py-6 overflow-y-auto bg-[#f5f5f7] dark:bg-[#171717] custom-scrollbar transition-colors duration-200"
+                    className="flex-1 px-4 py-6 md:px-6 xl:px-8 overflow-y-auto bg-[#f5f5f7] dark:bg-[#171717] custom-scrollbar transition-colors duration-200"
                     onDragOver={(e) => {
                         if (activeFolderId !== "trash" && (e.dataTransfer.types.includes("application/tabkeep-session") || e.dataTransfer.types.includes("application/tabkeep-pinned-link") || e.dataTransfer.types.includes("application/json") || e.dataTransfer.types.includes("application/tabkeep-multi-tabs"))) {
                             e.preventDefault();
                             e.dataTransfer.dropEffect = "move";
-                            if (!isMainDragOver) setIsMainDragOver(true);
-                        }
-                    }}
-                    onDragLeave={(e) => {
-                        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                            setIsMainDragOver(false);
                         }
                     }}
                     onDrop={(e) => {
                         if (activeFolderId !== "trash") {
-                            setIsMainDragOver(false);
                             const targetFolderId = activeFolderId === "all" ? null : activeFolderId;
                             if (e.dataTransfer.types.includes("application/tabkeep-session")) {
                                 e.preventDefault();
@@ -1251,7 +1301,48 @@ export default function TabkeepDashboard() {
                         }
                     }}
                 >
-                    <div className="w-full max-w-5xl mx-auto transition-all duration-300">
+                    <div className="w-full max-w-7xl mx-auto transition-all duration-300">
+                        {activeFolderId === "all" && showPinnedBar && pinnedLinks.length > 0 && (
+                            <div className="mb-2 flex min-h-6 items-center gap-1 px-1">
+                                <div
+                                    ref={pinnedScrollRef}
+                                    className="scrollbar-hidden flex min-w-0 flex-1 items-center gap-1 overflow-x-auto"
+                                >
+                                    {pinnedLinks.map((link) => (
+                                    <button
+                                        key={link.id}
+                                        draggable
+                                        onDragStart={(event) => {
+                                            event.dataTransfer.setData("application/tabkeep-pinned-link", JSON.stringify(link));
+                                            event.dataTransfer.effectAllowed = "move";
+                                            setCompactDragImage(event.dataTransfer, link.title || link.url);
+                                        }}
+                                        onMouseEnter={() => setHoveredTab({
+                                            title: link.title,
+                                            url: link.url,
+                                            favIconUrl: link.favIconUrl || ""
+                                        })}
+                                        onClick={(event) => chrome.tabs.create({
+                                            url: link.url,
+                                            active: !(event.ctrlKey || event.metaKey)
+                                        })}
+                                        title={link.title || link.url}
+                                        aria-label={`Buka ${link.title || link.url}`}
+                                        className="flex h-6 w-6 shrink-0 cursor-grab items-center justify-center rounded-md border border-transparent transition-colors hover:border-gray-200 hover:bg-white active:cursor-grabbing dark:hover:border-[#3a3a3a] dark:hover:bg-[#222]"
+                                    >
+                                        <img
+                                            loading="lazy"
+                                            src={link.favIconUrl || `https://www.google.com/s2/favicons?domain=${link.url}&sz=32`}
+                                            alt=""
+                                            draggable={false}
+                                            className="h-4 w-4 rounded-sm"
+                                        />
+                                    </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         <div className="flex items-center gap-4 mb-6 border-b border-gray-200 dark:border-[#333] pb-4">
                             {activeFolderId === "all"
                                 ? null
@@ -1315,6 +1406,44 @@ export default function TabkeepDashboard() {
                                                 <Link size={16} />
                                                 Paste link
                                             </button>
+                                            {viewMode !== "graph" && (
+                                                <>
+                                                    <button
+                                                        onClick={() => {
+                                                            setCollapseSignal((signal) => Math.abs(signal) + 1);
+                                                            setIsHeaderMenuOpen(false);
+                                                        }}
+                                                        className="w-full text-left flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333] transition-colors"
+                                                    >
+                                                        <ChevronsUp size={16} />
+                                                        Collapse all
+                                                    </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            setCollapseSignal((signal) => -(Math.abs(signal) + 1));
+                                                            setIsHeaderMenuOpen(false);
+                                                        }}
+                                                        className="w-full text-left flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333] transition-colors"
+                                                    >
+                                                        <ChevronsDown size={16} />
+                                                        Expand all
+                                                    </button>
+                                                </>
+                                            )}
+                                            {pinnedLinks.length > 0 && (
+                                                <button
+                                                    onClick={() => {
+                                                        const next = !showPinnedBar;
+                                                        setShowPinnedBar(next);
+                                                        localStorage.setItem("tabkeep:show-pinned-bar", String(next));
+                                                        setIsHeaderMenuOpen(false);
+                                                    }}
+                                                    className="w-full text-left flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333] transition-colors"
+                                                >
+                                                    {showPinnedBar ? <EyeOff size={16} /> : <Eye size={16} />}
+                                                    {showPinnedBar ? "Hide bookmarks" : "Show bookmarks"}
+                                                </button>
+                                            )}
                                             <button
                                                 onClick={handleRemoveAllDuplicates}
                                                 className="w-full text-left flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors font-medium"
@@ -1382,26 +1511,28 @@ export default function TabkeepDashboard() {
                                 </div>
                             ) : (filteredSessions.length > 0 || (activeFolderId === "all" && folders.length > 0)) ? (
                                 viewMode === "graph" ? (
-                                    <div className="w-full h-[600px] mt-4">
+                                    <div className="mt-4 h-[calc(100vh-260px)] min-h-[320px] w-full">
                                         <GraphView 
                                             folders={folders} 
                                             sessions={sessions} 
                                             theme={theme} 
-                                            onMoveFolder={handleMoveFolder}
-                                            onMoveTab={handleMoveTab}
-                                            onMoveTabToFolder={handleMoveTabToFolder}
+                                            onSelectSession={(session) => {
+                                                const tab = session.tabs[0];
+                                                if (tab) setHoveredTab({ ...tab, sessionTimestamp: session.timestamp, sessionId: session.id });
+                                            }}
+                                            onSelectTab={(tab, session) => setHoveredTab({ ...tab, sessionTimestamp: session.timestamp, sessionId: session.id })}
                                         />
                                     </div>
                                 ) : activeFolderId === "all" ? (
                                     <>
-                                        {/* Uncategorized Sessions Dropzone */}
-                                        <div className={`transition-all mb-1.5 ${viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" : "space-y-1.5"} ${isMainDragOver && searchedSessions.filter(s => s.folderId === null).length > 0 ? "p-2 rounded-lg border-2 border-blue-500 border-dashed bg-blue-50/30 dark:bg-blue-500/10" : ""}`}>
-                                            {searchedSessions.filter(s => s.folderId === null).length === 0 && isMainDragOver && (
-                                                <div className="py-24 flex items-center justify-center text-center text-blue-500 dark:text-blue-400 text-sm font-bold uppercase tracking-widest border-2 border-dashed border-blue-500 bg-blue-50/50 dark:bg-blue-900/20 rounded-lg pointer-events-none">
-                                                    Drop here to Uncategorize
-                                                </div>
-                                            )}
-                                            {searchedSessions.filter(s => s.folderId === null).map(s => (
+                                        {/* Uncategorized sessions remain a drop target without resizing or covering the content. */}
+                                        <div className="mb-1.5">
+                                            <SessionGridRows
+                                                sessions={searchedSessions.filter(s => s.folderId === null)}
+                                                columns={isRightSidebarMinimized ? 4 : 3}
+                                                grid={viewMode === "grid"}
+                                            >
+                                                {(s, rowExpanded) => (
                                                 <SessionBox
                                                     key={s.id}
                                                     session={s}
@@ -1427,8 +1558,13 @@ export default function TabkeepDashboard() {
                                                     viewMode={viewMode}
                                                     theme={theme}
                                                     openTabUrls={openTabUrls}
+                                                    collapseSignal={collapseSignal}
+                                                    rowExpanded={rowExpanded}
+                                                    dragResetSignal={dragResetSignal}
+                                                    duplicateUrls={duplicateUrls}
                                                 />
-                                            ))}
+                                                )}
+                                            </SessionGridRows>
                                         </div>
  
                                         {/* Folders rendered as Accordions */}
@@ -1466,13 +1602,21 @@ export default function TabkeepDashboard() {
                                                     viewMode={viewMode}
                                                     theme={theme}
                                                     openTabUrls={openTabUrls}
+                                                    collapseSignal={collapseSignal}
+                                                    gridColumns={isRightSidebarMinimized ? 4 : 3}
+                                                    dragResetSignal={dragResetSignal}
+                                                    duplicateUrls={duplicateUrls}
                                                 />
                                             );
                                         })}
                                     </>
                                 ) : (
-                                    <div className="space-y-1.5">
-                                        {filteredSessions.map(s => (
+                                    <SessionGridRows
+                                        sessions={filteredSessions}
+                                        columns={isRightSidebarMinimized ? 4 : 3}
+                                        grid={viewMode === "grid"}
+                                    >
+                                        {(s, rowExpanded) => (
                                             <SessionBox
                                                 key={s.id}
                                                 session={s}
@@ -1498,9 +1642,13 @@ export default function TabkeepDashboard() {
                                                 viewMode={viewMode}
                                                 theme={theme}
                                                 openTabUrls={openTabUrls}
+                                                collapseSignal={collapseSignal}
+                                                rowExpanded={rowExpanded}
+                                                dragResetSignal={dragResetSignal}
+                                                duplicateUrls={duplicateUrls}
                                             />
-                                        ))}
-                                    </div>
+                                        )}
+                                    </SessionGridRows>
                                 )
                             ) : (
                                 <div className="flex flex-col items-center justify-center py-32 border-2 border-dashed border-gray-300 dark:border-[#222] rounded-[2rem] bg-white dark:bg-[#1a1a1a]/30 shadow-sm dark:shadow-none pointer-events-none">
@@ -1528,7 +1676,13 @@ export default function TabkeepDashboard() {
                 </main>
 
                 {/* RIGHT SIDEBAR */}
-                <RightSidebar hoveredTab={hoveredTab} allSessions={sessions} theme={theme} />
+                <RightSidebar
+                    hoveredTab={hoveredTab}
+                    allSessions={sessions}
+                    theme={theme}
+                    isMinimized={isRightSidebarMinimized}
+                    onMinimizedChange={setIsRightSidebarMinimized}
+                />
 
                 {/* FLOATING ACTION BAR FOR MULTI-SELECTION */}
                 {selectedTabs.length > 0 && (
@@ -1563,11 +1717,8 @@ export default function TabkeepDashboard() {
 
             <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
             <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
+            <AboutModal isOpen={isAboutOpen} onClose={() => setIsAboutOpen(false)} />
 
-            {/* Global Drop Indicators for buttery smooth drag-and-drop snapping */}
-            <div id="global-drag-indicator" className="fixed h-[2px] bg-blue-500 shadow-[0_0_4px_#3b82f6] hidden z-[9999] pointer-events-none rounded-full" />
-            <div id="global-drag-indicator-vertical" className="fixed w-[2px] bg-blue-500 shadow-[0_0_4px_#3b82f6] hidden z-[9999] pointer-events-none rounded-full" />
-            <div id="global-merge-indicator" className="fixed border-[2px] border-blue-500 bg-blue-500/15 hidden z-[9998] pointer-events-none rounded-lg shadow-[0_0_8px_rgba(59,130,246,0.3)]" />
         </div>
     );
 }

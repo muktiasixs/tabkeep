@@ -9,6 +9,7 @@ import { parseImportedLines } from "~lib/linkParser";
 import { useTabkeepStorage } from "~hooks/useTabkeepStorage";
 import { updateSessions } from "~lib/storage";
 import { BoxFolderIcon } from "~components/BoxFolderIcon";
+import { activateDropTarget, clearDropTarget, setCompactDragImage } from "~lib/dragDrop";
 
 // ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ Session Row ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬
 
@@ -66,7 +67,10 @@ function SessionRow({
     };
 
     return (
-        <div>
+        <div className="relative">
+            {sessionDropPos === "before" && (
+                <div className="absolute -top-px left-4 right-1 z-10 h-0.5 rounded-full bg-blue-500 pointer-events-none" />
+            )}
             {/* Session header row */}
             <div
                 draggable
@@ -75,20 +79,24 @@ function SessionRow({
                     e.dataTransfer.setData("application/tabkeep-session", JSON.stringify({ sessionId: session.id }));
                     e.dataTransfer.setData("application/tabkeep-reorder-session", JSON.stringify({ sessionId: session.id }));
                     e.dataTransfer.effectAllowed = "move";
+                    setCompactDragImage(e.dataTransfer, session.name || `${session.tabs.length} tabs`);
                 }}
                 onDragOver={(e) => {
                     if (e.dataTransfer.types.includes("application/json") || e.dataTransfer.types.includes("application/tabkeep-multi-tabs") || e.dataTransfer.types.includes("application/tabkeep-reorder-session") || e.dataTransfer.types.includes("application/tabkeep-pinned-link")) {
                         e.preventDefault();
                         e.stopPropagation();
                         e.dataTransfer.dropEffect = "move";
+                        activateDropTarget(`sidebar-session:${session.id}`, () => {
+                            setIsDropOver(false);
+                            setSessionDropPos(null);
+                        });
                         
-                        // ponytail: wider center zone (76%) = easier to drop into session (like OneTab)
                         const rect = e.currentTarget.getBoundingClientRect();
                         const relativeY = e.clientY - rect.top;
-                        if (relativeY < rect.height * 0.12) {
+                        if (relativeY < rect.height * 0.25) {
                             setSessionDropPos("before");
                             if (isDropOver) setIsDropOver(false);
-                        } else if (relativeY > rect.height * 0.88) {
+                        } else if (relativeY > rect.height * 0.75) {
                             setSessionDropPos("after");
                             if (isDropOver) setIsDropOver(false);
                         } else {
@@ -99,21 +107,24 @@ function SessionRow({
                 }}
                 onDragLeave={(e) => {
                     if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                        setIsDropOver(false);
-                        setSessionDropPos(null);
+                        clearDropTarget(`sidebar-session:${session.id}`);
                     }
                 }}
                 onDrop={(e) => {
                     setIsDropOver(false);
+                    clearDropTarget(`sidebar-session:${session.id}`);
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const relativeY = e.clientY - rect.top;
+                    const dropPos = relativeY < rect.height * 0.25 ? "before" : relativeY > rect.height * 0.75 ? "after" : null;
                     if (e.dataTransfer.types.includes("application/tabkeep-reorder-session")) {
                         e.preventDefault(); e.stopPropagation();
                         try {
                             const data = JSON.parse(e.dataTransfer.getData("application/tabkeep-reorder-session"));
                             if (data.sessionId && data.sessionId !== session.id) {
-                                if (sessionDropPos === null) {
+                                if (dropPos === null) {
                                     if (onMergeSessions) onMergeSessions(data.sessionId, session.id);
                                 } else if (onReorderSession) {
-                                    onReorderSession(data.sessionId, session.id, sessionDropPos);
+                                    onReorderSession(data.sessionId, session.id, dropPos);
                                 }
                             }
                         } catch { }
@@ -137,12 +148,12 @@ function SessionRow({
                         try {
                             const link = JSON.parse(e.dataTransfer.getData("application/tabkeep-pinned-link"));
                             if (link && onDropPinnedLinkToSession) {
-                                onDropPinnedLinkToSession(link, session.id, sessionDropPos || undefined);
+                                onDropPinnedLinkToSession(link, session.id, dropPos || undefined);
                             }
                         } catch { }
                     }
                 }}
-                className={`group flex flex-col cursor-grab active:cursor-grabbing rounded-lg transition-all select-none ${isDropOver
+                className={`group flex flex-col cursor-grab active:cursor-grabbing rounded-lg transition-colors select-none ${isDropOver
                     ? "bg-blue-100 dark:bg-blue-500/15 ring-1 ring-blue-400 dark:ring-blue-500"
                     : "hover:bg-gray-100/80 dark:hover:bg-white/5"
                     }`}
@@ -331,6 +342,7 @@ function SessionRow({
                         e.stopPropagation();
                         e.dataTransfer.setData("application/tabkeep-pinned-link", JSON.stringify(link));
                         e.dataTransfer.effectAllowed = "move";
+                        setCompactDragImage(e.dataTransfer, link.title || link.url);
                     }}
                     onClick={() => chrome.tabs.create({ url: link.url, active: true })}
                     title={link.title}
@@ -349,6 +361,9 @@ function SessionRow({
                     </span>
                 </div>
             ))}
+            {sessionDropPos === "after" && (
+                <div className="absolute -bottom-px left-4 right-1 z-10 h-0.5 rounded-full bg-blue-500 pointer-events-none" />
+            )}
         </div>
     );
 }
@@ -423,12 +438,15 @@ function FolderRow({
             e.dataTransfer.types.includes("application/json") ||
             e.dataTransfer.types.includes("application/tabkeep-multi-tabs") ||
             e.dataTransfer.types.includes("application/tabkeep-pinned-link") ||
-            e.dataTransfer.types.includes("application/tabkeep-reorder-folder") ||
-            e.dataTransfer.types.includes("application/tabkeep-multi-tabs")
+            e.dataTransfer.types.includes("application/tabkeep-reorder-folder")
         ) {
             e.preventDefault();
             e.stopPropagation();
             e.dataTransfer.dropEffect = "move";
+            activateDropTarget(`sidebar-folder:${folder.id}`, () => {
+                setIsDragOver(false);
+                setFolderDropPos(null);
+            });
             if (!e.dataTransfer.types.includes("application/tabkeep-reorder-folder")) {
                 setIsDragOver(true);
             }
@@ -441,6 +459,7 @@ function FolderRow({
 
     const handleDrop = (e: React.DragEvent) => {
         setIsDragOver(false);
+        clearDropTarget(`sidebar-folder:${folder.id}`);
         if (e.dataTransfer.types.includes("application/tabkeep-session")) {
             e.preventDefault(); e.stopPropagation();
             try {
@@ -488,16 +507,21 @@ function FolderRow({
                 onDragLeave={(e) => {
                     // Only clear if leaving the folder area entirely
                     if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                        setIsDragOver(false);
-                        setFolderDropPos(null);
+                        clearDropTarget(`sidebar-folder:${folder.id}`);
                     }
                 }}
                 onDrop={handleDrop}
-                className={`rounded-lg transition-all ${isDragOver && !folderDropPos
+                className={`rounded-lg transition-colors ${isDragOver && !folderDropPos
                     ? "ring-1 ring-blue-400 dark:ring-blue-500 bg-blue-50/50 dark:bg-blue-500/10"
                     : ""
                     }`}
             >
+                {folderDropPos === "before" && (
+                    <div className="absolute -top-px left-4 right-1 z-10 h-0.5 rounded-full bg-blue-500 pointer-events-none" />
+                )}
+                {folderDropPos === "after" && (
+                    <div className="absolute -bottom-px left-4 right-1 z-10 h-0.5 rounded-full bg-blue-500 pointer-events-none" />
+                )}
                 {/* Folder header row */}
                 <div
                     draggable
@@ -505,8 +529,9 @@ function FolderRow({
                         e.stopPropagation();
                         e.dataTransfer.setData("application/tabkeep-reorder-folder", JSON.stringify({ folderId: folder.id }));
                         e.dataTransfer.effectAllowed = "move";
+                        setCompactDragImage(e.dataTransfer, folder.name);
                     }}
-                    className={`group flex items-center gap-1.5 py-[3px] pr-2 rounded-lg transition-all select-none cursor-pointer ${isDragOver && !folderDropPos
+                    className={`group flex items-center gap-1.5 py-[3px] pr-2 rounded-lg transition-colors select-none cursor-pointer ${isDragOver && !folderDropPos
                         ? "text-blue-600 dark:text-blue-400"
                         : isActive
                             ? "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400"
@@ -756,23 +781,6 @@ interface SidebarTreeProps {
 }
 
 
-const createDragGhost = (text: string) => {
-    const dragGhost = document.createElement("div");
-    dragGhost.textContent = text;
-    dragGhost.style.position = "absolute";
-    dragGhost.style.top = "-1000px";
-    dragGhost.style.background = "#3b82f6";
-    dragGhost.style.color = "white";
-    dragGhost.style.padding = "4px 12px";
-    dragGhost.style.borderRadius = "16px";
-    dragGhost.style.fontSize = "12px";
-    dragGhost.style.fontWeight = "bold";
-    dragGhost.style.zIndex = "9999";
-    dragGhost.style.pointerEvents = "none";
-    document.body.appendChild(dragGhost);
-    return dragGhost;
-};
-
 export function SidebarTree({
     sessions, folders, pinnedLinks, activeFolderId,
     onSetActive, onRenameFolder, onDeleteFolder, onRenameSession,
@@ -796,18 +804,21 @@ export function SidebarTree({
                     if (
                         e.dataTransfer.types.includes("application/tabkeep-session") ||
                         e.dataTransfer.types.includes("application/json") ||
-                        e.dataTransfer.types.includes("application/tabkeep-pinned-link")
+                        e.dataTransfer.types.includes("application/tabkeep-pinned-link") ||
+                        e.dataTransfer.types.includes("application/tabkeep-multi-tabs")
                     ) {
                         e.preventDefault();
                         e.dataTransfer.dropEffect = "move";
+                        activateDropTarget("sidebar-root", () => setIsRootDragOver(false));
                         setIsRootDragOver(true);
                     }
                 }}
                 onDragLeave={(e) => {
-                    if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsRootDragOver(false);
+                    if (!e.currentTarget.contains(e.relatedTarget as Node)) clearDropTarget("sidebar-root");
                 }}
                 onDrop={(e) => {
                     setIsRootDragOver(false);
+                    clearDropTarget("sidebar-root");
                     if (e.dataTransfer.types.includes("application/tabkeep-session")) {
                         e.preventDefault();
                         try {
@@ -826,6 +837,12 @@ export function SidebarTree({
                         try {
                             const link = JSON.parse(e.dataTransfer.getData("application/tabkeep-pinned-link"));
                             if (link) onDropPinnedLink(link, null, null, null, null);
+                        } catch { }
+                    } else if (e.dataTransfer.types.includes("application/tabkeep-multi-tabs")) {
+                        e.preventDefault();
+                        try {
+                            const tabs = JSON.parse(e.dataTransfer.getData("application/tabkeep-multi-tabs"));
+                            if (tabs?.length > 0) onMoveMultiTabsToFolder(tabs, null);
                         } catch { }
                     }
                 }}

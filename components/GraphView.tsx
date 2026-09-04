@@ -1,306 +1,219 @@
-import React, { useMemo, useState, useRef, useEffect, useCallback } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ForceGraph2D from "react-force-graph-2d";
-import type { Folder as FolderType, Session, SavedTab } from "~types";
+import type { Folder, SavedTab, Session } from "~types";
 
 interface GraphViewProps {
-    folders: FolderType[];
+    folders: Folder[];
     sessions: Session[];
-    theme: string;
-    onMoveFolder?: (sessionId: string, folderId: string | null) => void;
-    onMoveTab?: (sourceSessionId: string, targetSessionId: string, tabIndex: number) => void;
-    onMoveTabToFolder?: (sourceSessionId: string, tabIndex: number, folderId: string | null) => void;
+    theme: "light" | "dark";
+    onSelectSession?: (session: Session) => void;
+    onSelectTab?: (tab: SavedTab, session: Session) => void;
 }
 
-// ponytail: only render folder + session nodes (no individual tabs).
-// With 10,000+ links, rendering each tab as a node would create 10k+ nodes + 10k+ links = unusable.
-// Upgrade path: progressive disclosure — click session to expand its tab nodes on demand.
+type GraphNode = {
+    id: string;
+    type: "root" | "folder" | "session" | "tab";
+    name: string;
+    count: number;
+    folderId?: string;
+    session?: Session;
+    tab?: SavedTab;
+    favIconUrl?: string;
+    x?: number;
+    y?: number;
+};
 
-export const GraphView: React.FC<GraphViewProps> = ({ folders, sessions, theme, onMoveFolder, onMoveTab, onMoveTabToFolder }) => {
-    const fgRef = useRef<any>();
-    const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
+export function GraphView({ folders, sessions, theme, onSelectSession, onSelectTab }: GraphViewProps) {
+    const graphRef = useRef<any>();
     const containerRef = useRef<HTMLDivElement>(null);
-
-    // ponytail: cache node positions across re-renders so graph doesn't "explode"
-    const positionCacheRef = useRef<Map<string, { x: number; y: number }>>(new Map());
-    // ponytail: cache loaded favicon images
-    const imgCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
-
-    useEffect(() => {
-        if (containerRef.current) {
-            const { clientWidth, clientHeight } = containerRef.current;
-            setDimensions({ width: clientWidth, height: clientHeight });
-        }
-        
-        const handleResize = () => {
-            if (containerRef.current) {
-                const { clientWidth, clientHeight } = containerRef.current;
-                setDimensions({ width: clientWidth, height: clientHeight });
-            }
-        };
-
-        window.addEventListener("resize", handleResize);
-        return () => window.removeEventListener("resize", handleResize);
-    }, []);
-
-    const graphData = useMemo(() => {
-        const nodes: any[] = [];
-        const links: any[] = [];
-
-        // Add root node
-        const totalTabs = sessions.reduce((acc, s) => acc + s.tabs.length, 0);
-        nodes.push({ id: "root", name: "Workspace", type: "root", val: 30, tabCount: totalTabs });
-
-        // Add folders
-        folders.forEach(f => {
-            const folderSessions = sessions.filter(s => s.folderId === f.id);
-            const tabCount = folderSessions.reduce((acc, s) => acc + s.tabs.length, 0);
-            nodes.push({ id: `folder-${f.id}`, name: f.name, type: "folder", val: 20, realId: f.id, tabCount });
-            links.push({ source: "root", target: `folder-${f.id}` });
-        });
-
-        // Add sessions (NOT individual tabs — that's the key optimization)
-        sessions.forEach(s => {
-            const sessionId = `session-${s.id}`;
-            // Get a representative favicon from the first tab
-            const firstTab = s.tabs[0];
-            nodes.push({
-                id: sessionId,
-                name: s.name || `Session ${s.timestamp}`,
-                type: "session",
-                val: Math.max(6, Math.min(15, s.tabs.length)), // size based on tab count
-                realId: s.id,
-                folderId: s.folderId,
-                tabCount: s.tabs.length,
-                favIconUrl: firstTab?.favIconUrl
-            });
-            
-            if (s.folderId) {
-                links.push({ source: `folder-${s.folderId}`, target: sessionId });
-            } else {
-                links.push({ source: "root", target: sessionId });
-            }
-        });
-
-        // ponytail: restore cached positions for nodes that still exist
-        const cache = positionCacheRef.current;
-        nodes.forEach(node => {
-            const cached = cache.get(node.id);
-            if (cached) {
-                node.x = cached.x;
-                node.y = cached.y;
-            }
-        });
-
-        return { nodes, links };
-    }, [folders, sessions]);
-
-    // Save positions when simulation ticks
-    const handleEngineTick = useCallback(() => {
-        const cache = positionCacheRef.current;
-        graphData.nodes.forEach(n => {
-            if (n.x !== undefined && n.y !== undefined) {
-                cache.set(n.id, { x: n.x, y: n.y });
-            }
-        });
-    }, [graphData]);
-
-    // Update simulation forces
-    useEffect(() => {
-        if (fgRef.current) {
-            fgRef.current.d3Force('charge').strength(-200);
-            
-            const linkForce = fgRef.current.d3Force('link');
-            if (linkForce) {
-                linkForce.distance(60);
-                linkForce.strength(0.5);
-            }
-            
-            // ponytail: only reheat if this is a fresh graph (no cached positions)
-            const hasCachedPositions = graphData.nodes.some(n => positionCacheRef.current.has(n.id));
-            if (!hasCachedPositions) {
-                fgRef.current.d3ReheatSimulation();
-            }
-        }
-    }, [graphData]);
-
+    const imageCache = useRef(new Map<string, HTMLImageElement>());
+    const [folderId, setFolderId] = useState<string | "all" | null>(null);
+    const [sessionId, setSessionId] = useState<string | null>(null);
+    const [size, setSize] = useState({ width: 800, height: 600 });
     const isDark = theme === "dark";
 
-    // ponytail: get or load an image, cached in ref across renders
-    const getImage = useCallback((url: string): HTMLImageElement | null => {
-        const cache = imgCacheRef.current;
-        if (cache.has(url)) return cache.get(url)!;
-        const img = new Image();
-        img.src = url;
-        img.onerror = () => {
-            const fallback = new Image();
-            fallback.src = "https://www.google.com/s2/favicons?domain=google.com&sz=32";
-            cache.set(url, fallback);
-        };
-        cache.set(url, img);
-        return null; // not loaded yet, will be available on next paint
+    useEffect(() => {
+        const container = containerRef.current;
+        if (!container) return;
+        const observer = new ResizeObserver(([entry]) => setSize({ width: entry.contentRect.width, height: entry.contentRect.height }));
+        observer.observe(container);
+        return () => observer.disconnect();
     }, []);
 
-    const paintNode = useCallback((node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
-        const label = node.name;
-        const fontSize = 12 / globalScale;
-        ctx.font = `${fontSize}px Sans-Serif`;
+    useEffect(() => {
+        if (folderId && folderId !== "all" && !folders.some((folder) => folder.id === folderId)) setFolderId(null);
+        if (sessionId && !sessions.some((session) => session.id === sessionId)) setSessionId(null);
+    }, [folderId, folders, sessionId, sessions]);
 
-        // Draw drop target highlight
-        if (node.isDragTarget) {
-            ctx.beginPath();
-            const r = node.type === "root" ? 14 : node.type === "folder" ? 12 : 10;
-            ctx.arc(node.x, node.y, r, 0, 2 * Math.PI, false);
-            ctx.fillStyle = "rgba(59, 130, 246, 0.4)";
-            ctx.fill();
-            ctx.strokeStyle = "#3b82f6";
-            ctx.lineWidth = 1;
-            ctx.stroke();
+    const graphData = useMemo(() => {
+        const nodes: GraphNode[] = [];
+        const links: { source: string; target: string }[] = [];
+        const selectedSession = sessions.find((session) => session.id === sessionId);
+
+        if (selectedSession) {
+            const parentId = `session-${selectedSession.id}`;
+            nodes.push({
+                id: parentId,
+                type: "session",
+                name: selectedSession.name,
+                count: selectedSession.tabs.length,
+                session: selectedSession,
+                favIconUrl: selectedSession.tabs[0]?.favIconUrl
+            });
+            selectedSession.tabs.forEach((tab, index) => {
+                const id = `tab-${selectedSession.id}-${index}`;
+                nodes.push({ id, type: "tab", name: tab.title || tab.url, count: 0, session: selectedSession, tab, favIconUrl: tab.favIconUrl });
+                links.push({ source: parentId, target: id });
+            });
+        } else if (!folderId) {
+            nodes.push({
+                id: "root",
+                type: "root",
+                name: "All Sessions",
+                count: sessions.reduce((total, session) => total + session.tabs.length, 0)
+            });
+
+            const sessionCounts = new Map<string | null, number>();
+            sessions.forEach((session) => {
+                sessionCounts.set(session.folderId, (sessionCounts.get(session.folderId) || 0) + session.tabs.length);
+            });
+
+            folders.forEach((folder) => {
+                const id = `folder-${folder.id}`;
+                nodes.push({ id, type: "folder", name: folder.name, count: sessionCounts.get(folder.id) || 0, folderId: folder.id });
+                links.push({ source: "root", target: id });
+            });
+        } else {
+            const scopedSessions = folderId === "all" ? sessions : sessions.filter((session) => session.folderId === folderId);
+            const folder = folders.find((item) => item.id === folderId);
+            if (folderId !== "all" && !folder) return { nodes, links };
+
+            const parentId = folderId === "all" ? "root" : `folder-${folder!.id}`;
+            nodes.push({
+                id: parentId,
+                type: folderId === "all" ? "root" : "folder",
+                name: folderId === "all" ? "All Sessions" : folder!.name,
+                count: scopedSessions.reduce((total, session) => total + session.tabs.length, 0),
+                folderId: folder?.id
+            });
+
+            scopedSessions.forEach((session) => {
+                const id = `session-${session.id}`;
+                nodes.push({
+                    id,
+                    type: "session",
+                    name: session.name,
+                    count: session.tabs.length,
+                    session,
+                    favIconUrl: session.tabs[0]?.favIconUrl
+                });
+                links.push({ source: parentId, target: id });
+            });
         }
 
-        // Draw node shape
-        ctx.beginPath();
+        return { nodes, links };
+    }, [folderId, folders, sessionId, sessions]);
+
+    useEffect(() => {
+        const graph = graphRef.current;
+        if (!graph) return;
+        graph.d3Force("charge")?.strength(-24);
+        graph.d3Force("link")?.distance(20).strength(0.9);
+        graph.d3ReheatSimulation();
+    }, [graphData]);
+
+    const getImage = useCallback((url?: string) => {
+        if (!url) return null;
+        const cached = imageCache.current.get(url);
+        if (cached) return cached;
+        const image = new Image();
+        image.src = url;
+        imageCache.current.set(url, image);
+        return image;
+    }, []);
+
+    const paintNode = useCallback((node: GraphNode, context: CanvasRenderingContext2D) => {
+        const itemSize = node.type === "tab" ? 7 : 9;
+        const half = itemSize / 2;
+
+        context.save();
+        context.beginPath();
         if (node.type === "root") {
-            ctx.fillStyle = isDark ? "#ffffff" : "#000000";
-            ctx.arc(node.x, node.y, 8, 0, 2 * Math.PI, false);
-            ctx.fill();
+            context.fillStyle = isDark ? "#f5f5f5" : "#171717";
+            context.arc(node.x!, node.y!, 7, 0, Math.PI * 2);
+            context.fill();
         } else if (node.type === "folder") {
-            ctx.fillStyle = "#3b82f6";
-            ctx.arc(node.x, node.y, 6, 0, 2 * Math.PI, false);
-            ctx.fill();
-        } else if (node.type === "session") {
-            // Draw session as a rounded square with favicon
-            const size = 10;
-            const halfSize = size / 2;
+            context.fillStyle = "#3b82f6";
+            context.arc(node.x!, node.y!, 5.5, 0, Math.PI * 2);
+            context.fill();
+        } else {
+            context.roundRect(node.x! - half, node.y! - half, itemSize, itemSize, 2);
+            context.fillStyle = isDark ? "#292929" : "#ffffff";
+            context.strokeStyle = isDark ? "#4b5563" : "#d1d5db";
+            context.lineWidth = 0.6;
+            context.fill();
+            context.stroke();
 
-            // Background
-            ctx.fillStyle = isDark ? "#2a2a2a" : "#ffffff";
-            ctx.strokeStyle = isDark ? "#444" : "#ddd";
-            ctx.lineWidth = 0.5;
-            ctx.roundRect(node.x - halfSize, node.y - halfSize, size, size, 2);
-            ctx.fill();
-            ctx.stroke();
-
-            // Favicon inside
-            if (node.favIconUrl) {
-                const img = getImage(node.favIconUrl);
-                if (img && img.complete && img.naturalWidth > 0) {
-                    ctx.drawImage(img, node.x - halfSize + 1, node.y - halfSize + 1, size - 2, size - 2);
-                } else {
-                    ctx.fillStyle = isDark ? "#555" : "#bbb";
-                    ctx.beginPath();
-                    ctx.arc(node.x, node.y, 3, 0, 2 * Math.PI, false);
-                    ctx.fill();
-                }
+            const image = getImage(node.favIconUrl);
+            if (image?.complete && image.naturalWidth) {
+                context.drawImage(image, node.x! - half + 1, node.y! - half + 1, itemSize - 2, itemSize - 2);
             } else {
-                ctx.fillStyle = isDark ? "#555" : "#bbb";
-                ctx.beginPath();
-                ctx.arc(node.x, node.y, 3, 0, 2 * Math.PI, false);
-                ctx.fill();
+                context.fillStyle = isDark ? "#737373" : "#9ca3af";
+                context.beginPath();
+                context.arc(node.x!, node.y!, 2, 0, Math.PI * 2);
+                context.fill();
             }
         }
-
-        // Draw label text
-        if (node.type === "folder" || node.type === "root") {
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.fillStyle = isDark ? "#d1d5db" : "#374151";
-            ctx.fillText(label, node.x, node.y + (node.type === "root" ? 14 : 12));
-        } else if (node.type === "session" && globalScale > 2) {
-            // Only show session labels when zoomed in enough
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.fillStyle = isDark ? "#9ca3af" : "#6b7280";
-            const displayName = node.tabCount > 0 ? `${label} (${node.tabCount})` : label;
-            ctx.fillText(displayName, node.x, node.y + 10);
-        }
-
-        // Tab count badge for sessions (always visible)
-        if (node.type === "session" && node.tabCount > 0 && globalScale <= 2) {
-            const badgeText = String(node.tabCount);
-            const badgeFontSize = 8 / globalScale;
-            ctx.font = `bold ${badgeFontSize}px Sans-Serif`;
-            const tw = ctx.measureText(badgeText).width;
-            const bx = node.x + 5;
-            const by = node.y - 5;
-            ctx.fillStyle = "#3b82f6";
-            ctx.beginPath();
-            ctx.arc(bx, by, Math.max(tw / 2 + 2, 5 / globalScale), 0, 2 * Math.PI);
-            ctx.fill();
-            ctx.fillStyle = "#fff";
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.fillText(badgeText, bx, by);
-        }
-    }, [isDark, getImage]);
+        context.restore();
+    }, [getImage, isDark]);
 
     return (
-        <div ref={containerRef} className="w-full h-full min-h-[600px] flex-1 bg-[#f5f5f7] dark:bg-[#171717] rounded-lg overflow-hidden border border-gray-200 dark:border-[#333]">
+        <div ref={containerRef} className="relative h-full w-full overflow-hidden rounded-lg border border-gray-200 bg-[#f5f5f7] dark:border-[#333] dark:bg-[#171717]">
+            {(folderId || sessionId) && (
+                <button
+                    onClick={() => sessionId ? setSessionId(null) : setFolderId(null)}
+                    className="absolute left-4 top-4 z-10 rounded-lg border border-gray-200 bg-white/90 px-3 py-2 text-xs font-bold text-gray-700 shadow-sm backdrop-blur hover:bg-white dark:border-[#333] dark:bg-[#252525]/90 dark:text-gray-200"
+                >
+                    ← {sessionId ? (folderId === "all" ? "All Sessions" : folders.find((folder) => folder.id === folderId)?.name) : "Overview"}
+                </button>
+            )}
             <ForceGraph2D
-                ref={fgRef}
-                width={dimensions.width}
-                height={dimensions.height}
+                ref={graphRef}
+                width={size.width}
+                height={size.height}
                 graphData={graphData}
-                nodeCanvasObject={paintNode}
+                nodeCanvasObject={paintNode as any}
                 nodeCanvasObjectMode={() => "replace"}
-                nodeLabel={(node: any) => {
-                    if (node.type === "session") return `${node.name} (${node.tabCount} tabs)`;
-                    if (node.type === "folder") return `${node.name} (${node.tabCount} tabs)`;
-                    return node.name;
-                }}
-                nodeRelSize={4}
-                linkColor={() => isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"}
-                linkWidth={1}
+                nodeLabel={(node: GraphNode) => node.type === "tab" ? "" : `${node.name} · ${node.count} tab${node.count === 1 ? "" : "s"}`}
+                linkColor={() => isDark ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.12)"}
+                linkWidth={0.8}
                 backgroundColor={isDark ? "#171717" : "#f5f5f7"}
-                d3AlphaDecay={0.05}
-                d3VelocityDecay={0.4}
-                cooldownTicks={60}
-                onEngineTick={handleEngineTick}
-                onNodeClick={(node) => {
-                    // Center/zoom on node
-                    if (fgRef.current) {
-                        fgRef.current.centerAt(node.x, node.y, 1000);
-                        fgRef.current.zoom(node.type === "session" ? 6 : 3, 1000);
+                cooldownTicks={50}
+                d3AlphaDecay={0.08}
+                d3VelocityDecay={0.45}
+                onEngineStop={() => {
+                    const graph = graphRef.current;
+                    if (!graph) return;
+                    if (graphData.nodes.length <= 20) {
+                        graph.centerAt(0, 0, 300);
+                        graph.zoom(1.8, 300);
+                    } else {
+                        graph.zoomToFit(450, 80);
                     }
                 }}
-                onNodeDragEnd={(node: any) => {
-                    // Save final position
-                    positionCacheRef.current.set(node.id, { x: node.x, y: node.y });
-                    
-                    // Clear drag targets
-                    graphData.nodes.forEach(n => {
-                        if (n.isDragTarget) n.isDragTarget = false;
-                    });
-                    
-                    // Find if dropped on another node (within 20px distance)
-                    const dropTarget = graphData.nodes.find(n => n.id !== node.id && n.x !== undefined && n.y !== undefined && Math.hypot(n.x - node.x, n.y - node.y) < 20);
-                    if (dropTarget) {
-                        if (node.type === "session") {
-                            if (dropTarget.type === "folder" && onMoveFolder) {
-                                onMoveFolder(node.realId, dropTarget.realId);
-                            } else if (dropTarget.type === "root" && onMoveFolder) {
-                                onMoveFolder(node.realId, null);
-                            }
-                        }
-                    }
+                onNodeHover={(node: GraphNode | null) => {
+                    if (node?.type === "tab" && node.tab && node.session) onSelectTab?.(node.tab, node.session);
                 }}
-                onNodeDrag={(node: any) => {
-                    // Clear previous target
-                    graphData.nodes.forEach(n => {
-                        if (n.isDragTarget) n.isDragTarget = false;
-                    });
-                    
-                    const dropTarget = graphData.nodes.find(n => n.id !== node.id && n.x !== undefined && n.y !== undefined && Math.hypot(n.x - node.x, n.y - node.y) < 20);
-                    if (dropTarget) {
-                        let isValid = false;
-                        if (node.type === "session" && (dropTarget.type === "folder" || dropTarget.type === "root")) {
-                            isValid = true;
-                        }
-                        if (isValid) {
-                            dropTarget.isDragTarget = true;
-                        }
+                onNodeClick={(node: GraphNode) => {
+                    if (!folderId && node.type === "root") setFolderId("all");
+                    if (!folderId && node.type === "folder" && node.folderId) setFolderId(node.folderId);
+                    if (!sessionId && node.type === "session" && node.session) {
+                        setSessionId(node.session.id);
+                        onSelectSession?.(node.session);
                     }
+                    if (node.type === "tab" && node.tab && node.session) onSelectTab?.(node.tab, node.session);
                 }}
             />
         </div>
     );
-};
+}

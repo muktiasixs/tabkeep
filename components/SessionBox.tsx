@@ -4,6 +4,7 @@ import type { Session, Folder, SavedTab, PinnedLink, SelectedTab } from "~types"
 import { useTabkeepStorage } from "~hooks/useTabkeepStorage";
 import { updateSessions } from "~lib/storage";
 import { parseImportedLines } from "~lib/linkParser";
+import { activateDropTarget, clearDropTarget, setCompactDragImage } from "~lib/dragDrop";
 
 interface Props {
     session: Session;
@@ -29,10 +30,17 @@ interface Props {
     viewMode?: "list" | "grid" | "graph";
     theme?: string;
     openTabUrls?: Set<string>;
+    collapseSignal?: number;
+    rowExpanded?: boolean;
+    dragResetSignal?: number;
+    duplicateUrls?: Set<string>;
 }
 
-export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSession, onMoveFolder, onMoveTab, onMoveMultiTabs, onMoveTabToFolder, onMoveMultiTabsToFolder, onMergeSessions, onDeleteTab, onTabHover, onPinTab, onUnpinTab, onDropPinnedLinkToSession, onReorderTab, onReorderSession, selectedTabs, onToggleTabSelection, viewMode = "list", theme, openTabUrls }: Props) {
-    const [isExpanded, setIsExpanded] = useState(true);
+export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSession, onMoveFolder, onMoveTab, onMoveMultiTabs, onMoveTabToFolder, onMoveMultiTabsToFolder, onMergeSessions, onDeleteTab, onTabHover, onPinTab, onUnpinTab, onDropPinnedLinkToSession, onReorderTab, onReorderSession, selectedTabs, onToggleTabSelection, viewMode = "list", theme, openTabUrls, collapseSignal = 0, rowExpanded, dragResetSignal = 0, duplicateUrls }: Props) {
+    const expandedStorageKey = `tabkeep:session-expanded:${session.id}`;
+    const [isExpanded, setIsExpanded] = useState(() => localStorage.getItem(expandedStorageKey) !== "false");
+    const lastCollapseSignal = useRef(collapseSignal);
+    const rowExpandedMounted = useRef(false);
     const [isDragOver, setIsDragOver] = useState(false);
     const [sessionDropPos, setSessionDropPos] = useState<"before" | "after" | null>(null);
     const [tabDropTarget, setTabDropTarget] = useState<{ idx: number; pos: "before" | "after" } | null>(null);
@@ -45,6 +53,36 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [menuView, setMenuView] = useState<'main' | 'sort' | 'move'>('main');
     const menuRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (collapseSignal !== lastCollapseSignal.current) setIsExpanded(collapseSignal < 0);
+        lastCollapseSignal.current = collapseSignal;
+    }, [collapseSignal]);
+
+    useEffect(() => {
+        localStorage.setItem(expandedStorageKey, String(isExpanded));
+    }, [expandedStorageKey, isExpanded]);
+
+    useEffect(() => {
+        if (!rowExpandedMounted.current) {
+            rowExpandedMounted.current = true;
+            return;
+        }
+        if (rowExpanded !== undefined) setIsExpanded(rowExpanded);
+    }, [rowExpanded]);
+
+    useEffect(() => {
+        setIsDragOver(false);
+        setSessionDropPos(null);
+        setTabDropTarget(null);
+        clearDropTarget(`session:${session.id}`);
+        clearDropTarget(`tab:${session.id}`);
+    }, [dragResetSignal]);
+
+    useEffect(() => () => {
+        clearDropTarget(`session:${session.id}`);
+        clearDropTarget(`tab:${session.id}`);
+    }, [session.id]);
 
     const handleUpdateSession = (updates: Partial<Session>) => {
         const updated = sessions.map(s => s.id === session.id ? { ...s, ...updates } : s);
@@ -219,39 +257,18 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
             e.dataTransfer.setData("application/json", JSON.stringify({ sourceSessionId: session.id, tabIndex }));
             e.dataTransfer.effectAllowed = "move";
         }
-    };
 
-    
-    const createDragGhost = (text: string) => {
-        const dragGhost = document.createElement("div");
-        dragGhost.textContent = text;
-        dragGhost.style.position = "absolute";
-        dragGhost.style.top = "-1000px";
-        dragGhost.style.background = "#3b82f6";
-        dragGhost.style.color = "white";
-        dragGhost.style.padding = "4px 12px";
-        dragGhost.style.borderRadius = "16px";
-        dragGhost.style.fontSize = "12px";
-        dragGhost.style.fontWeight = "bold";
-        dragGhost.style.zIndex = "9999";
-        dragGhost.style.pointerEvents = "none";
-        document.body.appendChild(dragGhost);
-        return dragGhost;
+        const count = selectedTabs?.some(t => t.sessionId === session.id && t.tabIndex === tabIndex)
+            ? selectedTabs.length
+            : 1;
+        setCompactDragImage(e.dataTransfer, count > 1 ? `${count} tabs` : tab.title || tab.url);
     };
 
     const handleSessionDragStart = (e: React.DragEvent) => {
         e.dataTransfer.setData("application/tabkeep-session", JSON.stringify({ sessionId: session.id }));
         e.dataTransfer.setData("application/tabkeep-reorder-session", JSON.stringify({ sessionId: session.id }));
-        
-        const allTabs = session.tabs.map((tab, idx) => ({
-            sessionId: session.id,
-            tabIndex: idx,
-            url: tab.url,
-            title: tab.title
-        }));
-        e.dataTransfer.setData("application/tabkeep-multi-tabs", JSON.stringify(allTabs));
-        
         e.dataTransfer.effectAllowed = "move";
+        setCompactDragImage(e.dataTransfer, session.name || `${session.tabs.length} tabs`);
     };
 
     const handleDragOver = (e: React.DragEvent) => {
@@ -260,13 +277,19 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
             e.stopPropagation();
             e.dataTransfer.dropEffect = "move";
 
+            activateDropTarget(`session:${session.id}`, () => {
+                setIsDragOver(false);
+                setSessionDropPos(null);
+            });
+
             // Allow dropping between sessions for all these types
             const rect = e.currentTarget.getBoundingClientRect();
-            const relativeY = e.clientY - rect.top;
-            if (relativeY < rect.height * 0.25) {
+            const position = viewMode === "grid" ? e.clientX - rect.left : e.clientY - rect.top;
+            const length = viewMode === "grid" ? rect.width : rect.height;
+            if (position < length * 0.25) {
                 setSessionDropPos("before");
                 if (isDragOver) setIsDragOver(false);
-            } else if (relativeY > rect.height * 0.75) {
+            } else if (position > length * 0.75) {
                 setSessionDropPos("after");
                 if (isDragOver) setIsDragOver(false);
             } else {
@@ -281,13 +304,18 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
         if (!e.currentTarget.contains(e.relatedTarget as Node)) {
             setIsDragOver(false);
             setSessionDropPos(null);
+            clearDropTarget(`session:${session.id}`);
         }
     };
 
     const handleDrop = (e: React.DragEvent) => {
         setIsDragOver(false);
-        const dropPos = sessionDropPos;
+        const rect = e.currentTarget.getBoundingClientRect();
+        const position = viewMode === "grid" ? e.clientX - rect.left : e.clientY - rect.top;
+        const length = viewMode === "grid" ? rect.width : rect.height;
+        const dropPos = position < length * 0.25 ? "before" : position > length * 0.75 ? "after" : null;
         setSessionDropPos(null);
+        clearDropTarget(`session:${session.id}`);
 
         if (dropPos) {
             e.preventDefault();
@@ -367,15 +395,15 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
     };
 
     return (
-        <div id={`session-${session.id}`} className="relative pb-4">
+        <div id={`session-${session.id}`} className="session-render-boundary relative">
             {/* Session reorder drop indicator ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ before */}
             {sessionDropPos === "before" && (
-                <div className="absolute top-[-2px] left-1 right-1 h-1 bg-blue-500 rounded-full pointer-events-none z-10" />
+                <div className={`absolute bg-blue-500 rounded-full pointer-events-none z-10 ${viewMode === "grid" ? "-left-2 top-1 bottom-1 w-1" : "top-[-2px] left-1 right-1 h-1"}`} />
             )}
             <div
                 draggable
                 onDragStart={handleSessionDragStart}
-                className={`bg-white dark:bg-[#1a1a1a] rounded-lg shadow-sm dark:shadow-none transition-all animate-in fade-in duration-300 ${isDragOver ? "ring-2 ring-blue-500/50 shadow-blue-500/20" : ""
+                className={`bg-white dark:bg-[#1a1a1a] rounded-lg shadow-sm dark:shadow-none transition-colors animate-in fade-in duration-300 ${isDragOver ? "ring-2 ring-inset ring-blue-500/50 shadow-blue-500/20" : ""
                     }`}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
@@ -383,9 +411,9 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
             >
                 {/* Header */}
                 <div
-                    className={`group/header p-4 bg-transparent flex justify-between items-start hover:bg-gray-50/50 dark:hover:bg-white/[0.02] rounded-lg ${!isExpanded ? 'rounded-lg' : ''}`}
+                    className={`group/header bg-transparent flex justify-between hover:bg-gray-50/50 dark:hover:bg-white/[0.02] rounded-lg ${viewMode === "grid" ? "items-center gap-2 p-3" : "items-start p-4"} ${!isExpanded ? 'rounded-lg' : ''}`}
                 >
-                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                    <div className={`flex flex-1 min-w-0 ${viewMode === "grid" ? "items-center gap-2" : "items-start gap-3"}`}>
                         {/* Chevron button to toggle expand/collapse */}
                         <div 
                             className="p-1 rounded-lg hover:bg-gray-200 dark:hover:bg-[#333] transition-colors cursor-pointer mt-0.5"
@@ -409,11 +437,11 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                                 onBlur={commitEdit}
                                 onKeyDown={handleKeyDown}
                                 onClick={(e) => e.stopPropagation()}
-                                className="bg-white dark:bg-[#1a1a1a] border border-blue-500 rounded-lg px-2 py-0.5 text-lg font-bold text-gray-900 dark:text-white outline-none flex-1 min-w-0"
+                                className={`bg-white dark:bg-[#1a1a1a] border border-blue-500 rounded-lg px-2 py-0.5 font-bold text-gray-900 dark:text-white outline-none flex-1 min-w-0 ${viewMode === "grid" ? "text-base" : "text-lg"}`}
                             />
                         ) : (
                             <h3
-                                className="text-lg font-bold text-gray-900 dark:text-white tracking-tight flex-1 break-words hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-text flex items-center gap-2"
+                                className={`font-bold text-gray-900 dark:text-white tracking-tight flex-1 min-w-0 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-text flex items-center gap-2 ${viewMode === "grid" ? "truncate text-base leading-tight" : "break-words text-lg"}`}
                                 onDoubleClick={(e) => {
                                     e.stopPropagation();
                                     startEdit(e);
@@ -429,9 +457,9 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-3 shrink-0 ml-4 mt-0.5">
+                    <div className={`flex items-center shrink-0 ${viewMode === "grid" ? "gap-1 ml-1" : "gap-3 ml-4 mt-0.5"}`}>
                         
-                        <span className="text-xs font-mono font-bold text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-white/10 px-2 py-0.5 rounded-full flex items-center gap-1.5">
+                        <span className={`font-mono font-bold text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-white/10 py-0.5 rounded-full flex items-center ${viewMode === "grid" ? "text-[10px] px-1.5 gap-1" : "text-xs px-2 gap-1.5"}`}>
                             {openTabUrls && session.tabs.some(t => t.url && openTabUrls.has(t.url)) && (
                                 <span className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_4px_rgba(34,197,94,0.6)] animate-pulse" title="Sesi ini memiliki tab yang sedang terbuka" />
                             )}
@@ -727,18 +755,11 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                                 const isSelected = selectedTabs?.some(t => t.sessionId === session.id && t.tabIndex === idx) || false;
                                 const isArchived = tab.archived;
                                 const isOpen = openTabUrls?.has(tab.url) || false;
+                                const isDuplicate = duplicateUrls?.has(tab.url) || false;
 
                                 return (
-                                    <React.Fragment key={idx}>
+                                    <React.Fragment key={`${session.id}-${idx}`}>
                                         {/* Tab reorder drop indicator – before */}
-                                        {tabDropTarget?.idx === idx && tabDropTarget.pos === "before" && (
-                                            <div 
-                                                className={viewMode === "grid"
-                                                    ? "h-7 w-0.5 bg-blue-500 rounded-full pointer-events-none z-10"
-                                                    : "absolute left-2 right-2 h-0.5 bg-blue-500 rounded-full pointer-events-none z-10"}
-                                                style={viewMode === "grid" ? { margin: "0 -1px", position: "relative" } : {}}
-                                            />
-                                        )}
                                         <li
                                             draggable
                                             onDragStart={(e) => {
@@ -746,10 +767,12 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                                                 handleDragStartTab(e, idx);
                                                 e.dataTransfer.setData("application/tabkeep-reorder-tab", JSON.stringify({ sessionId: session.id, tabIndex: idx }));
                                             }}
+                                            onDragEnter={() => onTabHover?.({ ...tab, sessionTimestamp: session.timestamp })}
                                             onDragOver={(e) => {
                                                 if (e.dataTransfer.types.includes("application/tabkeep-reorder-tab") || e.dataTransfer.types.includes("application/json") || e.dataTransfer.types.includes("application/tabkeep-multi-tabs")) {
                                                     e.preventDefault();
                                                     e.stopPropagation();
+                                                    activateDropTarget(`tab:${session.id}`, () => setTabDropTarget(null));
                                                     const rect = e.currentTarget.getBoundingClientRect();
                                                     const pos = viewMode === "grid"
                                                         ? (e.clientX < rect.left + rect.width / 2 ? "before" : "after")
@@ -757,12 +780,17 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                                                     setTabDropTarget({ idx, pos });
                                                 }
                                             }}
-                                            onDragLeave={() => setTabDropTarget(null)}
+                                            onDragLeave={(e) => {
+                                                if (!e.currentTarget.contains(e.relatedTarget as Node)) clearDropTarget(`tab:${session.id}`);
+                                            }}
                                             onDrop={(e) => {
                                                 if (e.dataTransfer.types.includes("application/tabkeep-reorder-tab") || e.dataTransfer.types.includes("application/json") || e.dataTransfer.types.includes("application/tabkeep-multi-tabs")) {
                                                     e.preventDefault();
                                                     e.stopPropagation();
-                                                    const pos = tabDropTarget?.pos || "after";
+                                                    const rect = e.currentTarget.getBoundingClientRect();
+                                                    const pos = viewMode === "grid"
+                                                        ? (e.clientX < rect.left + rect.width / 2 ? "before" : "after")
+                                                        : (e.clientY < rect.top + rect.height / 2 ? "before" : "after");
                                                     const toIdx = pos === "before" ? idx : idx + 1;
 
                                                     try {
@@ -799,17 +827,26 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                                                         }
                                                     } catch { }
                                                     setTabDropTarget(null);
+                                                    clearDropTarget(`tab:${session.id}`);
                                                 }
                                             }}
                                             onMouseEnter={() => onTabHover?.({ ...tab, sessionTimestamp: session.timestamp })}
                                             title={viewMode === "grid" ? tab.title || "Untitled Tab" : undefined}
-                                            className={`flex items-center cursor-grab active:cursor-grabbing group transition-colors ${viewMode === "grid" ? "justify-center p-1 w-7 h-7 relative" : "gap-2.5 py-1 px-2"} ${isSelected
+                                            className={`relative flex items-center cursor-grab active:cursor-grabbing group transition-colors ${viewMode === "grid" ? "justify-center p-1 w-7 h-7" : "gap-2.5 py-1 px-2"} ${isSelected
                                                 ? "bg-blue-50 dark:bg-blue-900/30 rounded-none"
+                                                : isDuplicate
+                                                    ? "rounded-lg bg-black/[0.04] hover:bg-black/[0.07] dark:bg-white/[0.05] dark:hover:bg-white/[0.08]"
                                                 : isArchived
                                                     ? "rounded-lg bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(0,0,0,0.02)_10px,rgba(0,0,0,0.02)_20px)] dark:bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(255,255,255,0.02)_10px,rgba(255,255,255,0.02)_20px)] hover:bg-gray-100 dark:hover:bg-[#2a2a2a]"
                                                     : "rounded-lg hover:bg-blue-50/50 dark:hover:bg-[#252525]"
                                                 }`}
                                         >
+                                            {tabDropTarget?.idx === idx && (
+                                                <div className={`absolute pointer-events-none z-10 rounded-full bg-blue-500 ${viewMode === "grid"
+                                                    ? (tabDropTarget.pos === "before" ? "-left-0.5 inset-y-0 w-0.5" : "-right-0.5 inset-y-0 w-0.5")
+                                                    : (tabDropTarget.pos === "before" ? "-top-px inset-x-0 h-0.5" : "-bottom-px inset-x-0 h-0.5")
+                                                    }`} />
+                                            )}
                                             {viewMode !== "grid" && (
                                                 <div className={`flex items-center justify-center transition-opacity ${isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
                                                     onClick={(e) => {
@@ -887,14 +924,6 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                                             )}
                                         </li>
                                         {/* Tab reorder drop indicator – after last item */}
-                                        {tabDropTarget?.idx === idx && tabDropTarget.pos === "after" && (
-                                            <div 
-                                                className={viewMode === "grid"
-                                                    ? "h-7 w-0.5 bg-blue-500 rounded-full pointer-events-none z-10"
-                                                    : "absolute left-2 right-2 h-0.5 bg-blue-500 rounded-full pointer-events-none z-10"}
-                                                style={viewMode === "grid" ? { margin: "0 -1px", position: "relative" } : {}}
-                                            />
-                                        )}
                                     </React.Fragment>
                                 );
                             })}
@@ -909,7 +938,7 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
             </div>
             {/* Session reorder drop indicator ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ after */}
             {sessionDropPos === "after" && (
-                <div className="absolute bottom-[-2px] left-1 right-1 h-1 bg-blue-500 rounded-full pointer-events-none z-10" />
+                <div className={`absolute bg-blue-500 rounded-full pointer-events-none z-10 ${viewMode === "grid" ? "-right-2 top-1 bottom-1 w-1" : "bottom-[-4px] left-1 right-1 h-1"}`} />
             )}
         </div>
     );

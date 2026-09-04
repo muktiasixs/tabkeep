@@ -52,6 +52,18 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         };
     }, [isOpen]);
 
+    useEffect(() => {
+        if (!isOpen) return;
+        const previousOverflow = document.body.style.overflow;
+        const closeOnEscape = (event: KeyboardEvent) => event.key === "Escape" && onClose();
+        document.body.style.overflow = "hidden";
+        document.addEventListener("keydown", closeOnEscape);
+        return () => {
+            document.body.style.overflow = previousOverflow;
+            document.removeEventListener("keydown", closeOnEscape);
+        };
+    }, [isOpen, onClose]);
+
     const exportData = sessions.map(session => session.tabs.map(tab => tab.url).join("\n")).join("\n\n");
 
     const handleDownloadTxt = () => {
@@ -205,13 +217,14 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     if (!isRendered) return null;
 
     return (
-        <div onClick={onClose} className={`fixed inset-0 z-50 flex items-center justify-center bg-white/50 dark:bg-black/40 backdrop-blur-md transition-opacity duration-200 ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
-            <div onClick={e => e.stopPropagation()} className={`w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh] transition-all duration-200 transform ${isVisible ? 'scale-100 opacity-100 translate-y-0' : 'scale-95 opacity-0 translate-y-4'}`}>
-                <div className="flex items-center justify-between px-6 py-4">
-                    <h2 className="text-xl font-black text-gray-900 dark:text-white flex items-center gap-2 drop-shadow-sm dark:drop-shadow-md">
+        <div onClick={onClose} className={`fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4 backdrop-blur-sm transition-opacity duration-200 dark:bg-black/60 ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
+            <div role="dialog" aria-modal="true" aria-labelledby="settings-title" onClick={e => e.stopPropagation()} className={`flex max-h-[calc(100vh-2rem)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl transition-all duration-200 dark:border-[#333] dark:bg-[#1e1e1e] ${isVisible ? 'scale-100 opacity-100 translate-y-0' : 'scale-95 opacity-0 translate-y-4'}`}>
+                <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4 dark:border-[#333] sm:px-6">
+                    <h2 id="settings-title" className="text-xl font-black text-gray-900 dark:text-white flex items-center gap-2">
                         Setting
                     </h2>
                     <button
+                        aria-label="Close settings"
                         onClick={onClose}
                         className="p-1.5 rounded-lg text-gray-600 dark:text-white/70 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
                     >
@@ -219,10 +232,10 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     </button>
                 </div>
 
-                <div className="p-6 overflow-y-auto custom-scrollbar flex flex-col gap-8 text-gray-900 dark:text-white drop-shadow-sm dark:drop-shadow-md">
+                <div className="flex flex-col gap-6 overflow-y-auto p-5 text-gray-900 custom-scrollbar dark:text-white sm:p-6">
 
                     {/* When restoring tabs */}
-                    <div className="p-2">
+                    <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-4 dark:border-[#333] dark:bg-[#242424]">
                         <h3 className="font-bold mb-3 text-sm text-gray-800 dark:text-white/90">When restoring tabs:</h3>
                         <div className="flex flex-col gap-3">
                             <label className="flex gap-3 cursor-pointer">
@@ -268,7 +281,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     </div>
 
                     {/* Duplicates */}
-                    <div className="p-2">
+                    <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-4 dark:border-[#333] dark:bg-[#242424]">
                         <h3 className="font-bold mb-3 text-sm text-gray-800 dark:text-white/90">Duplicates:</h3>
                         <div className="flex flex-col gap-3">
                             <label className="flex gap-3 cursor-pointer">
@@ -296,12 +309,24 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                                     <div className="text-xs text-gray-600 dark:text-white/70">If Tabkeep already contains the tab, it will not be added again.</div>
                                 </div>
                             </label>
+                            <label className="flex items-center gap-3 cursor-pointer pt-2 border-t border-black/5 dark:border-white/5">
+                                <input
+                                    type="checkbox"
+                                    className="accent-blue-600 dark:accent-blue-400 w-4 h-4 rounded"
+                                    checked={settings.highlightDuplicates}
+                                    onChange={(e) => updateSettings({ ...settings, highlightDuplicates: e.target.checked })}
+                                />
+                                <div>
+                                    <div className="font-semibold text-sm">Highlight duplicate pages</div>
+                                    <div className="text-xs text-gray-600 dark:text-white/70">Mark tabs with the same URL using a gray background.</div>
+                                </div>
+                            </label>
                         </div>
                         <p className="text-[10px] text-gray-500 dark:text-white/50 mt-4 italic">This setting can be overridden inside the main popup window (if you've enabled the option popup).</p>
                     </div>
 
                     {/* URL display */}
-                    <div className="p-2">
+                    <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-4 dark:border-[#333] dark:bg-[#242424]">
                         <h3 className="font-bold mb-3 text-sm text-gray-800 dark:text-white/90">URL display:</h3>
                         <div className="flex flex-col gap-4">
 
@@ -391,7 +416,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     </div>
 
                     {/* Google Drive Auto-Sync */}
-                    <div className="p-2 border-t border-black/5 dark:border-white/5 pt-4 mt-2">
+                    <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-4 dark:border-[#333] dark:bg-[#242424]">
                         <h3 className="font-bold mb-3 text-sm text-gray-800 dark:text-white/90">Google Drive Auto-Sync:</h3>
                         <div className="flex flex-col gap-4">
                             {/* Toggle Auto Sync */}
@@ -403,8 +428,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                                     onChange={(e) => updateSettings({ ...settings, autoSync: e.target.checked })}
                                 />
                                 <div>
-                                    <div className="font-semibold text-sm">Aktifkan Auto-Sync (Google Drive)</div>
-                                    <div className="text-xs text-gray-600 dark:text-white/70">Secara otomatis mencadangkan data ke Google Drive secara berkala di latar belakang.</div>
+                                    <div className="font-semibold text-sm">Enable Auto-Sync (Google Drive)</div>
+                                    <div className="text-xs text-gray-600 dark:text-white/70">Periodically back up your Tabkeep data to Google Drive in the background.</div>
                                 </div>
                             </label>
 
@@ -412,15 +437,15 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                                 <>
                                     {/* Interval Sync */}
                                     <div className="ml-7 flex items-center gap-3">
-                                        <span className="text-sm font-semibold text-gray-700 dark:text-white/80">Interval Sinkronisasi:</span>
+                                        <span className="text-sm font-semibold text-gray-700 dark:text-white/80">Sync interval:</span>
                                         <select
                                             className="bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/20 rounded px-2.5 py-1 text-sm text-gray-800 dark:text-white focus:outline-none"
                                             value={settings.autoSyncInterval || 1}
                                             onChange={(e) => updateSettings({ ...settings, autoSyncInterval: Number(e.target.value) as 1 | 3 | 6 })}
                                         >
-                                            <option value={1} className="dark:bg-[#1c1c1e]">Setiap 1 Jam</option>
-                                            <option value={3} className="dark:bg-[#1c1c1e]">Setiap 3 Jam</option>
-                                            <option value={6} className="dark:bg-[#1c1c1e]">Setiap 6 Jam</option>
+                                            <option value={1} className="dark:bg-[#1c1c1e]">Every hour</option>
+                                            <option value={3} className="dark:bg-[#1c1c1e]">Every 3 hours</option>
+                                            <option value={6} className="dark:bg-[#1c1c1e]">Every 6 hours</option>
                                         </select>
                                     </div>
 
@@ -433,12 +458,15 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                                             onChange={(e) => updateSettings({ ...settings, backupThumbnails: e.target.checked })}
                                         />
                                         <div>
-                                            <div className="font-semibold text-sm">Cadangkan Gambar Preview (Thumbnails)</div>
-                                            <div className="text-xs text-gray-600 dark:text-white/70">Ikut sertakan tangkapan layar tab untuk pemulihan visual yang sempurna.</div>
+                                            <div className="font-semibold text-sm">Include preview images (thumbnails)</div>
+                                            <div className="text-xs text-gray-600 dark:text-white/70">Include saved preview images in the backup. This increases backup size.</div>
                                         </div>
                                     </label>
                                 </>
                             )}
+                            <div className="rounded-lg bg-amber-50 px-3 py-2.5 text-xs leading-5 text-amber-900 dark:bg-amber-500/10 dark:text-amber-200">
+                                Auto-Sync is best effort, not continuous backup. Chrome must be able to run the extension, your device must be online, and Google authorization must remain valid. Sleep, shutdown, offline periods, or an expired login may delay or skip a scheduled backup. Use <strong>Sync to Google Drive</strong> manually before important changes.
+                            </div>
                         </div>
                     </div>
 
@@ -492,13 +520,21 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                             value={importData}
                             onChange={(e) => setImportData(e.target.value)}
                         />
-                        <div className="flex justify-between items-end w-full">
-                            <label className="flex flex-col items-center justify-center w-32 h-24 border-2 border-dashed border-black/20 dark:border-white/30 rounded-lg cursor-pointer hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
-                                <Upload size={24} className="text-gray-500 dark:text-white/50 mb-2" />
-                                <span className="text-[10px] text-gray-500 dark:text-white/50 text-center px-2">Upload JSON file here</span>
-                                <input type="file" className="hidden" accept=".json" />
-                            </label>
-                            <div className="flex items-center gap-2.5">
+                        <label className="mb-3 flex w-full cursor-pointer items-center justify-center gap-3 rounded-lg border border-dashed border-black/20 px-4 py-3 text-gray-600 transition-colors hover:bg-black/5 dark:border-white/20 dark:text-white/60 dark:hover:bg-white/5">
+                                <Upload size={18} />
+                                <span className="text-xs font-semibold">Choose a TXT or JSON file</span>
+                                <input
+                                    type="file"
+                                    className="hidden"
+                                    accept=".txt,.json,text/plain,application/json"
+                                    onChange={async (event) => {
+                                        const file = event.target.files?.[0];
+                                        if (file) setImportData(await file.text());
+                                        event.target.value = "";
+                                    }}
+                                />
+                        </label>
+                        <div className="flex flex-wrap justify-end gap-2.5">
                                 <button
                                     onClick={handleImportFromGDrive}
                                     disabled={gdriveImportState === "loading"}
@@ -521,7 +557,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                                 >
                                     Import
                                 </button>
-                            </div>
                         </div>
                     </div>
 

@@ -6,6 +6,7 @@ import type { Session, Folder, SavedTab, PinnedLink, Settings } from "~types"
 export const defaultSettings: Settings = {
     restoreOption: "remove",
     duplicateOption: "allow",
+    highlightDuplicates: true,
     urlDisplayOption: "domain",
     autoSync: false,
     autoSyncInterval: 1,

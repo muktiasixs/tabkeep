@@ -32,3 +32,17 @@ body {
 .dark .custom-scrollbar {
     scrollbar-color: #444444 transparent; /* dark mode thumb and track */
 }
+
+.scrollbar-hidden {
+    scrollbar-width: none;
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+    display: none;
+}
+
+/* Let Chromium skip layout and paint work for sessions far outside the viewport. */
+.session-render-boundary {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 64px;
+}

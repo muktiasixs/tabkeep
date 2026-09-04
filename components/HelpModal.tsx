@@ -1,292 +1,144 @@
-import React, { useState, useEffect } from "react";
-import { X, Info, MousePointer2, FolderPlus, Layers, Star, Pin, Trash2, Search, ArrowUpDown, GripVertical, CheckSquare, Globe, Settings, RotateCcw, Download, Upload, Monitor } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { ArrowUpDown, Bookmark, Database, FolderTree, Grid2X2, Keyboard, LayoutDashboard, List, Network, PanelRight, Settings, X } from "lucide-react";
 
 interface HelpModalProps {
     isOpen: boolean;
     onClose: () => void;
 }
 
+const guideSections = [
+    {
+        title: "1. Screen layout",
+        description: "Tabkeep is divided into four working areas.",
+        items: ["Top bar: search, theme, Help, About, and Settings.", "Left sidebar: All Sessions, session tree, folders, and Trash.", "Main area: your sessions in List, Grid, or Graph view.", "Right sidebar: live details for the tab currently under your pointer."],
+    },
+    {
+        title: "2. Left sidebar",
+        description: "Use the left side to move through a large workspace quickly.",
+        items: ["All Sessions shows everything, including sessions outside folders.", "Click a chevron to reveal a session, folder, or pinned item without leaving the current page.", "Click a session name to jump directly to its card in the main area.", "Create a folder with Folder Baru. Deleted sessions can be restored from Trash."],
+    },
+    {
+        title: "3. Search, bookmarks, and header menu",
+        description: "The top controls stay available while you organize tabs.",
+        items: ["Search matches both page titles and URLs.", "Pinned bookmarks appear as favicons above All Sessions; click one to open it.", "Place the pointer over the bookmark strip and use the mouse wheel to scroll it horizontally.", "The All Sessions three-dot menu can show or hide bookmarks, collapse or expand everything, paste links, copy all links, group by website, and remove duplicates."],
+    },
+    {
+        title: "4. List view",
+        description: "Best when titles and URLs matter.",
+        items: ["Each session displays complete tab rows with title, optional URL, time, pin, and delete actions.", "Click a title to open it. Ctrl-click or Cmd-click opens it in the background.", "Double-click a session title to rename it.", "Use the session chevron to collapse or expand its tab list."],
+    },
+    {
+        title: "5. Grid view",
+        description: "Best for scanning many tabs with less space.",
+        items: ["Tabs become compact favicon tiles; hover a tile to see its details on the right.", "When the right sidebar is closed, another session column is added automatically.", "The chevron beside each grid row collapses only that row.", "Session titles and tab counts remain visible while long names are shortened safely."],
+    },
+    {
+        title: "6. Graph view",
+        description: "A lightweight map for exploring relationships without drawing every tab at once.",
+        items: ["Overview shows All Sessions and folder nodes.", "Open All Sessions or a folder to reveal only its sessions.", "Open a session to reveal only the tabs inside that session.", "Hover a tab node to update the right sidebar; use the back button inside the graph to return one level."],
+    },
+    {
+        title: "7. Right sidebar",
+        description: "A preview panel that follows your pointer.",
+        items: ["Hover a tab, bookmark, or graph tab node to show its title, URL, favicon, and saved time.", "Analytics summarize sessions, tabs, estimated memory saved, and recent activity.", "Use the edge arrow to close or reopen the sidebar.", "Closing it gives the main area more room; Grid view uses that room automatically."],
+    },
+    {
+        title: "8. Session and tab actions",
+        description: "Most actions live in the three-dot menu or appear when you hover an item.",
+        items: ["Session actions: restore all, rename, star, copy, paste, sort, move, merge, remove duplicates, or delete.", "Tab actions: open, pin or unpin, select, move, reorder, or delete.", "Pinned tabs stay available in the bookmark strip even when you browse another folder.", "Restored tabs follow the behavior selected in Settings: remove, keep, or archive."],
+    },
+    {
+        title: "9. Drag and drop",
+        description: "The position of the indicator tells you what will happen before you release.",
+        items: ["A thin blue line at an edge means insert before or after that session or tab.", "A subtle highlight in the middle means move into or merge with that destination.", "Drag a session onto a folder to move the whole session.", "Select several tabs first, then drag one selected tab to move the entire selection together."],
+    },
+    {
+        title: "10. Status indicators",
+        description: "Small visual changes communicate state without extra text.",
+        items: ["Green dot: at least one saved URL is currently open in Chrome.", "Soft gray tab background: the same page is saved more than once, when duplicate highlighting is enabled.", "Striped or crossed-out row: the tab has been archived after restoration.", "Amber pin or star: the tab is bookmarked or the session is marked as important."],
+    },
+    {
+        title: "11. Settings, import, and backup",
+        description: "Settings control restoration, duplicates, URL display, and data protection.",
+        items: ["Choose whether restored tabs are removed, kept, or archived.", "Allow or reject duplicates, and independently turn duplicate highlighting on or off.", "Choose no URL, domain only, abbreviated URL, or full URL in List view.", "Paste links or choose a TXT/JSON file to import. Copy, export, or sync a backup to Google Drive.", "Google Drive Auto-Sync is best effort: Chrome, internet access, and a valid Google login are required. Run a manual sync before important changes."],
+    },
+    {
+        title: "12. Keyboard and mouse shortcuts",
+        description: "These shortcuts make large collections faster to operate.",
+        items: ["Ctrl-click / Cmd-click: open a link in the background.", "Shift-click a checkbox: select a continuous range of tabs.", "Double-click a session name: rename it.", "Mouse wheel over bookmarks: scroll horizontally. Escape: close an open modal or cancel a stuck drag indicator."],
+    },
+];
+
+const guideIcons = [LayoutDashboard, FolderTree, Bookmark, List, Grid2X2, Network, PanelRight, Settings, ArrowUpDown, Bookmark, Database, Keyboard];
+
 export function HelpModal({ isOpen, onClose }: HelpModalProps) {
-    const [isRendered, setIsRendered] = useState(isOpen)
+    const [isRendered, setIsRendered] = useState(isOpen);
     const [isVisible, setIsVisible] = useState(isOpen);
 
     useEffect(() => {
-        let renderTimer: ReturnType<typeof setTimeout>;
-        let visibleTimer: ReturnType<typeof setTimeout>;
-
+        let timer: ReturnType<typeof setTimeout>;
         if (isOpen) {
             setIsRendered(true);
-            visibleTimer = setTimeout(() => setIsVisible(true), 10);
+            timer = setTimeout(() => setIsVisible(true), 10);
         } else {
             setIsVisible(false);
-            renderTimer = setTimeout(() => setIsRendered(false), 200);
+            timer = setTimeout(() => setIsRendered(false), 200);
         }
-
-        return () => {
-            clearTimeout(renderTimer);
-            clearTimeout(visibleTimer);
-        };
+        return () => clearTimeout(timer);
     }, [isOpen]);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        const previousOverflow = document.body.style.overflow;
+        const closeOnEscape = (event: KeyboardEvent) => event.key === "Escape" && onClose();
+        document.body.style.overflow = "hidden";
+        document.addEventListener("keydown", closeOnEscape);
+        return () => {
+            document.body.style.overflow = previousOverflow;
+            document.removeEventListener("keydown", closeOnEscape);
+        };
+    }, [isOpen, onClose]);
 
     if (!isRendered) return null;
 
     return (
-        <div onClick={onClose} className={`fixed inset-0 z-50 flex items-center justify-center bg-white/50 dark:bg-black/40 backdrop-blur-md transition-opacity duration-200 ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
-            <div onClick={e => e.stopPropagation()} className={`w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh] transition-all duration-200 transform ${isVisible ? 'scale-100 opacity-100 translate-y-0' : 'scale-95 opacity-0 translate-y-4'}`}>
-                <div className="flex items-center justify-between px-6 py-4">
-                    <h2 className="text-xl font-black text-gray-900 dark:text-white flex items-center gap-2 drop-shadow-sm dark:drop-shadow-md">
-                        <Info size={20} /> Panduan Tabkeep
-                    </h2>
-                    <button
-                        onClick={onClose}
-                        className="p-1.5 rounded-lg text-gray-600 dark:text-white/70 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-                    >
-                        <X size={16} />
-                    </button>
-                </div>
+        <div onClick={onClose} className={`fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4 backdrop-blur-sm transition-opacity duration-200 dark:bg-black/60 ${isVisible ? "opacity-100" : "opacity-0"}`}>
+            <div role="dialog" aria-modal="true" aria-labelledby="help-title" onClick={(event) => event.stopPropagation()} className={`flex max-h-[calc(100vh-2rem)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl transition-all duration-200 dark:border-[#333] dark:bg-[#1e1e1e] ${isVisible ? "translate-y-0 scale-100 opacity-100" : "translate-y-4 scale-95 opacity-0"}`}>
+                <header className="flex items-center justify-between border-b border-gray-200 px-5 py-4 dark:border-[#333] sm:px-6">
+                    <div>
+                        <h2 id="help-title" className="text-xl font-black text-gray-900 dark:text-white">Tabkeep Guide</h2>
+                        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Save, organize, and restore tabs without losing your place.</p>
+                    </div>
+                    <button aria-label="Close guide" onClick={onClose} className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-white/10 dark:hover:text-white"><X size={17} /></button>
+                </header>
 
-                <div className="p-6 overflow-y-auto custom-scrollbar flex flex-col gap-8 text-gray-900 dark:text-white drop-shadow-sm dark:drop-shadow-md">
-
-                    {/* Apa Itu Tabkeep */}
-                    <div className="p-2">
-                        <h3 className="font-bold mb-3 text-sm text-gray-800 dark:text-white/90 flex items-center gap-2">
-                            <Globe size={16} className="text-blue-500" /> Apa Itu Tabkeep?
-                        </h3>
-                        <div className="text-sm text-gray-600 dark:text-white/70 leading-relaxed space-y-2 ml-6">
-                            <p>
-                                Tabkeep adalah ekstensi Chrome yang membantu kamu <strong className="text-gray-900 dark:text-white">menyimpan, mengatur, dan mengelola semua tab browser</strong> kamu dalam satu tempat. Tidak perlu lagi khawatir kehilangan tab penting saat browser ditutup!
-                            </p>
-                            <p>
-                                Setiap kali kamu mengklik ikon Tabkeep di toolbar Chrome, semua tab yang terbuka akan otomatis disimpan sebagai satu <strong className="text-gray-900 dark:text-white">Sesi (Session)</strong>.
-                            </p>
+                <div className="custom-scrollbar overflow-y-auto p-5 sm:p-6">
+                    <div className="mx-auto max-w-3xl">
+                        <div className="mb-3 rounded-xl bg-blue-50 px-4 py-3 text-sm leading-6 text-blue-900 dark:bg-blue-500/10 dark:text-blue-200">
+                            Start with the screen layout, then read only the view or feature you need. Every section explains what you see, what it means, and what you can do.
                         </div>
+                    <div className="flex flex-col">
+                        {guideSections.map((section, index) => (
+                            <section key={section.title} className="border-b border-gray-200 px-2 py-7 first:pt-5 last:border-0 dark:border-[#333]">
+                                <h3 className="flex items-center gap-3 text-base font-bold text-gray-900 dark:text-white">
+                                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400">
+                                        {React.createElement(guideIcons[index], { size: 16 })}
+                                    </span>
+                                    {section.title}
+                                </h3>
+                                <div className="ml-11 mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
+                                    <p>{section.description}</p>
+                                </div>
+                                <ul className="ml-16 mt-3 list-disc space-y-2 text-sm leading-6 text-gray-600 marker:text-blue-400 dark:text-gray-300">
+                                    {section.items.map((item) => <li key={item}>{item}</li>)}
+                                </ul>
+                            </section>
+                        ))}
                     </div>
 
-                    {/* Menyimpan Tab */}
-                    <div className="p-2">
-                        <h3 className="font-bold mb-3 text-sm text-gray-800 dark:text-white/90 flex items-center gap-2">
-                            <MousePointer2 size={16} className="text-green-500" /> Menyimpan Tab
-                        </h3>
-                        <div className="text-sm text-gray-600 dark:text-white/70 leading-relaxed space-y-2 ml-6">
-                            <p>
-                                <strong className="text-gray-900 dark:text-white">Klik ikon Tabkeep</strong> di toolbar Chrome (pojok kanan atas). Semua tab yang sedang terbuka akan langsung tersimpan menjadi satu sesi baru.
-                            </p>
-                            <p>
-                                Tab-tab yang sudah disimpan bisa dilihat di <strong className="text-gray-900 dark:text-white">Dashboard Tabkeep</strong> (halaman utama ekstensi).
-                            </p>
-                            <p>
-                                Kamu juga bisa memilih tab tertentu saja untuk disimpan melalui <strong className="text-gray-900 dark:text-white">Tab Picker</strong> — cukup centang tab yang ingin disimpan, lalu klik tombol "Save".
-                            </p>
-                        </div>
+                    <div className="mt-3 rounded-xl bg-gray-100 p-4 text-sm text-gray-700 dark:bg-white/5 dark:text-gray-300">
+                        Tip: press <kbd className="rounded bg-black/10 px-1.5 py-0.5 font-mono text-xs dark:bg-white/10">Ctrl</kbd> or <kbd className="rounded bg-black/10 px-1.5 py-0.5 font-mono text-xs dark:bg-white/10">Cmd</kbd> while opening a link to keep it in the background. Press <kbd className="rounded bg-black/10 px-1.5 py-0.5 font-mono text-xs dark:bg-white/10">Esc</kbd> to close this guide.
                     </div>
-
-                    {/* Membuka / Restore Tab */}
-                    <div className="p-2">
-                        <h3 className="font-bold mb-3 text-sm text-gray-800 dark:text-white/90 flex items-center gap-2">
-                            <RotateCcw size={16} className="text-purple-500" /> Membuka Kembali (Restore) Tab
-                        </h3>
-                        <div className="text-sm text-gray-600 dark:text-white/70 leading-relaxed space-y-2 ml-6">
-                            <p>
-                                <strong className="text-gray-900 dark:text-white">Klik judul link</strong> pada sesi mana saja untuk membuka tab tersebut di browser.
-                            </p>
-                            <p>
-                                Untuk membuka <strong className="text-gray-900 dark:text-white">semua tab sekaligus</strong> dalam satu sesi, klik tombol menu (<strong>⋯</strong>) di pojok kanan header sesi, lalu pilih "Open All Tabs".
-                            </p>
-                            <p>
-                                <strong className="text-gray-900 dark:text-white">Tips:</strong> Tahan tombol <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-[#333] rounded text-xs font-mono">Ctrl</kbd> atau <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-[#333] rounded text-xs font-mono">Cmd</kbd> saat mengklik link untuk membukanya di background tanpa berpindah tab.
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Mengatur Sesi */}
-                    <div className="p-2">
-                        <h3 className="font-bold mb-3 text-sm text-gray-800 dark:text-white/90 flex items-center gap-2">
-                            <Layers size={16} className="text-orange-500" /> Mengatur Sesi
-                        </h3>
-                        <div className="text-sm text-gray-600 dark:text-white/70 leading-relaxed space-y-2 ml-6">
-                            <p>
-                                <strong className="text-gray-900 dark:text-white">Rename:</strong> Klik dua kali (double-click) pada nama sesi di sidebar atau klik tombol menu (<strong>⋯</strong>) lalu pilih "Rename" untuk mengubah nama sesi.
-                            </p>
-                            <p>
-                                <strong className="text-gray-900 dark:text-white">Star / Favorit:</strong> Tandai sesi yang penting dengan bintang agar mudah ditemukan. Sesi berbintang akan ditampilkan dengan warna kuning.
-                            </p>
-                            <p>
-                                <strong className="text-gray-900 dark:text-white">Merge:</strong> Gabungkan beberapa sesi menjadi satu lewat tombol menu (<strong>⋯</strong>) lalu pilih "Merge".
-                            </p>
-                            <p>
-                                <strong className="text-gray-900 dark:text-white">Sort:</strong> Urutkan tab di dalam sesi berdasarkan nama, URL, atau tanggal melalui menu sort.
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Folder */}
-                    <div className="p-2">
-                        <h3 className="font-bold mb-3 text-sm text-gray-800 dark:text-white/90 flex items-center gap-2">
-                            <FolderPlus size={16} className="text-blue-500" /> Folder
-                        </h3>
-                        <div className="text-sm text-gray-600 dark:text-white/70 leading-relaxed space-y-2 ml-6">
-                            <p>
-                                Buat folder baru dengan mengklik tombol <strong className="text-gray-900 dark:text-white">ikon folder (+)</strong> di sidebar kiri bawah, lalu ketik nama folder dan tekan Enter.
-                            </p>
-                            <p>
-                                <strong className="text-gray-900 dark:text-white">Pindahkan sesi ke folder</strong> dengan cara drag and drop (seret dan lepas) sesi dari sidebar ke folder yang diinginkan, atau gunakan menu (<strong>⋯</strong>) → "Move to Folder".
-                            </p>
-                            <p>
-                                Klik nama folder di sidebar untuk melihat hanya sesi-sesi yang ada di folder tersebut. Klik "All Sessions" untuk melihat semua sesi.
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Drag & Drop */}
-                    <div className="p-2">
-                        <h3 className="font-bold mb-3 text-sm text-gray-800 dark:text-white/90 flex items-center gap-2">
-                            <GripVertical size={16} className="text-indigo-500" /> Drag & Drop
-                        </h3>
-                        <div className="text-sm text-gray-600 dark:text-white/70 leading-relaxed space-y-2 ml-6">
-                            <p>
-                                <strong className="text-gray-900 dark:text-white">Pindah tab antar sesi:</strong> Seret link dari satu sesi dan lepaskan ke sesi lain untuk memindahkannya.
-                            </p>
-                            <p>
-                                <strong className="text-gray-900 dark:text-white">Urutkan ulang sesi:</strong> Seret sesi ke atas atau ke bawah untuk mengubah urutannya.
-                            </p>
-                            <p>
-                                <strong className="text-gray-900 dark:text-white">Urutkan ulang tab:</strong> Seret tab ke posisi yang berbeda dalam satu sesi untuk mengatur urutannya.
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Multi-Select */}
-                    <div className="p-2">
-                        <h3 className="font-bold mb-3 text-sm text-gray-800 dark:text-white/90 flex items-center gap-2">
-                            <CheckSquare size={16} className="text-teal-500" /> Multi-Select
-                        </h3>
-                        <div className="text-sm text-gray-600 dark:text-white/70 leading-relaxed space-y-2 ml-6">
-                            <p>
-                                <strong className="text-gray-900 dark:text-white">Centang checkbox</strong> di samping tab untuk memilih beberapa tab sekaligus.
-                            </p>
-                            <p>
-                                Tahan <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-[#333] rounded text-xs font-mono">Shift</kbd> lalu klik tab lain untuk memilih semua tab di antara kedua tab tersebut (range selection).
-                            </p>
-                            <p>
-                                Setelah memilih beberapa tab, kamu bisa <strong className="text-gray-900 dark:text-white">menyeretnya bersamaan</strong> ke sesi lain, atau gunakan floating action bar di bagian bawah layar untuk melakukan aksi massal (hapus, pindah, buka).
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Pinned Links */}
-                    <div className="p-2">
-                        <h3 className="font-bold mb-3 text-sm text-gray-800 dark:text-white/90 flex items-center gap-2">
-                            <Pin size={16} className="text-rose-500" /> Pinned Links
-                        </h3>
-                        <div className="text-sm text-gray-600 dark:text-white/70 leading-relaxed space-y-2 ml-6">
-                            <p>
-                                Klik ikon <strong className="text-gray-900 dark:text-white">pin (📌)</strong> di samping tab untuk menyematkannya ke sidebar kanan sebagai "Pinned Link".
-                            </p>
-                            <p>
-                                Pinned Links akan <strong className="text-gray-900 dark:text-white">selalu terlihat</strong> dan tidak terpengaruh oleh filter folder. Gunakan fitur ini untuk menyimpan link yang sering diakses.
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Sidebar Navigasi */}
-                    <div className="p-2">
-                        <h3 className="font-bold mb-3 text-sm text-gray-800 dark:text-white/90 flex items-center gap-2">
-                            <Search size={16} className="text-cyan-500" /> Search & Navigasi Sidebar
-                        </h3>
-                        <div className="text-sm text-gray-600 dark:text-white/70 leading-relaxed space-y-2 ml-6">
-                            <p>
-                                Gunakan <strong className="text-gray-900 dark:text-white">search bar</strong> di header untuk mencari tab berdasarkan judul atau URL.
-                            </p>
-                            <p>
-                                <strong className="text-gray-900 dark:text-white">Klik nama sesi di sidebar kiri</strong> untuk langsung men-scroll ke sesi tersebut di bagian tengah halaman. Sangat berguna ketika kamu punya banyak sesi!
-                            </p>
-                            <p>
-                                Indikator hijau yang berkedip (<span className="inline-block w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>) pada badge sesi menandakan bahwa ada tab aktif yang sedang terbuka di browser milik sesi tersebut.
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Tampilan */}
-                    <div className="p-2">
-                        <h3 className="font-bold mb-3 text-sm text-gray-800 dark:text-white/90 flex items-center gap-2">
-                            <Monitor size={16} className="text-yellow-500" /> Tampilan (View Mode)
-                        </h3>
-                        <div className="text-sm text-gray-600 dark:text-white/70 leading-relaxed space-y-2 ml-6">
-                            <p>
-                                <strong className="text-gray-900 dark:text-white">List View:</strong> Tampilkan tab sebagai daftar dengan judul dan URL lengkap (default).
-                            </p>
-                            <p>
-                                <strong className="text-gray-900 dark:text-white">Grid View:</strong> Tampilkan tab sebagai grid favicon kecil — cocok untuk sesi dengan banyak tab.
-                            </p>
-                            <p>
-                                <strong className="text-gray-900 dark:text-white">Graph View:</strong> Visualisasi semua sesi dan tab sebagai grafik interaktif — berguna untuk melihat hubungan antar sesi.
-                            </p>
-                            <p>
-                                Tombol untuk mengganti tampilan ada di header area tengah, di sebelah kanan judul folder/sesi.
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Trash */}
-                    <div className="p-2">
-                        <h3 className="font-bold mb-3 text-sm text-gray-800 dark:text-white/90 flex items-center gap-2">
-                            <Trash2 size={16} className="text-red-500" /> Trash / Sampah
-                        </h3>
-                        <div className="text-sm text-gray-600 dark:text-white/70 leading-relaxed space-y-2 ml-6">
-                            <p>
-                                Sesi yang dihapus tidak langsung hilang! Mereka akan dipindahkan ke <strong className="text-gray-900 dark:text-white">Trash</strong> yang bisa diakses melalui sidebar kiri.
-                            </p>
-                            <p>
-                                Di trash, kamu bisa <strong className="text-gray-900 dark:text-white">restore (pulihkan)</strong> sesi yang tidak sengaja terhapus, atau menghapusnya secara permanen.
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Backup & Sync */}
-                    <div className="p-2">
-                        <h3 className="font-bold mb-3 text-sm text-gray-800 dark:text-white/90 flex items-center gap-2">
-                            <Settings size={16} className="text-gray-500" /> Backup & Sync
-                        </h3>
-                        <div className="text-sm text-gray-600 dark:text-white/70 leading-relaxed space-y-2 ml-6">
-                            <p>
-                                Buka <strong className="text-gray-900 dark:text-white">Settings</strong> (ikon gear di header) untuk mengakses fitur backup:
-                            </p>
-                            <p>
-                                <strong className="text-gray-900 dark:text-white">Export (TXT):</strong> Unduh semua URL tab sebagai file teks biasa.
-                            </p>
-                            <p>
-                                <strong className="text-gray-900 dark:text-white">Import:</strong> Tempel (paste) daftar URL ke dalam kotak import, atau unggah file backup JSON untuk memulihkan data.
-                            </p>
-                            <p>
-                                <strong className="text-gray-900 dark:text-white">Google Drive Sync:</strong> Cadangkan seluruh data Tabkeep (sesi, folder, pinned links, dan pengaturan) ke Google Drive. Kamu juga bisa memulihkan data dari backup Google Drive sebelumnya.
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Keyboard Shortcuts */}
-                    <div className="p-2">
-                        <h3 className="font-bold mb-3 text-sm text-gray-800 dark:text-white/90 flex items-center gap-2">
-                            ⌨️ Keyboard Tips
-                        </h3>
-                        <div className="text-sm text-gray-600 dark:text-white/70 leading-relaxed ml-6">
-                            <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
-                                <kbd className="px-2 py-0.5 bg-gray-200 dark:bg-[#333] rounded text-xs font-mono text-center">Ctrl + Klik</kbd>
-                                <span>Buka link di background (tanpa berpindah tab)</span>
-
-                                <kbd className="px-2 py-0.5 bg-gray-200 dark:bg-[#333] rounded text-xs font-mono text-center">Shift + Klik</kbd>
-                                <span>Range select — pilih semua tab di antara dua klik</span>
-
-                                <kbd className="px-2 py-0.5 bg-gray-200 dark:bg-[#333] rounded text-xs font-mono text-center">Double Click</kbd>
-                                <span>Rename sesi (di sidebar)</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Footer note */}
-                    <div className="p-2 pt-4 border-t border-gray-200 dark:border-[#333]">
-                        <p className="text-xs text-gray-400 dark:text-gray-600 text-center">
-                            Tabkeep — Simpan tab, atur hidup. 🚀
-                        </p>
                     </div>
                 </div>
             </div>
