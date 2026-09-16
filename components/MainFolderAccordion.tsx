@@ -391,7 +391,7 @@ export function MainFolderAccordion({ folder, sessions, allFolders, onDeleteSess
                 <>
                     <div className={`border-t border-gray-100 p-4 dark:border-[#222] ${viewMode === "grid" ? "bg-gray-50/50 dark:bg-[#131313]" : "bg-gray-50/50 dark:bg-transparent rounded-lg"}`}>
                         {sessions.length === 0 ? (
-                            <p className="text-[10px] text-gray-400 dark:text-gray-600 italic">Folder kosong</p>
+                            <p className="text-[10px] text-gray-400 dark:text-gray-600 italic">Folder is empty</p>
                         ) : (
                             <SessionGridRows sessions={sessions} columns={gridColumns} grid={viewMode === "grid"}>
                                 {(s, rowExpanded) => (
@@ -432,7 +432,7 @@ export function MainFolderAccordion({ folder, sessions, allFolders, onDeleteSess
                 </>
             )}
 
-            {/* Folder reorder drop indicator Ã¢â‚¬â€œ after */}
+            {/* Folder reorder drop indicator - after */}
             {folderDropPos === "after" && (
                 <div className="absolute -bottom-3 left-0 right-0 h-1 bg-blue-500 rounded-full pointer-events-none z-10" />
             )}

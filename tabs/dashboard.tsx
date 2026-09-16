@@ -23,6 +23,7 @@ import { GraphView } from "~components/GraphView"
 import { TabkeepLogo } from "~components/TabkeepLogo"
 import { BoxFolderIcon } from "~components/BoxFolderIcon"
 import { resetDropTarget, setCompactDragImage } from "~lib/dragDrop"
+import { deleteThumbnails } from "~lib/db"
 import type { Folder as FolderType, SavedTab, PinnedLink, Session, SelectedTab } from "~types"
 
 function useEvent<T extends (...args: any[]) => any>(handler: T): T {
@@ -937,15 +938,40 @@ export default function TabkeepDashboard() {
     };
 
     const handlePermanentDeleteSession = async (id: string) => {
+        const sessionToDelete = deletedSessions.find(s => s.id === id);
         const updated = deletedSessions.filter(s => s.id !== id);
         setDeletedSessions(updated);
         await updateDeletedSessions(updated);
+
+        // ponytail: Clean up orphaned thumbnails from IndexedDB
+        if (sessionToDelete) {
+            const remainingUrls = new Set([
+                ...sessions.flatMap(s => s.tabs.map(t => t.url)),
+                ...updated.flatMap(s => s.tabs.map(t => t.url))
+            ]);
+            const urlsToDelete = sessionToDelete.tabs
+                .map(t => t.url)
+                .filter(url => url && !remainingUrls.has(url));
+            if (urlsToDelete.length > 0) {
+                deleteThumbnails(urlsToDelete).catch(err => console.error("Failed to delete thumbnails", err));
+            }
+        }
     };
 
     const handleEmptyTrash = async () => {
-        if (!confirm("Kosongkan histori hapus secara permanen?")) return;
+        if (!confirm("Permanently empty trash?")) return;
+        const sessionsToPurge = [...deletedSessions];
         setDeletedSessions([]);
         await updateDeletedSessions([]);
+
+        // ponytail: Clean up orphaned thumbnails from all purged sessions
+        const activeUrls = new Set(sessions.flatMap(s => s.tabs.map(t => t.url)));
+        const urlsToDelete = sessionsToPurge
+            .flatMap(s => s.tabs.map(t => t.url))
+            .filter(url => url && !activeUrls.has(url));
+        if (urlsToDelete.length > 0) {
+            deleteThumbnails(urlsToDelete).catch(err => console.error("Failed to delete thumbnails", err));
+        }
     };
 
     const handleCopyAllSessions = () => {
@@ -974,11 +1000,11 @@ export default function TabkeepDashboard() {
                 setSessions(updated);
                 await updateSessions(updated);
             } else {
-                alert("Tidak ada link valid yang ditemukan di clipboard.");
+                alert("No valid links found in clipboard.");
             }
         } catch (err) {
             console.error("Failed to read clipboard", err);
-            alert("Gagal membaca clipboard. Pastikan izin akses clipboard aktif.");
+            alert("Failed to read clipboard. Make sure clipboard access permission is granted.");
         }
         setIsHeaderMenuOpen(false);
     };
@@ -999,9 +1025,9 @@ export default function TabkeepDashboard() {
         if (removedCount > 0) {
             setSessions(updatedSessions);
             await updateSessions(updatedSessions);
-            alert(`${removedCount} duplikat berhasil dihapus!`);
+            alert(`${removedCount} duplicate(s) successfully removed!`);
         } else {
-            alert("Tidak ada tab duplikat yang ditemukan.");
+            alert("No duplicate tabs found.");
         }
         setIsHeaderMenuOpen(false);
     };
@@ -1094,7 +1120,7 @@ export default function TabkeepDashboard() {
     const mainTitle = activeFolderId === "all"
         ? "All Sessions"
         : activeFolderId === "trash"
-            ? "Histori Hapus"
+            ? "Trash"
             : activeFolder?.name ?? "Sessions";
 
     return (
@@ -1168,7 +1194,7 @@ export default function TabkeepDashboard() {
                         title="Settings"
                     >
                         <span className="opacity-0 max-w-0 transition-all duration-200 ease-in-out group-hover:opacity-100 group-hover:max-w-[55px] group-hover:mr-2.5 whitespace-nowrap text-xs font-bold leading-none">
-                            Setting
+                            Settings
                         </span>
                         <Settings size={16} className="shrink-0" />
                     </button>
@@ -1211,7 +1237,7 @@ export default function TabkeepDashboard() {
                             }}
                         />
 
-                        {/* Input folder baru */}
+                        {/* New folder input */}
                         {isCreatingFolder && (
                             <div className="flex items-center gap-2 py-1.5 px-2 rounded-lg bg-gray-50 dark:bg-[#252525] border border-blue-500/30 mt-2">
                                 <FolderPlus size={14} className="text-blue-400 flex-shrink-0" />
@@ -1225,7 +1251,7 @@ export default function TabkeepDashboard() {
                                         if (e.key === "Escape") { setIsCreatingFolder(false); setNewFolderName(""); }
                                     }}
                                     onBlur={handleCreateFolder}
-                                    placeholder="Nama folder..."
+                                    placeholder="Folder name..."
                                     className="flex-1 bg-transparent text-sm text-gray-950 dark:text-white outline-none placeholder:text-gray-400 dark:placeholder:text-gray-600 min-w-0"
                                 />
                             </div>
@@ -1237,7 +1263,7 @@ export default function TabkeepDashboard() {
                                 className="w-full flex items-center gap-2 py-1 px-1 rounded-lg text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-400 hover:bg-gray-100/80 dark:hover:bg-white/5 transition-all text-[13px] mt-2"
                             >
                                 <FolderPlus size={14} />
-                                <span>Folder Baru</span>
+                                <span>New Folder</span>
                             </button>
                         )}
                     </div>
@@ -1251,7 +1277,7 @@ export default function TabkeepDashboard() {
                     >
                         <div className="flex items-center gap-3">
                             <Trash2 size={16} className={activeFolderId === "trash" ? "text-red-600 dark:text-red-400" : "group-hover:text-red-500 dark:group-hover:text-red-400"} />
-                            <span className="text-[15px]">Histori Hapus</span>
+                            <span className="text-[15px]">Trash</span>
                         </div>
                         <span className="text-[11px] font-mono">{deletedSessions.length}</span>
                     </div>
@@ -1498,7 +1524,7 @@ export default function TabkeepDashboard() {
                                         <div className="w-16 h-16 bg-gray-100 dark:bg-[#222] rounded-full flex items-center justify-center mb-4">
                                             <Trash2 size={24} className="text-gray-400 dark:text-gray-700" />
                                         </div>
-                                        <p className="text-gray-500 dark:text-gray-600 italic text-sm font-medium">Histori hapus kosong</p>
+                                        <p className="text-gray-500 dark:text-gray-600 italic text-sm font-medium">Trash is empty</p>
                                     </div>
                                 )
                             ) : searchQuery.trim() && filteredSessions.length === 0 ? (
@@ -1506,7 +1532,7 @@ export default function TabkeepDashboard() {
                                     <div className="w-16 h-16 bg-gray-100 dark:bg-[#222] rounded-full flex items-center justify-center mb-4">
                                         <Search size={24} className="text-gray-400 dark:text-gray-700" />
                                     </div>
-                                    <p className="text-gray-500 dark:text-gray-600 italic text-sm font-medium">Tidak ada tab yang cocok dengan "{searchQuery}"</p>
+                                    <p className="text-gray-500 dark:text-gray-600 italic text-sm font-medium">No tabs match "{searchQuery}"</p>
                                     <p className="text-[10px] text-gray-400 dark:text-gray-700 uppercase mt-2 tracking-widest font-black">No Search Results</p>
                                 </div>
                             ) : (filteredSessions.length > 0 || (activeFolderId === "all" && folders.length > 0)) ? (
@@ -1660,13 +1686,13 @@ export default function TabkeepDashboard() {
                                     </div>
                                     {activeFolderId === "all" ? (
                                         <>
-                                            <p className="text-gray-500 dark:text-gray-600 italic text-sm font-medium">Klik ikon Tabkeep lalu "Kemas Semua Tab"</p>
+                                            <p className="text-gray-500 dark:text-gray-600 italic text-sm font-medium">Click Tabkeep icon then "Save to Tabkeep"</p>
                                             <p className="text-[10px] text-gray-400 dark:text-gray-700 uppercase mt-2 tracking-widest font-black">No Active Sessions</p>
                                         </>
                                     ) : (
                                         <>
-                                            <p className="text-gray-500 dark:text-gray-600 italic text-sm font-medium">Folder ini masih kosong</p>
-                                            <p className="text-[10px] text-gray-400 dark:text-gray-700 uppercase mt-2 tracking-widest font-black">Pindahkan session ke sini</p>
+                                            <p className="text-gray-500 dark:text-gray-600 italic text-sm font-medium">This folder is empty</p>
+                                            <p className="text-[10px] text-gray-400 dark:text-gray-700 uppercase mt-2 tracking-widest font-black">Move sessions here</p>
                                         </>
                                     )}
                                 </div>

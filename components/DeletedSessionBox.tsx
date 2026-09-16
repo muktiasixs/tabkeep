@@ -44,7 +44,7 @@ export function DeletedSessionBox({ session, onRestore, onPermanentDelete, theme
                 <div className="text-right flex items-center gap-3">
                     <button
                         onClick={handleRestore}
-                        title={session.folderId ? "Pulihkan session ke folder asalnya" : "Pulihkan session ke Uncategorized"}
+                        title={session.folderId ? "Restore session to original folder" : "Restore session to Uncategorized"}
                         className="flex items-center gap-1 text-[11px] text-blue-600 dark:text-blue-500 font-bold hover:text-blue-500 dark:hover:text-blue-400 transition-colors px-2 py-1 rounded-lg bg-blue-50 dark:bg-blue-500/10"
                     >
                         <RotateCcw size={12} />
@@ -52,7 +52,7 @@ export function DeletedSessionBox({ session, onRestore, onPermanentDelete, theme
                     </button>
                     <button
                         onClick={handlePermanentDelete}
-                        title="Hapus permanen"
+                        title="Delete permanently"
                         className="flex items-center gap-1 text-[11px] text-red-600 dark:text-red-500 font-bold hover:text-red-500 dark:hover:text-red-400 transition-colors px-2 py-1 rounded-lg bg-red-50 dark:bg-red-500/10"
                     >
                         <Trash2 size={12} />

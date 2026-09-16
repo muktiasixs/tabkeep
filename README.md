@@ -156,7 +156,6 @@ tabkeep/
 │   ├── RightSidebar.tsx     # Sidebar kanan (preview tab)
 │   ├── MainFolderAccordion.tsx
 │   ├── GraphView.tsx        # Visualisasi graph
-│   ├── PinnedLinks.tsx
 │   ├── SettingsModal.tsx    # Pengaturan & backup
 │   ├── HelpModal.tsx
 │   ├── TabPickerView.tsx    # Pemilihan tab di popup

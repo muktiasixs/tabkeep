@@ -15,7 +15,7 @@ const guideSections = [
     {
         title: "2. Left sidebar",
         description: "Use the left side to move through a large workspace quickly.",
-        items: ["All Sessions shows everything, including sessions outside folders.", "Click a chevron to reveal a session, folder, or pinned item without leaving the current page.", "Click a session name to jump directly to its card in the main area.", "Create a folder with Folder Baru. Deleted sessions can be restored from Trash."],
+        items: ["All Sessions shows everything, including sessions outside folders.", "Click a chevron to reveal a session, folder, or pinned item without leaving the current page.", "Click a session name to jump directly to its card in the main area.", "Create a folder with New Folder. Deleted sessions can be restored from Trash."],
     },
     {
         title: "3. Search, bookmarks, and header menu",

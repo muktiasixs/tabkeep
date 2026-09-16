@@ -60,17 +60,23 @@ export async function getThumbnail(url: string): Promise<Blob | null> {
     });
 }
 
-export async function deleteThumbnail(url: string): Promise<void> {
+// ponytail: Batch delete thumbnails to avoid multiple single-item IDB transactions
+export async function deleteThumbnails(urls: string[]): Promise<void> {
+    if (!urls || urls.length === 0) return;
     const db = await getDB();
     return new Promise((resolve, reject) => {
         const tx = db.transaction(STORE_NAME, "readwrite");
         const store = tx.objectStore(STORE_NAME);
-        
-        const request = store.delete(url);
-        
-        request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
+        for (const url of urls) {
+            if (url) store.delete(url);
+        }
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
     });
+}
+
+export async function deleteThumbnail(url: string): Promise<void> {
+    return deleteThumbnails([url]);
 }
 
 export async function getAllThumbnails(): Promise<Record<string, string>> {
@@ -116,40 +122,27 @@ export async function importThumbnails(thumbnails: Record<string, string>): Prom
         return await res.blob();
     };
 
+    // Pre-convert to blobs outside transaction to avoid InvalidStateError (transaction autocommit)
+    const items: { url: string; blob: Blob }[] = [];
+    for (const [url, base64] of Object.entries(thumbnails)) {
+        if (base64 && base64.startsWith("data:image")) {
+            try {
+                const blob = await base64ToBlob(base64);
+                items.push({ url, blob });
+            } catch (e) {
+                console.error("Failed to restore thumbnail for", url, e);
+            }
+        }
+    }
+
+    if (items.length === 0) return;
+
     return new Promise((resolve, reject) => {
         const tx = db.transaction(STORE_NAME, "readwrite");
         const store = tx.objectStore(STORE_NAME);
-        
-        const keys = Object.keys(thumbnails);
-        if (keys.length === 0) {
-            resolve();
-            return;
+        for (const item of items) {
+            store.put({ url: item.url, blob: item.blob, timestamp: Date.now() });
         }
-
-        let completed = 0;
-        let hasError = false;
-
-        keys.forEach(async (url) => {
-            try {
-                const base64 = thumbnails[url];
-                if (base64.startsWith("data:image")) {
-                    const blob = await base64ToBlob(base64);
-                    store.put({ url, blob, timestamp: Date.now() });
-                }
-            } catch (e) {
-                console.error("Failed to restore thumbnail for", url, e);
-                hasError = true;
-            } finally {
-                completed++;
-                if (completed === keys.length) {
-                    if (hasError) {
-                        console.warn("Some thumbnails failed to import.");
-                    }
-                    resolve();
-                }
-            }
-        });
-
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(tx.error);
     });

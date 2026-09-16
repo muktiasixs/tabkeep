@@ -396,7 +396,7 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
 
     return (
         <div id={`session-${session.id}`} className="session-render-boundary relative">
-            {/* Session reorder drop indicator ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ before */}
+            {/* Session reorder drop indicator - before */}
             {sessionDropPos === "before" && (
                 <div className={`absolute bg-blue-500 rounded-full pointer-events-none z-10 ${viewMode === "grid" ? "-left-2 top-1 bottom-1 w-1" : "top-[-2px] left-1 right-1 h-1"}`} />
             )}
@@ -903,7 +903,7 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                                             </span>
                                             <button
                                                 onClick={(e) => handlePinTabClick(e, tab)}
-                                                title={isPinned ? "Unpin dari sidebar" : "Pin ke sidebar"}
+                                                title={isPinned ? "Unpin from sidebar" : "Pin to sidebar"}
                                                 className={`transition-all p-1 rounded-lg flex-shrink-0 ${isPinned
                                                     ? "text-amber-500 dark:text-amber-400 opacity-100"
                                                     : "opacity-0 group-hover:opacity-100 text-gray-400 hover:text-amber-500 dark:hover:text-amber-400"
@@ -914,7 +914,7 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                                             {onDeleteTab && (
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); onDeleteTab(session.id, idx); }}
-                                                    title="Hapus tab"
+                                                    title="Delete tab"
                                                     className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-500 dark:hover:text-red-400 flex-shrink-0"
                                                 >
                                                     <X size={11} />
@@ -936,7 +936,7 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
                     </>
                 )}
             </div>
-            {/* Session reorder drop indicator ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ after */}
+            {/* Session reorder drop indicator - after */}
             {sessionDropPos === "after" && (
                 <div className={`absolute bg-blue-500 rounded-full pointer-events-none z-10 ${viewMode === "grid" ? "-right-2 top-1 bottom-1 w-1" : "bottom-[-4px] left-1 right-1 h-1"}`} />
             )}

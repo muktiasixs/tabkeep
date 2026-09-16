@@ -121,14 +121,13 @@ export function TabPickerView() {
                 for (const url of foundUrls) {
                     await chrome.tabs.create({ url, active: false });
                 }
-                // Tutup popup secara otomatis setelah membuka tab
                 window.close();
             } else {
-                alert("Tidak ada link URL valid yang ditemukan di clipboard.");
+                alert("No valid URL links found in clipboard.");
             }
         } catch (err) {
-            console.error("Gagal membaca clipboard atau membuka tab: ", err);
-            alert("Gagal membaca clipboard. Pastikan izin akses clipboard aktif.");
+            console.error("Failed to read clipboard or open tab: ", err);
+            alert("Failed to read clipboard. Make sure clipboard access permission is granted.");
         }
     };
 
@@ -168,7 +167,7 @@ export function TabPickerView() {
             <div className="overflow-y-auto flex-1 max-h-[320px] custom-scrollbar py-0.5">
                 {tabs.length === 0 ? (
                     <div className="py-8 text-center text-xs text-gray-500 italic">
-                        Tidak ada tab aktif di window ini
+                        No active tabs in this window
                     </div>
                 ) : (
                     tabs.map((tab, idx) => {
@@ -218,8 +217,8 @@ export function TabPickerView() {
                         onClick={handleCopy}
                         disabled={noneSelected}
                         className={`text-xs font-bold px-3 py-2 rounded-lg transition-all shadow-sm ${noneSelected
-                            ? "bg-[#222] text-gray-600 cursor-not-allowed"
-                            : "bg-white/10 hover:bg-white/20 text-white active:scale-95"
+                            ? "bg-gray-200/60 dark:bg-[#222] text-gray-400 dark:text-gray-600 cursor-not-allowed"
+                            : "bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-white/10 dark:hover:bg-white/20 dark:text-white active:scale-95"
                             }`}
                     >
                         {copied ? "Copied!" : "Copy link"}

@@ -78,7 +78,35 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
         } catch (err) {
-            alert("Gagal mengunduh file TXT.");
+            alert("Failed to download TXT file.");
+        }
+    };
+
+    const handleDownloadJson = async () => {
+        try {
+            const currentFolders = await getFolders();
+            const currentPinned = await getPinnedLinks();
+
+            const backupData = {
+                version: "1.0",
+                exportedAt: new Date().toISOString(),
+                sessions,
+                folders: currentFolders,
+                pinnedLinks: currentPinned,
+                settings
+            };
+
+            const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: "application/json;charset=utf-8" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = `tabkeep-backup-${new Date().toISOString().slice(0, 10)}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            alert("Failed to download JSON file.");
         }
     };
 
@@ -110,8 +138,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         } catch (err: any) {
             console.error(err);
             setGdriveSyncState("error");
-            setGdriveErrorMsg(err.message || "Gagal sinkronisasi ke Google Drive.");
-            alert(err.message || "Gagal sinkronisasi ke Google Drive.");
+            setGdriveErrorMsg(err.message || "Failed to sync to Google Drive.");
+            alert(err.message || "Failed to sync to Google Drive.");
         }
     };
 
@@ -126,8 +154,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         } catch (err: any) {
             console.error(err);
             setGdriveImportState("error");
-            setGdriveErrorMsg(err.message || "Gagal mengunduh backup dari Google Drive.");
-            alert(err.message || "Gagal mengunduh backup dari Google Drive.");
+            setGdriveErrorMsg(err.message || "Failed to download backup from Google Drive.");
+            alert(err.message || "Failed to download backup from Google Drive.");
         }
     };
 
@@ -180,7 +208,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     await importThumbnails(data.thumbnails);
                 }
 
-                alert("Database berhasil di-import secara lengkap (throwback riil)!");
+                alert("Backup data successfully imported!");
                 setImportData("");
                 onClose();
                 return;
@@ -207,10 +235,10 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             setSessions(updatedSessions);
             await updateSessions(updatedSessions);
             setImportData("");
-            alert(`Berhasil mengimpor ${newSessions.length} sesi!`);
+            alert(`Successfully imported ${newSessions.length} session(s)!`);
             onClose();
         } else {
-            alert("Format data tidak dikenal atau kosong.");
+            alert("Unrecognized data format or empty.");
         }
     };
 
@@ -221,7 +249,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             <div role="dialog" aria-modal="true" aria-labelledby="settings-title" onClick={e => e.stopPropagation()} className={`flex max-h-[calc(100vh-2rem)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl transition-all duration-200 dark:border-[#333] dark:bg-[#1e1e1e] ${isVisible ? 'scale-100 opacity-100 translate-y-0' : 'scale-95 opacity-0 translate-y-4'}`}>
                 <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4 dark:border-[#333] sm:px-6">
                     <h2 id="settings-title" className="text-xl font-black text-gray-900 dark:text-white flex items-center gap-2">
-                        Setting
+                        Settings
                     </h2>
                     <button
                         aria-label="Close settings"
@@ -485,6 +513,13 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                             >
                                 <Download size={14} />
                                 Download TXT
+                            </button>
+                            <button
+                                onClick={handleDownloadJson}
+                                className="bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 border border-black/10 dark:border-white/20 text-gray-900 dark:text-white font-bold py-1.5 px-4 rounded-lg transition-colors text-sm flex items-center gap-2"
+                            >
+                                <Download size={14} />
+                                Download JSON
                             </button>
                             <button
                                 onClick={handleSyncToGDrive}
