@@ -15,3 +15,6 @@
 /.vscode/
 /AGENTS.md
 /skills-lock.json
+
+# Folder media yang digenerate (bukan inti project)
+/_BUKAN_INTI_PROJECT_BOLEH_DIHAPUS/
