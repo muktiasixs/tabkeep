@@ -167,15 +167,36 @@ export function GraphView({ folders, sessions, theme, onSelectSession, onSelectT
         context.restore();
     }, [getImage, isDark]);
 
+    const selectedFolder = folderId && folderId !== "all" ? folders.find((folder) => folder.id === folderId) : null;
+    const selectedSession = sessionId ? sessions.find((session) => session.id === sessionId) : null;
+    const goToRoot = () => {
+        setSessionId(null);
+        setFolderId(null);
+    };
+    const goBack = () => {
+        if (sessionId) setSessionId(null);
+        else setFolderId(null);
+    };
+
     return (
         <div ref={containerRef} className="relative h-full w-full overflow-hidden rounded-lg border border-gray-200 bg-[#f5f5f7] dark:border-[#333] dark:bg-[#171717]">
             {(folderId || sessionId) && (
-                <button
-                    onClick={() => sessionId ? setSessionId(null) : setFolderId(null)}
-                    className="absolute left-4 top-4 z-10 rounded-lg border border-gray-200 bg-white/90 px-3 py-2 text-xs font-bold text-gray-700 shadow-sm backdrop-blur hover:bg-white dark:border-[#333] dark:bg-[#252525]/90 dark:text-gray-200"
-                >
-                    ← {sessionId ? (folderId === "all" ? "All Sessions" : folders.find((folder) => folder.id === folderId)?.name) : "Overview"}
-                </button>
+                <nav className="absolute left-4 top-4 z-10 flex max-w-[calc(100%-2rem)] items-center gap-1 rounded-lg border border-gray-200 bg-white/90 px-2 py-1.5 text-xs font-semibold text-gray-700 shadow-sm backdrop-blur dark:border-[#333] dark:bg-[#252525]/90 dark:text-gray-200" aria-label="Graph navigation">
+                    <button onClick={goBack} className="rounded px-1.5 py-1 hover:bg-gray-100 dark:hover:bg-white/10" aria-label="Back one level">←</button>
+                    <button onClick={goToRoot} className="truncate rounded px-1.5 py-1 hover:bg-gray-100 dark:hover:bg-white/10">All Sessions</button>
+                    {selectedFolder && (
+                        <>
+                            <span className="text-gray-400">/</span>
+                            <button onClick={() => setSessionId(null)} className="truncate rounded px-1.5 py-1 hover:bg-gray-100 dark:hover:bg-white/10">{selectedFolder.name}</button>
+                        </>
+                    )}
+                    {selectedSession && (
+                        <>
+                            <span className="text-gray-400">/</span>
+                            <span className="truncate px-1.5 py-1 text-gray-500 dark:text-gray-400">{selectedSession.name || "Unnamed Session"}</span>
+                        </>
+                    )}
+                </nav>
             )}
             <ForceGraph2D
                 ref={graphRef}

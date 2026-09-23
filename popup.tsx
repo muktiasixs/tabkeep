@@ -13,7 +13,7 @@ function IndexPopup() {
     }, []);
 
     return (
-        <div className="w-[480px] bg-[#f5f5f7] dark:bg-[#171717] text-gray-900 dark:text-white min-h-[100vh]">
+        <div className="notranslate w-[480px] bg-[#f5f5f7] dark:bg-[#171717] text-gray-900 dark:text-white min-h-[100vh]">
             <TabPickerView />
         </div>
     );

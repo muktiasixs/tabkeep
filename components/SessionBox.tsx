@@ -395,7 +395,11 @@ export function SessionBox({ session, folders, pinnedLinks, onDelete, onRenameSe
     };
 
     return (
-        <div id={`session-${session.id}`} className="session-render-boundary relative">
+        <div
+            id={`session-${session.id}`}
+            className="session-render-boundary relative"
+            style={isMenuOpen ? { contentVisibility: "visible", zIndex: 50 } : undefined}
+        >
             {/* Session reorder drop indicator - before */}
             {sessionDropPos === "before" && (
                 <div className={`absolute bg-blue-500 rounded-full pointer-events-none z-10 ${viewMode === "grid" ? "-left-2 top-1 bottom-1 w-1" : "top-[-2px] left-1 right-1 h-1"}`} />

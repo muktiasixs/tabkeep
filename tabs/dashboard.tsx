@@ -1124,7 +1124,7 @@ export default function TabkeepDashboard() {
             : activeFolder?.name ?? "Sessions";
 
     return (
-        <div className="bg-[#f5f5f7] dark:bg-[#171717] text-gray-700 dark:text-gray-300 font-sans h-screen flex flex-col overflow-hidden transition-colors duration-200">
+        <div className="notranslate bg-[#f5f5f7] dark:bg-[#171717] text-gray-700 dark:text-gray-300 font-sans h-screen flex flex-col overflow-hidden transition-colors duration-200">
             {/* NAVBAR */}
             <header className="flex items-center justify-between px-3 md:px-6 h-16 bg-white dark:bg-[#1e1e1e] shrink-0 z-20 shadow-md transition-colors duration-200">
                 <div className="flex items-center gap-2">

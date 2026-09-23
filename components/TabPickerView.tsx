@@ -6,6 +6,7 @@
 // - Baris tombol di bagian bawah: "Save to tabkeep" (biru), "Copy link" (biru), dan "Paste clipboard link" (hijau zaitun).
 
 import { useEffect, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { persistSession } from "~lib/storage";
 import { openOrFocusDashboard } from "~lib/navigation";
 import type { SavedTab } from "~types";
@@ -17,14 +18,22 @@ interface TabItem {
     favIconUrl: string;
 }
 
+type SaveBehavior = "close" | "keep";
+const SAVE_BEHAVIOR_KEY = "tabPickerSaveBehavior";
+
 export function TabPickerView() {
     const [tabs, setTabs] = useState<TabItem[]>([]);
     const [selected, setSelected] = useState<Set<number>>(new Set());
     const [saving, setSaving] = useState(false);
     const [copied, setCopied] = useState(false);
+    const [saveBehavior, setSaveBehavior] = useState<SaveBehavior>("close");
+    const [showSaveMenu, setShowSaveMenu] = useState(false);
     const [lastClickedIndex, setLastClickedIndex] = useState<number | null>(null);
 
     useEffect(() => {
+        chrome.storage.local.get(SAVE_BEHAVIOR_KEY).then((data) => {
+            if (data[SAVE_BEHAVIOR_KEY] === "keep") setSaveBehavior("keep");
+        });
         chrome.tabs.query({ currentWindow: true }).then((allTabs) => {
             const filtered = allTabs.filter(
                 (t) => t.url && !t.url.includes("dashboard.html") && !t.pinned
@@ -76,9 +85,12 @@ export function TabPickerView() {
         }
     };
 
-    const handleSave = async () => {
+    const handleSave = async (behavior = saveBehavior) => {
         if (selected.size === 0) return;
         setSaving(true);
+        setShowSaveMenu(false);
+        setSaveBehavior(behavior);
+        await chrome.storage.local.set({ [SAVE_BEHAVIOR_KEY]: behavior });
         const tabIdsToClose = [...selected];
 
         const tabsToSave: SavedTab[] = tabs
@@ -92,7 +104,7 @@ export function TabPickerView() {
             }));
 
         await persistSession(tabsToSave);
-        chrome.tabs.remove(tabIdsToClose);
+        if (behavior === "close") await chrome.tabs.remove(tabIdsToClose);
         await openOrFocusDashboard();
     };
 
@@ -200,17 +212,41 @@ export function TabPickerView() {
 
             {/* BOTTOM BUTTON BAR */}
             <div className="flex items-center justify-between mt-4 pt-3 border-t border-white/5 shrink-0 transition-colors">
-                <div className="flex items-center">
-                    <button
-                        onClick={handleSave}
-                        disabled={noneSelected || saving}
-                        className={`font-bold px-3 py-2 rounded-lg transition-all shadow-md text-xs tracking-wide ${noneSelected || saving
-                            ? "bg-[#222] text-gray-600 cursor-not-allowed"
-                            : "bg-blue-600 hover:bg-blue-700 text-white active:scale-95 shadow-blue-500/30"
-                            }`}
-                    >
-                        {saving ? "Saving..." : "Save to Tabkeep"}
-                    </button>
+                <div className="relative">
+                    <div className={`flex overflow-hidden rounded-lg shadow-md transition-colors ${noneSelected || saving
+                        ? "bg-[#222] text-gray-600"
+                        : "bg-blue-600 text-white shadow-blue-500/30 hover:bg-blue-700"
+                        }`}>
+                        <button
+                            onClick={() => handleSave()}
+                            disabled={noneSelected || saving}
+                            title={saveBehavior === "keep" ? "Save and keep tabs open" : "Save and close tabs"}
+                            className="px-3.5 py-2 text-xs font-bold tracking-wide disabled:cursor-not-allowed active:bg-black/10"
+                        >
+                            {saving ? "Saving..." : "Save to Tabkeep"}
+                        </button>
+                        <button
+                            onClick={() => setShowSaveMenu((open) => !open)}
+                            disabled={noneSelected || saving}
+                            aria-label="Choose save behavior"
+                            aria-expanded={showSaveMenu}
+                            className="flex w-8 items-center justify-center border-l border-white/20 disabled:cursor-not-allowed hover:bg-white/10 active:bg-black/10"
+                        >
+                            <ChevronDown size={14} className={`transition-transform ${showSaveMenu ? "rotate-180" : ""}`} />
+                        </button>
+                    </div>
+                    {showSaveMenu && (
+                        <div className="absolute bottom-full left-0 z-20 mb-2 w-44 overflow-hidden rounded-lg border border-gray-200 bg-white p-1 shadow-xl dark:border-white/10 dark:bg-[#242424]">
+                            <button onClick={() => handleSave("close")} className={`flex w-full items-center justify-between rounded-md px-2.5 py-2 text-xs font-semibold transition-colors ${saveBehavior === "close" ? "bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400" : "text-gray-800 hover:bg-gray-100 dark:text-white dark:hover:bg-white/5"}`}>
+                                Save & close tabs
+                                {saveBehavior === "close" && <span>✓</span>}
+                            </button>
+                            <button onClick={() => handleSave("keep")} className={`flex w-full items-center justify-between rounded-md px-2.5 py-2 text-xs font-semibold transition-colors ${saveBehavior === "keep" ? "bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400" : "text-gray-800 hover:bg-gray-100 dark:text-white dark:hover:bg-white/5"}`}>
+                                Save & keep open
+                                {saveBehavior === "keep" && <span>✓</span>}
+                            </button>
+                        </div>
+                    )}
                 </div>
                 <div className="flex items-center gap-2">
                     <button
